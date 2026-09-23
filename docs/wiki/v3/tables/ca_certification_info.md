@@ -4,17 +4,24 @@ title: CA认证信息
 page_key: ca_certification_info
 belong: tables
 status: draft
-anchors: [ca_certification_info]
-sources: ['database_schema:lowcode_pplatform.ca_certification_info', 'code_path:CaCertificationInfoAppServiceImpl.java:663']
+anchors:
+- ca_certification_info
+sources:
+- database_schema:lowcode_pplatform.ca_certification_info
+- code_path:CaCertificationInfoAppServiceImpl.java:663
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, ca_certification_info__cust_type, ca_certification_info__op_type,
-  ca_certification_info__data_source, ca_certification_info__submit_status, ca_certification_info__enable,
-  ca_certification_info__head_company_data]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- ca_certification_info__cust_type
+- ca_certification_info__op_type
+- ca_certification_info__submit_status
+- ca_certification_info__enable
+- ca_certification_info__head_company_data
 ---
-
 # CA认证信息
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +33,12 @@ table: ca_certification_info
 database: lowcode_pplatform
 desc: CA认证信息
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一证四步采集行；幂等键 cust_id + data_date + head_company_data + PENDING
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -40,21 +50,26 @@ fields:
 - name: cust_type
   type: string
   desc: PERSON / COMPANY
-  dict: [COMPANY]
+  dict:
+  - COMPANY
 - name: data_date
   type: string
   desc: 数据时间
 - name: op_type
   type: string
   desc: INSERT / UPDATE
-  dict: [INSERT]
+  dict:
+  - INSERT
 - name: batch_no
   type: string
   desc: 批次号
 - name: data_source
   type: string
   desc: 数据来源
-  dict: [FBP_PORTAL, OPERATION_PLATFORM, CHANNEL_OPENAPI]
+  dict:
+  - FBP_PORTAL
+  - OPERATION_PLATFORM
+  - CHANNEL_OPENAPI
 - name: notify_agreement_json
   type: string
   desc: 协议通知
@@ -76,9 +91,14 @@ fields:
 - name: submit_status
   type: string
   desc: PENDING / SUCCESS / FAIL
-  dict: [SUCCESS, PENDING, FAIL]
-  label: [cbsSubmitBizData 成功并已回写 request_id / submit_time, 创建后未提交、或正在采集各 JSON 列,
-    cbsSubmitBizData 失败 / 超时 / 业务校验未通过]
+  dict:
+  - SUCCESS
+  - PENDING
+  - FAIL
+  label:
+  - cbsSubmitBizData 成功并已回写 request_id / submit_time
+  - 创建后未提交、或正在采集各 JSON 列
+  - cbsSubmitBizData 失败 / 超时 / 业务校验未通过
 - name: sign_platform_result
   type: string
   desc: 中台返回结果
@@ -94,7 +114,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -142,7 +167,12 @@ fields:
 - name: head_company_data
   type: string
   desc: 是否总公司
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 default_filter:
   predicate: ca_certification_info.enable = 'Y'
   trust: confirmed
@@ -171,6 +201,11 @@ priority: primary
 ### 关联表
 
 - [[tables/cust_company_info]]
+
+### 概念
+
+- [[concepts/ca_open_status]]
+- [[concepts/cfca_four_step_submit]]
 
 ### 字典
 

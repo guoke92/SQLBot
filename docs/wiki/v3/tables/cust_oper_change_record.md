@@ -4,16 +4,22 @@ title: 客户操作运营变更记录
 page_key: cust_oper_change_record
 belong: tables
 status: draft
-anchors: [cust_oper_change_record]
-sources: ['database_schema:lowcode_pplatform.cust_oper_change_record', 'code_path:OperChangeRecordApplication.java:47']
+anchors:
+- cust_oper_change_record
+sources:
+- database_schema:lowcode_pplatform.cust_oper_change_record
+- code_path:OperChangeRecordApplication.java:47
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_person_info, cust_company_info, cust_oper_change_record__change_type,
-  cust_oper_change_record__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_person_info
+- cust_oper_change_record__change_type
+- cust_oper_change_record__enable
 ---
-
 # 客户操作运营变更记录
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,10 +31,16 @@ table: cust_oper_change_record
 database: lowcode_pplatform
 desc: 客户操作运营变更记录
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 联系人运营人员变更留痕
-name_anchors: [person_name, company_name, before_operator_name, after_operator_name,
-  code, name]
+name_anchors:
+- person_name
+- company_name
+- before_operator_name
+- after_operator_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -64,8 +76,20 @@ fields:
 - name: change_type
   type: string
   desc: 变更类型
-  dict: [BATCH, ASSET_AUDIT_SYNC, CUST_CHANGE_CALLBACK, MANUAL, AUTO_ASSIGN, AUTO_UPDATE]
-  label: [批量变更, 资产审核同步, 企业变更回调, 手动变更, 自动分配, 自动更新]
+  dict:
+  - BATCH
+  - ASSET_AUDIT_SYNC
+  - CUST_CHANGE_CALLBACK
+  - MANUAL
+  - AUTO_ASSIGN
+  - AUTO_UPDATE
+  label:
+  - 批量变更
+  - 资产审核同步
+  - 企业变更回调
+  - 手动变更
+  - 自动分配
+  - 自动更新
 - name: change_reason
   type: string
   desc: 变更原因
@@ -87,7 +111,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -199,10 +226,10 @@ type: EQUI_JOIN
 left: cust_company_info.code
 right: cust_oper_change_record.company_code
 cardinality: one_to_many
-trust: proposed
+trust: confirmed
 authenticity: likely
-evidence: database_schema:lowcode_pplatform.cust_oper_change_record.company_code;database_profile:lowcode_pplatform.cust_oper_change_record.company_code
-source: name
+evidence: code_path:OperChangeRecordHelper.java:83
+source: l1_code
 join_role: business_code
 priority: secondary
 name_evidence:
@@ -217,14 +244,18 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
+authenticity_note: 写变更记录时同时落 companyId 与 companyCode（双轨）。
 ```
-
 ## 页面链接
 
 ### 关联表
 
-- [[tables/cust_person_info]]
 - [[tables/cust_company_info]]
+- [[tables/cust_person_info]]
+
+### 概念
+
+- [[concepts/oper_change_trace]]
 
 ### 字典
 

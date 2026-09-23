@@ -4,14 +4,16 @@ title: 机构管理
 page_key: org_manage
 belong: tables
 status: draft
-anchors: [org_manage]
-sources: ['database_schema:lowcode_pplatform.org_manage']
+anchors:
+- org_manage
+sources:
+- database_schema:lowcode_pplatform.org_manage
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
+databases:
+- lowcode_pplatform
 ---
-
 # 机构管理
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -23,9 +25,14 @@ table: org_manage
 database: lowcode_pplatform
 desc: 机构管理
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 组织
-name_anchors: [code, name, org_name, parent_code]
+name_anchors:
+- code
+- name
+- org_name
+- parent_code
 fields:
 - name: id
   type: number
@@ -108,5 +115,3 @@ fields:
 ```
 
 ## 页面链接
-
-- [[concepts/catalog_summary]]

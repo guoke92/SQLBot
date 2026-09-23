@@ -4,15 +4,19 @@ title: 企业生命周期记录
 page_key: cust_company_lifecycle_info
 belong: tables
 status: draft
-anchors: [cust_company_lifecycle_info]
-sources: ['database_schema:lowcode_pplatform.cust_company_lifecycle_info']
+anchors:
+- cust_company_lifecycle_info
+sources:
+- database_schema:lowcode_pplatform.cust_company_lifecycle_info
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_company_lifecycle_info__type, cust_company_lifecycle_info__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_company_lifecycle_info__enable
 ---
-
 # 企业生命周期记录
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -24,9 +28,12 @@ table: cust_company_lifecycle_info
 database: lowcode_pplatform
 desc: 企业生命周期记录
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -44,7 +51,9 @@ fields:
 - name: type
   type: string
   desc: 类型
-  dict: [FRZ, UNFRZ]
+  dict:
+  - FRZ
+  - UNFRZ
 - name: code
   type: string
   desc: 编码
@@ -54,7 +63,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -134,36 +146,18 @@ overlap:
   authenticity: unknown
 authenticity_note: 冻结/解冻留痕按企业主键。预生成行 enable=N，确认后改 Y。ref_cust_company_info 本路径未使用。
 ```
-
-### disputed — 与已确认边冲突
-
 ```ground:relation
 type: EQUI_JOIN
-left: cust_company_info.id
+left: cust_company_info.code
 right: cust_company_lifecycle_info.ref_cust_company_info
 cardinality: one_to_many
-trust: disputed
+trust: proposed
 authenticity: unknown
-evidence: database_schema:lowcode_pplatform.cust_company_lifecycle_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_company_lifecycle_info.ref_cust_company_info
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: exact_table
-  stem: cust_company_info
-  comment: 关联企业code
-overlap:
-  probed: true
-  sample_size: 0
-  miss: 0
-  deepened: false
-  query_ok: true
-  authenticity: unknown
-sides:
-- {source: l1_code, left: cust_company_info.id, right: cust_company_lifecycle_info.company_id,
-  trust: confirmed}
-- {source: name, left: cust_company_info.id, right: cust_company_lifecycle_info.ref_cust_company_info,
-  trust: proposed}
+evidence: orphan_repair:ref_convention UAT ref empty; company_id already linked
+source: orphan_repair
+join_role: business_code
+priority: secondary
+authenticity_note: ref_* 并行 company_id
 ```
 
 ## 页面链接
@@ -171,6 +165,10 @@ sides:
 ### 关联表
 
 - [[tables/cust_company_info]]
+
+### 概念
+
+- [[concepts/freeze_audit]]
 
 ### 字典
 

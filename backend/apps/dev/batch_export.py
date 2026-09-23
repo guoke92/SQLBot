@@ -78,6 +78,7 @@ def load_feedback_rows(
     datasource: int | None = None,
     created_from: datetime | None = None,
     created_to: datetime | None = None,
+    chat_type: str | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     chats = list_chats(
         session,
@@ -89,6 +90,7 @@ def load_feedback_rows(
         datasource=datasource,
         created_from=created_from,
         created_to=created_to,
+        chat_type=chat_type,
     )
     ids = [int(item["id"]) for item in chats]
     workspace = session.get(WorkspaceModel, oid)

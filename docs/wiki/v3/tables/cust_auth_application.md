@@ -4,17 +4,25 @@ title: 客户产品开通表
 page_key: cust_auth_application
 belong: tables
 status: draft
-anchors: [cust_auth_application]
-sources: ['database_schema:lowcode_pplatform.cust_auth_application', 'code_path:CustAuthApplicationDaoImpl.java:75']
+anchors:
+- cust_auth_application
+sources:
+- database_schema:lowcode_pplatform.cust_auth_application
+- code_path:CustAuthApplicationDaoImpl.java:75
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [platform_product, cust_company_info, tenant_product, cust_auth_application_config,
-  cust_role_info, cust_auth_application__platform_product_code, cust_auth_application__enable,
-  cust_auth_application__open_status]
+databases:
+- lowcode_pplatform
+related:
+- authorization_agreement
+- cust_auth_application_config
+- cust_company_info
+- cust_role_info
+- tenant_product
+- cust_auth_application__enable
+- cust_auth_application__open_status
 ---
-
 # 客户产品开通表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +34,12 @@ table: cust_auth_application
 database: lowcode_pplatform
 desc: 客户产品开通表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -43,11 +54,13 @@ fields:
 - name: platform_product_code
   type: string
   desc: 平台产品编码
-  dict: [ACFLOW, RVSFACTOR_PC, ORDER, BEECREDIT, DRAFTQA, VOUCHER, STORAGE, DRAFT]
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -98,8 +111,14 @@ fields:
 - name: open_status
   type: string
   desc: 开通状态
-  dict: [OPENING, OPENED, NOT_OPENED]
-  label: [开通中, 已开通, 未开通]
+  dict:
+  - OPENING
+  - OPENED
+  - NOT_OPENED
+  label:
+  - 开通中
+  - 已开通
+  - 未开通
 - name: cust_manager_id
   type: number
   desc: 企业管理员
@@ -141,103 +160,116 @@ join_role: identity
 priority: primary
 authenticity_note: 产品开通按企业 code 关联，不是 id。
 ```
+```ground:relation
+type: EQUI_JOIN
+left: authorization_agreement.platform_product_code
+right: cust_auth_application.platform_product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;collide_refine:授权书与开通申请业务码；fk_like
+source: collide_refine
+join_role: business_code
+priority: primary
+authenticity_note: 授权书与开通申请业务码；fk_like
+```
 
-### disputed — 与已确认边冲突
-
+```ground:relation
+type: EQUI_JOIN
+left: cust_auth_application.platform_product_code
+right: tenant_product.platform_product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;collide_refine:开通申请与租户产品业务码；fk_like
+source: collide_refine
+join_role: business_code
+priority: primary
+authenticity_note: 开通申请与租户产品业务码；fk_like
+```
+```ground:relation
+type: EQUI_JOIN
+left: tenant_product.code
+right: cust_auth_application.ref_cust_auth_application_tenant_product
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code+live
+```
 ```ground:relation
 type: EQUI_JOIN
 left: cust_company_info.id
-right: cust_auth_application.ref_cust_company_info
+right: cust_auth_application.main_data_id
 cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_auth_application.ref_cust_company_info;database_profile:lowcode_pplatform.cust_auth_application.ref_cust_company_info
-source: name
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
 join_role: identity
 priority: primary
-name_evidence:
-  match: exact_table
-  stem: cust_company_info
-  comment: 客户应用
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 200
-  miss: 200
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: cust_company_info.code, right: cust_auth_application.ref_cust_company_info,
-  trust: confirmed}
-- {source: name, left: cust_company_info.id, right: cust_auth_application.ref_cust_company_info,
-  trust: proposed}
+authenticity_note: code+live
 ```
-
-### unlikely — 值域不支持或冲突
-
 ```ground:relation
 type: EQUI_JOIN
-left: platform_product.code
-right: cust_auth_application.platform_product_code
+left: cust_company_info.code
+right: cust_auth_application.ref_parent_company
 cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_auth_application.platform_product_code;database_profile:lowcode_pplatform.cust_auth_application.platform_product_code
-source: name
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
 join_role: business_code
 priority: primary
-name_evidence:
-  match: exact_table
-  stem: platform_product
-  comment: 平台产品编码
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 6
-  miss: 6
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
+authenticity_note: code:write-flow parent company
 ```
 
 ```ground:relation
 type: EQUI_JOIN
-left: tenant_product.id
-right: cust_auth_application.ref_cust_auth_application_tenant_product
+left: cust_auth_application.code
+right: cust_role_info.ref_cust_auth_application
 cardinality: one_to_many
 trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_auth_application.ref_cust_auth_application_tenant_product;database_profile:lowcode_pplatform.cust_auth_application.ref_cust_auth_application_tenant_product
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: long_ref
-  stem: tenant_product
-  comment: 关联应用
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 23
-  miss: 23
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
+authenticity: unknown
+evidence: full_sweep:code_ref UAT empty child
+source: full_sweep
+join_role: business_code
+priority: secondary
+authenticity_note: code:ref-convention
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: cust_auth_application.code
+right: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
+cardinality: one_to_many
+trust: proposed
+authenticity: unknown
+evidence: orphan_repair:affiliate UAT empty
+source: orphan_repair
+join_role: business_code
+priority: secondary
+authenticity_note: config 附属 auth_application
 ```
 
 ## 页面链接
 
 ### 关联表
 
-- [[tables/platform_product]]
-- [[tables/cust_company_info]]
-- [[tables/tenant_product]]
+- [[tables/authorization_agreement]]
 - [[tables/cust_auth_application_config]]
+- [[tables/cust_company_info]]
 - [[tables/cust_role_info]]
+- [[tables/tenant_product]]
+
+### 概念
+
+- [[concepts/platform_product_code_term]]
 
 ### 字典
 
-- [[dicts/cust_auth_application__platform_product_code]]（`cust_auth_application.platform_product_code`）
 - [[dicts/cust_auth_application__enable]]（`cust_auth_application.enable`）
 - [[dicts/cust_auth_application__open_status]]（`cust_auth_application.open_status`）

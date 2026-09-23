@@ -1,0 +1,67 @@
+generated_at: '2026-09-22T10:34:58.625033+00:00'
+policy: hub/true + high-overlap same-semantic (B↔C allowed when overlap high)
+count: 9
+edges:
+- left: cust_company_info.certification_no
+  right: ca_cfca_upgrade_report.certification_no
+  host: ca_cfca_upgrade_report
+- left: cust_company_info.certification_no
+  right: ca_fee_order.certification_no
+  host: ca_fee_order
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+- left: tenant_product.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  verdict: fk_like
+  signal: same_semantic
+  note: 同语义产品业务码；父子场景重合高
+  hit_count: 1
+  wrote: true
+  policy: restored high-overlap same-semantic
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  host: tenant_interworking_project
+  verdict: fk_like
+  signal: same_semantic
+  note: 互通产品/项目同语义业务码；重合高
+  hit_count: 1
+  wrote: true
+  policy: restored high-overlap same-semantic
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  host: tenant_interworking_product
+  verdict: shared_domain
+  signal: same_semantic
+  note: 企业互通与租户互通产品业务码；重合高可连
+  hit_count: 1
+  wrote: true
+  policy: restored high-overlap same-semantic
+- left: authorization_agreement.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  verdict: fk_like
+  signal: same_semantic
+  note: 授权书与租户产品业务码；fk_like
+  hit_count: 5
+  wrote: true
+  policy: restored high-overlap same-semantic
+- left: authorization_agreement.platform_product_code
+  right: cust_auth_application.platform_product_code
+  host: cust_auth_application
+  verdict: fk_like
+  signal: same_semantic
+  note: 授权书与开通申请业务码；fk_like
+  hit_count: 5
+  wrote: true
+  policy: restored high-overlap same-semantic
+- left: cust_auth_application.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  verdict: fk_like
+  signal: same_semantic
+  note: 开通申请与租户产品业务码；fk_like
+  hit_count: 5
+  wrote: true
+  policy: restored high-overlap same-semantic

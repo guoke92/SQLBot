@@ -268,6 +268,8 @@ def has_join_semantic(rel: dict[str, Any]) -> bool:
     match = str(name_ev.get("match") or "none").strip().lower()
     if match not in {"", "none"}:
         return True
+    if str(rel.get("source") or "") == "comment_fk":
+        return True
     comment = str(name_ev.get("comment") or "")
     left = str(rel.get("left") or "")
     parent, _ = parse_fq(left)

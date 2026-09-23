@@ -106,7 +106,6 @@ def test_execute_sql_probe_keeps_raw_enum_codes(monkeypatch) -> None:
 
     monkeypatch.setattr(mod, "upsert_result_dataset", _upsert)
     monkeypatch.setattr(mod, "current_worker_identity", lambda: ("run-probe-enum", None))
-    monkeypatch.setattr(mod, "_schema_ready", lambda: None)
     monkeypatch.setattr(mod, "_reject_enum_discovery", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_consume_probe_budget", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "apply_wiki_enum_labels", _label)

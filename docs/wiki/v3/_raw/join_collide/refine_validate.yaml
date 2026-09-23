@@ -1,0 +1,6320 @@
+generated_at: '2026-09-22T10:13:30.695086+00:00'
+database: lowcode_pplatform
+relation_count: 96
+by_verdict:
+  weak_overlap: 55
+  fk_like: 23
+  shared_domain: 17
+  false_friend: 1
+edges:
+- left: tenant_project.channel_code
+  right: cust_project_code_record.channel_code
+  host: cust_project_code_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `channel_code`
+  left_stats:
+    table: tenant_project
+    column: channel_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 3586
+    sample:
+    - 00p1Z1my
+    - 01fLDUJ5
+    - 03AHYUcc
+    - 05o663NI
+    - 06zOQJJO
+    - 0998JU2G
+    - 09rroqeo
+    - 0a1PqKtu
+    error: ''
+  right_stats:
+    table: cust_project_code_record
+    column: channel_code
+    exists: true
+    row_count: 348
+    non_null: 348
+    distinct_non_null: 139
+    sample:
+    - WKCSXM10360224916
+    - LN1TXCPXM7227711347
+    - CDMYPDXM8870239217
+    - LN1YSYRXM4628939839
+    - LN1YSYRXM4628939839
+    - LN1YSYRXM4628939839
+    - 0902XM1401916398
+    - https://ams-fin.qhhrly.cn/
+    error: ''
+  join_hits: 98
+  left_in_right: 98
+  left_not_in_right: 3488
+  right_in_left: 261
+  right_not_in_left: 87
+  left_in_right_ratio: 0.0273
+  right_in_left_ratio: 0.75
+  intersection_sample:
+  - CDMYPDXM8870239217
+  - LN1YSYRXM4628939839
+  - LN1XM10757644228
+  - 7NZ1G7WM
+  - od99O4hg
+  - WKCSXM26163244500
+  - '123456'
+  - JXvUXYZJ
+  left_only_sample:
+  - 01fLDUJ5
+  - 03AHYUcc
+  - 05o663NI
+  - 06zOQJJO
+  - 0998JU2G
+  - 09rroqeo
+  - 0a1PqKtu
+  - 0AznqMSt
+  right_only_sample:
+  - WKCSXM10360224916
+  - LN1TXCPXM7227711347
+  - 0902XM1401916398
+  - https://ams-fin.qhhrly.cn/
+  - XT09035793772183
+  - '12'
+  - '123'
+  - CRSX7237089105
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0273, right->left=0.75, join_hits=98)
+- left: tenant_project.channel_code
+  right: cust_project_rel.channel_code
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `channel_code`
+  left_stats:
+    table: tenant_project
+    column: channel_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 3586
+    sample:
+    - 00p1Z1my
+    - 01fLDUJ5
+    - 03AHYUcc
+    - 05o663NI
+    - 06zOQJJO
+    - 0998JU2G
+    - 09rroqeo
+    - 0a1PqKtu
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: channel_code
+    exists: true
+    row_count: 60138
+    non_null: 196
+    distinct_non_null: 68
+    sample:
+    - '1231231'
+    - XMYS7390834775
+    - XMYS7390834775
+    - DHHKXM08084234978526
+    - WKCSXM10360224916
+    - WKCSXM10360224916
+    - WKCSXM10360224916
+    - CDMYPDXM8870239217
+    error: ''
+  join_hits: 54
+  left_in_right: 54
+  left_not_in_right: 3532
+  right_in_left: 176
+  right_not_in_left: 20
+  left_in_right_ratio: 0.0151
+  right_in_left_ratio: 0.898
+  intersection_sample:
+  - 00p1Z1my
+  - 575AbAfa
+  - BLYR050203
+  - BLYR098596
+  - BLYR407955
+  - BLYR595731
+  - BLYR814743
+  - BLYR899016
+  left_only_sample:
+  - 01fLDUJ5
+  - 03AHYUcc
+  - 05o663NI
+  - 06zOQJJO
+  - 0998JU2G
+  - 09rroqeo
+  - 0a1PqKtu
+  - 0AznqMSt
+  right_only_sample:
+  - '1231231'
+  - DHHKXM08084234978526
+  - WKCSXM10360224916
+  - WC000011493493272
+  - 0902XM1401916398
+  - YSXDXM5085322705
+  - CRSX7237089105
+  - RYDZYZHXM0014049059398
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0151, right->left=0.898, join_hits=54)
+- left: cust_company_info.id
+  right: gpt_learn_poster_log.company_id
+  host: gpt_learn_poster_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:hub_id
+  wiki_evidence: 'pattern: company_id → cust_company_info.id'
+  left_stats:
+    table: cust_company_info
+    column: id
+    exists: true
+    row_count: 94912
+    non_null: 94912
+    distinct_non_null: 94912
+    sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    error: ''
+  right_stats:
+    table: gpt_learn_poster_log
+    column: company_id
+    exists: true
+    row_count: 253
+    non_null: 253
+    distinct_non_null: 83
+    sample:
+    - '1965235432276299777'
+    - '1988519238449090562'
+    - '1988519238449090562'
+    - '1988519238449090562'
+    - '1988161544116027393'
+    - '1988161544116027393'
+    - '1988519238449090562'
+    - '2001169748804505601'
+    error: ''
+  join_hits: 83
+  left_in_right: 83
+  left_not_in_right: 94829
+  right_in_left: 253
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0009
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '1965235432276299777'
+  - '1988519238449090562'
+  - '1988161544116027393'
+  - '2001169748804505601'
+  - '1909443346485325825'
+  - '1892501776144211970'
+  - '1772468926711316481'
+  - '1821447215528402946'
+  left_only_sample:
+  - '1895394035061563393'
+  - '1895394043843194882'
+  - '1895063219575140353'
+  - '1895392101750419457'
+  - '1895394046335852546'
+  - '1895394056712560642'
+  - '1895063216983060482'
+  - '1895063224327286786'
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: ca_fee_special_config.certification_no
+  right: cust_company_info.certification_no
+  host: cust_company_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: ca_fee_special_config
+    column: certification_no
+    exists: true
+    row_count: 55
+    non_null: 55
+    distinct_non_null: 39
+    sample:
+    - 114500006GR9QBLL7P
+    - '538280511140845054'
+    - '538280511140845054'
+    - '698241080913565968'
+    - '698241080913565968'
+    - 91085866BPCF4NNKQM
+    - 91085866BPCF4NNKQM
+    - 91085866BPCF4NNKQM
+    error: ''
+  right_stats:
+    table: cust_company_info
+    column: certification_no
+    exists: true
+    row_count: 94912
+    non_null: 94477
+    distinct_non_null: 53428
+    sample:
+    - ',9144200028213222XT'
+    - ',9144200028213222XT'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    error: ''
+  join_hits: 40
+  left_in_right: 40
+  left_not_in_right: 15
+  right_in_left: 32
+  right_not_in_left: 94445
+  left_in_right_ratio: 0.7273
+  right_in_left_ratio: 0.0003
+  intersection_sample:
+  - '538280511140845054'
+  - '698241080913565968'
+  - 91085866BPCF4NNKQM
+  - 91100000100003962T
+  - 91110102MA00C29B5W
+  - 91110108551385082Q
+  - 91330106MACA91BP4N
+  - 91340100MA2MWW1B93
+  left_only_sample:
+  - 114500006GR9QBLL7P
+  - 9134000013370212X3
+  - 91440300573106363N
+  - 91441200632828391P
+  - 9144120067138691XD
+  - 91441208MAEJFG6G48
+  - 91441283073460243F
+  - 91441283686387384L
+  right_only_sample:
+  - ',9144200028213222XT'
+  - '-'
+  - '000000000000000'
+  - 00000000000000000X
+  - '000000000000000011'
+  - 000000005607170850
+  - 00010107054941260M
+  - 000OAKV6W1J02XQZ68
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.7273, right->left=0.0003, join_hits=40)
+- left: ca_cfca_upgrade_report.certification_no
+  right: cust_company_info.certification_no
+  host: cust_company_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: ca_cfca_upgrade_report
+    column: certification_no
+    exists: true
+    row_count: 425
+    non_null: 425
+    distinct_non_null: 33
+    sample:
+    - 11572642955MCKN80X
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    error: ''
+  right_stats:
+    table: cust_company_info
+    column: certification_no
+    exists: true
+    row_count: 94912
+    non_null: 94477
+    distinct_non_null: 53428
+    sample:
+    - ',9144200028213222XT'
+    - ',9144200028213222XT'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    error: ''
+  join_hits: 419
+  left_in_right: 419
+  left_not_in_right: 6
+  right_in_left: 41
+  right_not_in_left: 94436
+  left_in_right_ratio: 0.9859
+  right_in_left_ratio: 0.0004
+  intersection_sample:
+  - 11572642955MCKN80X
+  - '231645787943164946'
+  - '232424123213214243'
+  - 294403008RR8YXF437
+  - '419488915332808833'
+  - '456457657585858568'
+  - '464575856865867969'
+  - '547457457457658665'
+  left_only_sample:
+  - 914354535WY7C291WT
+  - 91649610GR35EEWT3P
+  right_only_sample:
+  - ',9144200028213222XT'
+  - '-'
+  - '000000000000000'
+  - 00000000000000000X
+  - '000000000000000011'
+  - 000000005607170850
+  - 00010107054941260M
+  - 000OAKV6W1J02XQZ68
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.9859, right->left=0.0004, join_hits=419)
+- left: tenant_interworking_product.id
+  right: cust_interworking_product.product_id
+  host: cust_interworking_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:hub_id
+  wiki_evidence: 'pattern: product_id → tenant_interworking_product.id'
+  left_stats:
+    table: tenant_interworking_product
+    column: id
+    exists: true
+    row_count: 40
+    non_null: 40
+    distinct_non_null: 40
+    sample:
+    - '1925367905722998786'
+    - '1925378951654162434'
+    - '2119658036745207837'
+    - '2119658258934280258'
+    - '2119658492582187088'
+    - '1881239523618652161'
+    - '1891732181419941889'
+    - '1878625020661809154'
+    error: ''
+  right_stats:
+    table: cust_interworking_product
+    column: product_id
+    exists: true
+    row_count: 304
+    non_null: 304
+    distinct_non_null: 22
+    sample:
+    - '1932270848080400385'
+    - '1932274602375933954'
+    - '1878649109879275522'
+    - '1878625020661809154'
+    - '1878649109879275522'
+    - '1877637220721119234'
+    - '1878649109879275522'
+    - '1878649109879275522'
+    error: ''
+  join_hits: 22
+  left_in_right: 22
+  left_not_in_right: 18
+  right_in_left: 304
+  right_not_in_left: 0
+  left_in_right_ratio: 0.55
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '1925378951654162434'
+  - '2119658258934280258'
+  - '2119658492582187088'
+  - '1891732181419941889'
+  - '1878625020661809154'
+  - '1878625128094711810'
+  - '1878647260178628609'
+  - '1878649109879275522'
+  left_only_sample:
+  - '1925367905722998786'
+  - '2119658036745207837'
+  - '1881239523618652161'
+  - '1878649275759804418'
+  - '1878649244633874434'
+  - '1878649218645966849'
+  - '1878649189894012929'
+  - '1878692839217569794'
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_apply.sp_no
+  host: wechat_project_approval_apply
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `sp_no`
+  left_stats:
+    table: tenant_project_approval
+    column: sp_no
+    exists: true
+    row_count: 527
+    non_null: 510
+    distinct_non_null: 32
+    sample:
+    - '202605110011'
+    - '202605110011'
+    - '202604270003'
+    - '202604270003'
+    - '202604270003'
+    - '202605110011'
+    - '202604270003'
+    - '202604270003'
+    error: ''
+  right_stats:
+    table: wechat_project_approval_apply
+    column: sp_no
+    exists: true
+    row_count: 79
+    non_null: 79
+    distinct_non_null: 79
+    sample:
+    - '202512290002'
+    - '202512290017'
+    - '202512300002'
+    - '202512310005'
+    - '202601040004'
+    - '202601040005'
+    - '202601060002'
+    - '202601060005'
+    error: ''
+  join_hits: 510
+  left_in_right: 510
+  left_not_in_right: 0
+  right_in_left: 32
+  right_not_in_left: 47
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.4051
+  intersection_sample:
+  - '202512290002'
+  - '202604090001'
+  - '202604270003'
+  - '202605110011'
+  - '202605120011'
+  - '202605120015'
+  - '202605130016'
+  - '202606220001'
+  left_only_sample: []
+  right_only_sample:
+  - '202512290017'
+  - '202512300002'
+  - '202512310005'
+  - '202601040004'
+  - '202601040005'
+  - '202601060002'
+  - '202601060005'
+  - '202601060006'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.4051, join_hits=510)
+- left: cust_project_code_record.channel_code
+  right: cust_project_rel.channel_code
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `channel_code`
+  left_stats:
+    table: cust_project_code_record
+    column: channel_code
+    exists: true
+    row_count: 348
+    non_null: 348
+    distinct_non_null: 139
+    sample:
+    - WKCSXM10360224916
+    - LN1TXCPXM7227711347
+    - CDMYPDXM8870239217
+    - LN1YSYRXM4628939839
+    - LN1YSYRXM4628939839
+    - LN1YSYRXM4628939839
+    - 0902XM1401916398
+    - https://ams-fin.qhhrly.cn/
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: channel_code
+    exists: true
+    row_count: 60138
+    non_null: 196
+    distinct_non_null: 68
+    sample:
+    - '1231231'
+    - XMYS7390834775
+    - XMYS7390834775
+    - DHHKXM08084234978526
+    - WKCSXM10360224916
+    - WKCSXM10360224916
+    - WKCSXM10360224916
+    - CDMYPDXM8870239217
+    error: ''
+  join_hits: 171
+  left_in_right: 171
+  left_not_in_right: 177
+  right_in_left: 176
+  right_not_in_left: 20
+  left_in_right_ratio: 0.4914
+  right_in_left_ratio: 0.898
+  intersection_sample:
+  - WKCSXM10360224916
+  - CDMYPDXM8870239217
+  - 0902XM1401916398
+  - LN1XM10757644228
+  - od99O4hg
+  - CRSX7237089105
+  - RYDZYZHXM0014049059398
+  - WKCSXM26163244500
+  left_only_sample:
+  - LN1TXCPXM7227711347
+  - LN1YSYRXM4628939839
+  - https://ams-fin.qhhrly.cn/
+  - XT09035793772183
+  - '12'
+  - 7NZ1G7WM
+  - '123'
+  - '2354534'
+  right_only_sample:
+  - '1231231'
+  - XMYS7390834775
+  - DHHKXM08084234978526
+  - WC000011493493272
+  - YSXDXM5085322705
+  - RYD000022
+  - RYD130577
+  - RYD072091
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.4914, right->left=0.898, join_hits=171)
+- left: ca_cfca_upgrade_report.certification_no
+  right: ca_fee_company.certification_no
+  host: ca_fee_company
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: ca_cfca_upgrade_report
+    column: certification_no
+    exists: true
+    row_count: 425
+    non_null: 425
+    distinct_non_null: 33
+    sample:
+    - 11572642955MCKN80X
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    error: ''
+  right_stats:
+    table: ca_fee_company
+    column: certification_no
+    exists: true
+    row_count: 1044
+    non_null: 1044
+    distinct_non_null: 1044
+    sample:
+    - 00371081706233754B
+    - 0234647270626178A5
+    - 03637261646646177M
+    - 09846980651257504T
+    - '104665209868129317'
+    - '108387681541414970'
+    - '110101198506020011'
+    - '110196556122614029'
+    error: ''
+  join_hits: 260
+  left_in_right: 260
+  left_not_in_right: 165
+  right_in_left: 14
+  right_not_in_left: 1030
+  left_in_right_ratio: 0.6118
+  right_in_left_ratio: 0.0134
+  intersection_sample:
+  - '456457657585858568'
+  - '547457457457658665'
+  - '698241080913565968'
+  - 91110102MA00C29B5W
+  - 9111010877336966X1
+  - 91130108542037094C
+  - 91330102MA24KBCF2C
+  - 91340100MA2MUWT73J
+  left_only_sample:
+  - 11572642955MCKN80X
+  - '231645787943164946'
+  - '232424123213214243'
+  - 294403008RR8YXF437
+  - '419488915332808833'
+  - '464575856865867969'
+  - 91165363REC655J2TY
+  - 91193211EPC2NRJH77
+  right_only_sample:
+  - 00371081706233754B
+  - 0234647270626178A5
+  - 03637261646646177M
+  - 09846980651257504T
+  - '104665209868129317'
+  - '108387681541414970'
+  - '110101198506020011'
+  - '110196556122614029'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.6118, right->left=0.0134, join_hits=260)
+- left: ca_fee_order.certification_no
+  right: ca_fee_special_config.certification_no
+  host: ca_fee_special_config
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: ca_fee_order
+    column: certification_no
+    exists: true
+    row_count: 1575
+    non_null: 1575
+    distinct_non_null: 1021
+    sample:
+    - 00371081706233754B
+    - 0234647270626178A5
+    - 03637261646646177M
+    - 09846980651257504T
+    - '104665209868129317'
+    - '104665209868129317'
+    - '108387681541414970'
+    - '108387681541414970'
+    error: ''
+  right_stats:
+    table: ca_fee_special_config
+    column: certification_no
+    exists: true
+    row_count: 55
+    non_null: 55
+    distinct_non_null: 39
+    sample:
+    - 114500006GR9QBLL7P
+    - '538280511140845054'
+    - '538280511140845054'
+    - '698241080913565968'
+    - '698241080913565968'
+    - 91085866BPCF4NNKQM
+    - 91085866BPCF4NNKQM
+    - 91085866BPCF4NNKQM
+    error: ''
+  join_hits: 47
+  left_in_right: 47
+  left_not_in_right: 1528
+  right_in_left: 27
+  right_not_in_left: 28
+  left_in_right_ratio: 0.0298
+  right_in_left_ratio: 0.4909
+  intersection_sample:
+  - '538280511140845054'
+  - '698241080913565968'
+  - 91085866BPCF4NNKQM
+  - 91110102MA00C29B5W
+  - 91340100MA2MWW1B93
+  - 91346504AQJK18BTAK
+  - 91420100MA4F5CLCXK
+  - '914409045583945632'
+  left_only_sample:
+  - 00371081706233754B
+  - 0234647270626178A5
+  - 03637261646646177M
+  - 09846980651257504T
+  - '104665209868129317'
+  - '108387681541414970'
+  - '110101198506020011'
+  - '110196556122614029'
+  right_only_sample:
+  - 114500006GR9QBLL7P
+  - 91100000100003962T
+  - 91110108551385082Q
+  - 91330106MACA91BP4N
+  - 9134000013370212X3
+  - 91350900587527783P
+  - 91440300573106363N
+  - 91441200632828391P
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0298, right->left=0.4909, join_hits=47)
+- left: cust_invite_info.channel_code
+  right: tenant_project.channel_code
+  host: tenant_project
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `channel_code`
+  left_stats:
+    table: cust_invite_info
+    column: channel_code
+    exists: true
+    row_count: 213
+    non_null: 104
+    distinct_non_null: 53
+    sample:
+    - '00000'
+    - '55555'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    error: ''
+  right_stats:
+    table: tenant_project
+    column: channel_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 3586
+    sample:
+    - 00p1Z1my
+    - 01fLDUJ5
+    - 03AHYUcc
+    - 05o663NI
+    - 06zOQJJO
+    - 0998JU2G
+    - 09rroqeo
+    - 0a1PqKtu
+    error: ''
+  join_hits: 47
+  left_in_right: 47
+  left_not_in_right: 57
+  right_in_left: 13
+  right_not_in_left: 3573
+  left_in_right_ratio: 0.4519
+  right_in_left_ratio: 0.0036
+  intersection_sample:
+  - RSWXZRYD2586716567
+  - '1'
+  - RYD971998
+  - RYD130577
+  - RYD876551
+  - '123456'
+  - RYD072091
+  - RYD399331
+  left_only_sample:
+  - '00000'
+  - '55555'
+  - '0'
+  - xmm01
+  - '111'
+  - 0924-wyw项目测试
+  - 0924-WYWXMCS9806393896
+  - 项目001
+  right_only_sample:
+  - 00p1Z1my
+  - 01fLDUJ5
+  - 03AHYUcc
+  - 05o663NI
+  - 06zOQJJO
+  - 0998JU2G
+  - 09rroqeo
+  - 0a1PqKtu
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.4519, right->left=0.0036, join_hits=47)
+- left: tenant_project.id
+  right: project_file_info.project_id
+  host: project_file_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:hub_id
+  wiki_evidence: 'pattern: project_id → tenant_project.id'
+  left_stats:
+    table: tenant_project
+    column: id
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 3586
+    sample:
+    - '2203106338874073180'
+    - '1999381039371583489'
+    - '7193142624923394048'
+    - '1203026947395813404'
+    - '1986272085919219713'
+    - '2188980103331987482'
+    - '2139595791851864103'
+    - '1905464553752363009'
+    error: ''
+  right_stats:
+    table: project_file_info
+    column: project_id
+    exists: true
+    row_count: 57
+    non_null: 57
+    distinct_non_null: 18
+    sample:
+    - '1195688373960839255'
+    - '2163913362700771426'
+    - '2171576460173660186'
+    - '2173276344136245335'
+    - '2173359507491549225'
+    - '2173642390437371940'
+    - '6839113487803121664'
+    - '1195688373960839255'
+    error: ''
+  join_hits: 12
+  left_in_right: 12
+  left_not_in_right: 3574
+  right_in_left: 44
+  right_not_in_left: 13
+  left_in_right_ratio: 0.0033
+  right_in_left_ratio: 0.7719
+  intersection_sample:
+  - '1195688373960839255'
+  - '2163913362700771426'
+  - '2171576460173660186'
+  - '2173276344136245335'
+  - '2173359507491549225'
+  - '2173642390437371940'
+  - '1828341757505560577'
+  - '1929723188042915842'
+  left_only_sample:
+  - '2203106338874073180'
+  - '1999381039371583489'
+  - '7193142624923394048'
+  - '1203026947395813404'
+  - '1986272085919219713'
+  - '2188980103331987482'
+  - '2139595791851864103'
+  - '1905464553752363009'
+  right_only_sample:
+  - '6839113487803121664'
+  - '2173640005270908992'
+  - '6710027789166186496'
+  - '6725338807710781440'
+  - '6760043437930917888'
+  - '7322481299712331776'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0033, right->left=0.7719, join_hits=12)
+- left: tenant_project.id
+  right: wec_project_operation_rel.wec_project_id
+  host: wec_project_operation_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:fk_to_id
+  wiki_evidence: wec_project_id → tenant_project.id
+  left_stats:
+    table: tenant_project
+    column: id
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 3586
+    sample:
+    - '2203106338874073180'
+    - '1999381039371583489'
+    - '7193142624923394048'
+    - '1203026947395813404'
+    - '1986272085919219713'
+    - '2188980103331987482'
+    - '2139595791851864103'
+    - '1905464553752363009'
+    error: ''
+  right_stats:
+    table: wec_project_operation_rel
+    column: wec_project_id
+    exists: true
+    row_count: 431
+    non_null: 431
+    distinct_non_null: 431
+    sample:
+    - '100001'
+    - '100002'
+    - '100003'
+    - '100004'
+    - '100005'
+    - '100007'
+    - '1186710408342274116'
+    - '1186714623366135831'
+    error: ''
+  join_hits: 11
+  left_in_right: 11
+  left_not_in_right: 3575
+  right_in_left: 11
+  right_not_in_left: 420
+  left_in_right_ratio: 0.0031
+  right_in_left_ratio: 0.0255
+  intersection_sample:
+  - '1186710408342274116'
+  - '1186714623366135831'
+  - '1192862188402901028'
+  - '1195758296422682692'
+  - '1196479687480578141'
+  - '7382614407966773248'
+  - '7383800930013659136'
+  - '7384076079942144000'
+  left_only_sample:
+  - '2203106338874073180'
+  - '1999381039371583489'
+  - '7193142624923394048'
+  - '1203026947395813404'
+  - '1986272085919219713'
+  - '2188980103331987482'
+  - '2139595791851864103'
+  - '1905464553752363009'
+  right_only_sample:
+  - '100001'
+  - '100002'
+  - '100003'
+  - '100004'
+  - '100005'
+  - '100007'
+  - '1188418224585179180'
+  - '1192527529445949523'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0031, right->left=0.0255, join_hits=11)
+- left: cust_invite_info.channel_code
+  right: cust_project_code_record.channel_code
+  host: cust_project_code_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `channel_code`
+  left_stats:
+    table: cust_invite_info
+    column: channel_code
+    exists: true
+    row_count: 213
+    non_null: 104
+    distinct_non_null: 53
+    sample:
+    - '00000'
+    - '55555'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    error: ''
+  right_stats:
+    table: cust_project_code_record
+    column: channel_code
+    exists: true
+    row_count: 348
+    non_null: 348
+    distinct_non_null: 139
+    sample:
+    - WKCSXM10360224916
+    - LN1TXCPXM7227711347
+    - CDMYPDXM8870239217
+    - LN1YSYRXM4628939839
+    - LN1YSYRXM4628939839
+    - LN1YSYRXM4628939839
+    - 0902XM1401916398
+    - https://ams-fin.qhhrly.cn/
+    error: ''
+  join_hits: 45
+  left_in_right: 45
+  left_not_in_right: 59
+  right_in_left: 74
+  right_not_in_left: 274
+  left_in_right_ratio: 0.4327
+  right_in_left_ratio: 0.2126
+  intersection_sample:
+  - '111'
+  - RSWXZRYD2586716567
+  - RYDZYZHXM0014049059398
+  - '1'
+  - '12'
+  - RYD971998
+  - RYD876551
+  - '123456'
+  left_only_sample:
+  - '00000'
+  - '55555'
+  - '0'
+  - xmm01
+  - 0924-wyw项目测试
+  - 0924-WYWXMCS9806393896
+  - 项目001
+  - 项目002
+  right_only_sample:
+  - WKCSXM10360224916
+  - LN1TXCPXM7227711347
+  - CDMYPDXM8870239217
+  - LN1YSYRXM4628939839
+  - 0902XM1401916398
+  - https://ams-fin.qhhrly.cn/
+  - XT09035793772183
+  - 7NZ1G7WM
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.4327, right->left=0.2126, join_hits=45)
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 151868
+  left_in_right: 151868
+  left_not_in_right: 2883
+  right_in_left: 4591
+  right_not_in_left: 6
+  left_in_right_ratio: 0.9814
+  right_in_left_ratio: 0.9987
+  intersection_sample:
+  - ACFLOW
+  - '["ACFLOW"]'
+  - RVSFACTOR_PC
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","ACFLOW"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - ORDER
+  left_only_sample:
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  - '["ORDER","RVSFACTOR_PC","ACFLOW"]'
+  - '["ACFLOW","AMS"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","AMS","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","DRAFT","ACFLOW"]'
+  right_only_sample:
+  - '[null,null]'
+  - '["false"]'
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9987); consistent with
+    FK / identity reference'
+- left: tenant_project_approval_flow_config.node_code
+  right: tenant_project_approval_flow_node.node_code
+  host: tenant_project_approval_flow_node
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `node_code`
+  left_stats:
+    table: tenant_project_approval_flow_config
+    column: node_code
+    exists: true
+    row_count: 15
+    non_null: 15
+    distinct_non_null: 7
+    sample:
+    - PROJECT_CONFIG
+    - PROJECT_MANAGER
+    - OTHER
+    - PROJECT_CONFIG
+    - PROJECT_MANAGER
+    - BUSINESS_MANAGER
+    - OPERATION
+    - OTHER
+    error: ''
+  right_stats:
+    table: tenant_project_approval_flow_node
+    column: node_code
+    exists: true
+    row_count: 1115
+    non_null: 1094
+    distinct_non_null: 6
+    sample:
+    - PROJECT_CONFIG
+    - PROJECT_MANAGER
+    - PROJECT_CONFIG
+    - PROJECT_CONFIG
+    - PROJECT_MANAGER
+    - PROJECT_CONFIG
+    - PROJECT_CONFIG
+    - PROJECT_MANAGER
+    error: ''
+  join_hits: 12
+  left_in_right: 12
+  left_not_in_right: 3
+  right_in_left: 1094
+  right_not_in_left: 0
+  left_in_right_ratio: 0.8
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - PROJECT_CONFIG
+  - PROJECT_MANAGER
+  - BUSINESS_MANAGER
+  - OPERATION
+  - LEGAL_PROCESS
+  - LEGAL_REVIEW
+  left_only_sample:
+  - OTHER
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: authorization_agreement.platform_product_code
+  right: cust_auth_application.platform_product_code
+  host: cust_auth_application
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: cust_auth_application
+    column: platform_product_code
+    exists: true
+    row_count: 32090
+    non_null: 31931
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 6083
+  left_in_right: 6083
+  left_not_in_right: 25292
+  right_in_left: 31830
+  right_not_in_left: 101
+  left_in_right_ratio: 0.1939
+  right_in_left_ratio: 0.9968
+  intersection_sample:
+  - ACFLOW
+  - BEECREDIT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - VOUCHER
+  left_only_sample:
+  - PLATFORM
+  - AMS
+  - RVSFACTOR
+  - pplatform
+  right_only_sample:
+  - DRAFT
+  - DRAFTQA
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9968); consistent with
+    FK / identity reference'
+- left: authorization_agreement.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: tenant_product
+    column: platform_product_code
+    exists: true
+    row_count: 501
+    non_null: 501
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ORDER
+    - BEECREDIT
+    - BEECREDIT
+    - ACFLOW
+    - VOUCHER
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 6083
+  left_in_right: 6083
+  left_not_in_right: 25292
+  right_in_left: 485
+  right_not_in_left: 16
+  left_in_right_ratio: 0.1939
+  right_in_left_ratio: 0.9681
+  intersection_sample:
+  - ACFLOW
+  - ORDER
+  - BEECREDIT
+  - VOUCHER
+  - RVSFACTOR_PC
+  - STORAGE
+  left_only_sample:
+  - PLATFORM
+  - AMS
+  - RVSFACTOR
+  - pplatform
+  right_only_sample:
+  - DRAFTQA
+  - DRAFT
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9681); consistent with
+    FK / identity reference'
+- left: cust_auth_application.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_auth_application
+    column: platform_product_code
+    exists: true
+    row_count: 32090
+    non_null: 31931
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_product
+    column: platform_product_code
+    exists: true
+    row_count: 501
+    non_null: 501
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ORDER
+    - BEECREDIT
+    - BEECREDIT
+    - ACFLOW
+    - VOUCHER
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 31931
+  left_in_right: 31931
+  left_not_in_right: 0
+  right_in_left: 501
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - ORDER
+  - BEECREDIT
+  - VOUCHER
+  - RVSFACTOR_PC
+  - DRAFTQA
+  - STORAGE
+  - DRAFT
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  host: tenant_interworking_project
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 304
+    non_null: 304
+    distinct_non_null: 6
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP14
+    - HTCP5
+    - HTCP14
+    - HTCP14
+    error: ''
+  right_stats:
+    table: tenant_interworking_project
+    column: platform_product_code
+    exists: true
+    row_count: 12
+    non_null: 12
+    distinct_non_null: 5
+    sample:
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP5
+    - AMS
+    error: ''
+  join_hits: 200
+  left_in_right: 200
+  left_not_in_right: 104
+  right_in_left: 12
+  right_not_in_left: 0
+  left_in_right_ratio: 0.6579
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - HTCP1
+  - HTCP5
+  - AMS
+  - HTCP13
+  - HTCP14
+  left_only_sample:
+  - HTCP2
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_invite_info.channel_code
+  right: cust_project_rel.channel_code
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `channel_code`
+  left_stats:
+    table: cust_invite_info
+    column: channel_code
+    exists: true
+    row_count: 213
+    non_null: 104
+    distinct_non_null: 53
+    sample:
+    - '00000'
+    - '55555'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: channel_code
+    exists: true
+    row_count: 60138
+    non_null: 196
+    distinct_non_null: 68
+    sample:
+    - '1231231'
+    - XMYS7390834775
+    - XMYS7390834775
+    - DHHKXM08084234978526
+    - WKCSXM10360224916
+    - WKCSXM10360224916
+    - WKCSXM10360224916
+    - CDMYPDXM8870239217
+    error: ''
+  join_hits: 41
+  left_in_right: 41
+  left_not_in_right: 63
+  right_in_left: 101
+  right_not_in_left: 95
+  left_in_right_ratio: 0.3942
+  right_in_left_ratio: 0.5153
+  intersection_sample:
+  - RSWXZRYD2586716567
+  - RYDZYZHXM0014049059398
+  - RYD971998
+  - RYD130577
+  - RYD876551
+  - RYD072091
+  - RYD399331
+  - RYD247470
+  left_only_sample:
+  - '00000'
+  - '55555'
+  - '0'
+  - xmm01
+  - '111'
+  - 0924-wyw项目测试
+  - 0924-WYWXMCS9806393896
+  - 项目001
+  right_only_sample:
+  - '1231231'
+  - XMYS7390834775
+  - DHHKXM08084234978526
+  - WKCSXM10360224916
+  - CDMYPDXM8870239217
+  - WC000011493493272
+  - 0902XM1401916398
+  - YSXDXM5085322705
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.3942, right->left=0.5153, join_hits=41)
+- left: authorization_agreement.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: tenant_project
+    column: platform_product_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 8
+    sample:
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 6083
+  left_in_right: 6083
+  left_not_in_right: 25292
+  right_in_left: 3568
+  right_not_in_left: 18
+  left_in_right_ratio: 0.1939
+  right_in_left_ratio: 0.995
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - BEECREDIT
+  - VOUCHER
+  - STORAGE
+  left_only_sample:
+  - PLATFORM
+  - AMS
+  - RVSFACTOR
+  - pplatform
+  right_only_sample:
+  - DRAFT
+  - DRAFTQA
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.995); consistent with
+    FK / identity reference'
+- left: cust_auth_application.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_auth_application
+    column: platform_product_code
+    exists: true
+    row_count: 32090
+    non_null: 31931
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_project
+    column: platform_product_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 8
+    sample:
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 31931
+  left_in_right: 31931
+  left_not_in_right: 0
+  right_in_left: 3586
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - BEECREDIT
+  - VOUCHER
+  - DRAFT
+  - DRAFTQA
+  - STORAGE
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product.id
+  right: cust_project_rel.product_id
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:hub_id
+  wiki_evidence: 'pattern: product_id → tenant_product.id'
+  left_stats:
+    table: tenant_product
+    column: id
+    exists: true
+    row_count: 501
+    non_null: 501
+    distinct_non_null: 501
+    sample:
+    - '1823633623839248385'
+    - '1826128361583771649'
+    - '1826813600559169538'
+    - '1826829436405526530'
+    - '1826909844156305410'
+    - '1827890533386448897'
+    - '1828331133954285569'
+    - '1828724865390518273'
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: product_id
+    exists: true
+    row_count: 60138
+    non_null: 60080
+    distinct_non_null: 209
+    sample:
+    - '1795047363653136386'
+    - '1823335930310791170'
+    - '1828338709404180481'
+    - '1829056399900778498'
+    - '1797564722686484482'
+    - '1797564722686484482'
+    - '1797564722686484482'
+    - '1797564722686484482'
+    error: ''
+  join_hits: 192
+  left_in_right: 192
+  left_not_in_right: 309
+  right_in_left: 59727
+  right_not_in_left: 353
+  left_in_right_ratio: 0.3832
+  right_in_left_ratio: 0.9941
+  intersection_sample:
+  - '1823335930310791170'
+  - '1828338709404180481'
+  - '1829056399900778498'
+  - '1797564722686484482'
+  - '1830931997592944642'
+  - '1829056506230579202'
+  - '1797628152482992129'
+  - '1828331133954285569'
+  left_only_sample:
+  - '1823633623839248385'
+  - '1826128361583771649'
+  - '1826813600559169538'
+  - '1826829436405526530'
+  - '1826909844156305410'
+  - '1827890533386448897'
+  - '1828724865390518273'
+  - '1828725468632096769'
+  right_only_sample:
+  - '1795047363653136386'
+  - '1795047501020786690'
+  - '1797908254370435074'
+  - '1797908249651843074'
+  - '1798615336261480450'
+  - '1797628176004648961'
+  - '1797628171562881025'
+  - '1803978789475938305'
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9941); consistent with
+    FK / identity reference'
+- left: authorization_agreement.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 6117
+  left_in_right: 6117
+  left_not_in_right: 25258
+  right_in_left: 37655
+  right_not_in_left: 0
+  left_in_right_ratio: 0.195
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - AMS
+  - BEECREDIT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - VOUCHER
+  left_only_sample:
+  - PLATFORM
+  - RVSFACTOR
+  - pplatform
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: authorization_agreement.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 6094
+  left_in_right: 6094
+  left_not_in_right: 25281
+  right_in_left: 123898
+  right_not_in_left: 30853
+  left_in_right_ratio: 0.1942
+  right_in_left_ratio: 0.8006
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  - ORDER
+  - AMS
+  - STORAGE
+  left_only_sample:
+  - PLATFORM
+  - BEECREDIT
+  - VOUCHER
+  - RVSFACTOR
+  - pplatform
+  right_only_sample:
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  - '["ORDER","ACFLOW"]'
+  - '["ORDER","RVSFACTOR_PC","ACFLOW"]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.1942, right->left=0.8006, join_hits=6094)
+- left: ca_fee_order.certification_no
+  right: cust_company_info.certification_no
+  host: cust_company_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: ca_fee_order
+    column: certification_no
+    exists: true
+    row_count: 1575
+    non_null: 1575
+    distinct_non_null: 1021
+    sample:
+    - 00371081706233754B
+    - 0234647270626178A5
+    - 03637261646646177M
+    - 09846980651257504T
+    - '104665209868129317'
+    - '104665209868129317'
+    - '108387681541414970'
+    - '108387681541414970'
+    error: ''
+  right_stats:
+    table: cust_company_info
+    column: certification_no
+    exists: true
+    row_count: 94912
+    non_null: 94477
+    distinct_non_null: 53428
+    sample:
+    - ',9144200028213222XT'
+    - ',9144200028213222XT'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    error: ''
+  join_hits: 1575
+  left_in_right: 1575
+  left_not_in_right: 0
+  right_in_left: 1160
+  right_not_in_left: 93317
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.0123
+  intersection_sample:
+  - 00371081706233754B
+  - 0234647270626178A5
+  - 03637261646646177M
+  - 09846980651257504T
+  - '104665209868129317'
+  - '108387681541414970'
+  - '110101198506020011'
+  - '110196556122614029'
+  left_only_sample: []
+  right_only_sample:
+  - ',9144200028213222XT'
+  - '-'
+  - '000000000000000'
+  - 00000000000000000X
+  - '000000000000000011'
+  - 000000005607170850
+  - 00010107054941260M
+  - 000OAKV6W1J02XQZ68
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.0123, join_hits=1575)
+- left: cust_auth_application.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_auth_application
+    column: platform_product_code
+    exists: true
+    row_count: 32090
+    non_null: 31931
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 31830
+  left_in_right: 31830
+  left_not_in_right: 101
+  right_in_left: 34485
+  right_not_in_left: 3170
+  left_in_right_ratio: 0.9968
+  right_in_left_ratio: 0.9158
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  - BEECREDIT
+  - ORDER
+  - STORAGE
+  - VOUCHER
+  left_only_sample:
+  - DRAFT
+  - DRAFTQA
+  right_only_sample:
+  - AMS
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.9968, right->left=0.9158); same value domain
+    / business code space likely
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_auth_application
+    column: platform_product_code
+    exists: true
+    row_count: 32090
+    non_null: 31931
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 31371
+  left_in_right: 31371
+  left_not_in_right: 560
+  right_in_left: 123792
+  right_not_in_left: 30959
+  left_in_right_ratio: 0.9825
+  right_in_left_ratio: 0.7999
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  - ORDER
+  - STORAGE
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  - DRAFT
+  - DRAFTQA
+  right_only_sample:
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  - '["ORDER","ACFLOW"]'
+  - '["ORDER","RVSFACTOR_PC","ACFLOW"]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.9825, right->left=0.7999); same value domain
+    / business code space likely
+- left: platform_product.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - DRAFTQA
+    - HTCP1
+    - HTCP13
+    error: ''
+  right_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 3
+  left_in_right: 3
+  left_not_in_right: 17
+  right_in_left: 442
+  right_not_in_left: 0
+  left_in_right_ratio: 0.15
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - ORDER
+  - RVSFACTOR_PC
+  left_only_sample:
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - DRAFTQA
+  - HTCP1
+  - HTCP13
+  - HTCP14
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu.product_code
+  host: tenant_product_menu
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 62
+    non_null: 62
+    distinct_non_null: 12
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_product_menu
+    column: product_code
+    exists: true
+    row_count: 2538
+    non_null: 2538
+    distinct_non_null: 3
+    sample:
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    error: ''
+  join_hits: 16
+  left_in_right: 16
+  left_not_in_right: 46
+  right_in_left: 2538
+  right_not_in_left: 0
+  left_in_right_ratio: 0.2581
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - BEECREDIT
+  - RVSFACTOR_PC
+  - ACCOUNT_PRODUCT
+  left_only_sample:
+  - AMS
+  - ACFLOW
+  - ORDER
+  - CROSSBORDER
+  - DEALER
+  - VOUCHER
+  - STORAGE
+  - DRAFTQA
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product_cust_role.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 62
+    non_null: 62
+    distinct_non_null: 12
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 17
+  left_in_right: 17
+  left_not_in_right: 45
+  right_in_left: 442
+  right_not_in_left: 0
+  left_in_right_ratio: 0.2742
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - ORDER
+  - RVSFACTOR_PC
+  left_only_sample:
+  - AMS
+  - CROSSBORDER
+  - BEECREDIT
+  - DEALER
+  - VOUCHER
+  - STORAGE
+  - DRAFTQA
+  - DRAFT
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_product
+    column: platform_product_code
+    exists: true
+    row_count: 501
+    non_null: 501
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ORDER
+    - BEECREDIT
+    - BEECREDIT
+    - ACFLOW
+    - VOUCHER
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 485
+  left_in_right: 485
+  left_not_in_right: 16
+  right_in_left: 34485
+  right_not_in_left: 3170
+  left_in_right_ratio: 0.9681
+  right_in_left_ratio: 0.9158
+  intersection_sample:
+  - ACFLOW
+  - ORDER
+  - BEECREDIT
+  - VOUCHER
+  - RVSFACTOR_PC
+  - STORAGE
+  left_only_sample:
+  - DRAFTQA
+  - DRAFT
+  right_only_sample:
+  - AMS
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.9681, right->left=0.9158); same value domain
+    / business code space likely
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_product
+    column: platform_product_code
+    exists: true
+    row_count: 501
+    non_null: 501
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ORDER
+    - BEECREDIT
+    - BEECREDIT
+    - ACFLOW
+    - VOUCHER
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 421
+  left_in_right: 421
+  left_not_in_right: 80
+  right_in_left: 123792
+  right_not_in_left: 30959
+  left_in_right_ratio: 0.8403
+  right_in_left_ratio: 0.7999
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  - ORDER
+  - STORAGE
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  - DRAFTQA
+  - DRAFT
+  right_only_sample:
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  - '["ORDER","ACFLOW"]'
+  - '["ORDER","RVSFACTOR_PC","ACFLOW"]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.8403, right->left=0.7999); same value domain
+    / business code space likely
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 36750
+  left_in_right: 36750
+  left_not_in_right: 905
+  right_in_left: 123898
+  right_not_in_left: 30853
+  left_in_right_ratio: 0.976
+  right_in_left_ratio: 0.8006
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  - ORDER
+  - AMS
+  - STORAGE
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  right_only_sample:
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  - '["ORDER","ACFLOW"]'
+  - '["ORDER","RVSFACTOR_PC","ACFLOW"]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.976, right->left=0.8006); same value domain
+    / business code space likely
+- left: authorization_agreement.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 6094
+  left_in_right: 6094
+  left_not_in_right: 25281
+  right_in_left: 4205
+  right_not_in_left: 392
+  left_in_right_ratio: 0.1942
+  right_in_left_ratio: 0.9147
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - STORAGE
+  - AMS
+  left_only_sample:
+  - PLATFORM
+  - BEECREDIT
+  - VOUCHER
+  - RVSFACTOR
+  - pplatform
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - '["ORDER"]'
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  - '["ACFLOW"]'
+  - '[null,null]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.1942, right->left=0.9147, join_hits=6094)
+- left: ca_cfca_upgrade_report.certification_no
+  right: ca_fee_order.certification_no
+  host: ca_fee_order
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: ca_cfca_upgrade_report
+    column: certification_no
+    exists: true
+    row_count: 425
+    non_null: 425
+    distinct_non_null: 33
+    sample:
+    - 11572642955MCKN80X
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    error: ''
+  right_stats:
+    table: ca_fee_order
+    column: certification_no
+    exists: true
+    row_count: 1575
+    non_null: 1575
+    distinct_non_null: 1021
+    sample:
+    - 00371081706233754B
+    - 0234647270626178A5
+    - 03637261646646177M
+    - 09846980651257504T
+    - '104665209868129317'
+    - '104665209868129317'
+    - '108387681541414970'
+    - '108387681541414970'
+    error: ''
+  join_hits: 260
+  left_in_right: 260
+  left_not_in_right: 165
+  right_in_left: 24
+  right_not_in_left: 1551
+  left_in_right_ratio: 0.6118
+  right_in_left_ratio: 0.0152
+  intersection_sample:
+  - '456457657585858568'
+  - '547457457457658665'
+  - '698241080913565968'
+  - 91110102MA00C29B5W
+  - 9111010877336966X1
+  - 91130108542037094C
+  - 91330102MA24KBCF2C
+  - 91340100MA2MUWT73J
+  left_only_sample:
+  - 11572642955MCKN80X
+  - '231645787943164946'
+  - '232424123213214243'
+  - 294403008RR8YXF437
+  - '419488915332808833'
+  - '464575856865867969'
+  - 91165363REC655J2TY
+  - 91193211EPC2NRJH77
+  right_only_sample:
+  - 00371081706233754B
+  - 0234647270626178A5
+  - 03637261646646177M
+  - 09846980651257504T
+  - '104665209868129317'
+  - '108387681541414970'
+  - '110101198506020011'
+  - '110196556122614029'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.6118, right->left=0.0152, join_hits=260)
+- left: ca_cfca_upgrade_report.certification_no
+  right: ca_fee_special_config.certification_no
+  host: ca_fee_special_config
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: ca_cfca_upgrade_report
+    column: certification_no
+    exists: true
+    row_count: 425
+    non_null: 425
+    distinct_non_null: 33
+    sample:
+    - 11572642955MCKN80X
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    - '231645787943164946'
+    error: ''
+  right_stats:
+    table: ca_fee_special_config
+    column: certification_no
+    exists: true
+    row_count: 55
+    non_null: 55
+    distinct_non_null: 39
+    sample:
+    - 114500006GR9QBLL7P
+    - '538280511140845054'
+    - '538280511140845054'
+    - '698241080913565968'
+    - '698241080913565968'
+    - 91085866BPCF4NNKQM
+    - 91085866BPCF4NNKQM
+    - 91085866BPCF4NNKQM
+    error: ''
+  join_hits: 41
+  left_in_right: 41
+  left_not_in_right: 384
+  right_in_left: 3
+  right_not_in_left: 52
+  left_in_right_ratio: 0.0965
+  right_in_left_ratio: 0.0545
+  intersection_sample:
+  - '698241080913565968'
+  - 91110102MA00C29B5W
+  left_only_sample:
+  - 11572642955MCKN80X
+  - '231645787943164946'
+  - '232424123213214243'
+  - 294403008RR8YXF437
+  - '419488915332808833'
+  - '456457657585858568'
+  - '464575856865867969'
+  - '547457457457658665'
+  right_only_sample:
+  - 114500006GR9QBLL7P
+  - '538280511140845054'
+  - 91085866BPCF4NNKQM
+  - 91100000100003962T
+  - 91110108551385082Q
+  - 91330106MACA91BP4N
+  - 9134000013370212X3
+  - 91340100MA2MWW1B93
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0965, right->left=0.0545, join_hits=41)
+- left: cust_app_channel_config.code
+  right: cust_company_info.channel_code
+  host: cust_company_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:fk_to_code
+  wiki_evidence: channel_code → cust_app_channel_config.code
+  left_stats:
+    table: cust_app_channel_config
+    column: code
+    exists: true
+    row_count: 2
+    non_null: 2
+    distinct_non_null: 2
+    sample:
+    - longteng
+    - jingke
+    error: ''
+  right_stats:
+    table: cust_company_info
+    column: channel_code
+    exists: true
+    row_count: 94912
+    non_null: 544
+    distinct_non_null: 2
+    sample:
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    error: ''
+  join_hits: 2
+  left_in_right: 2
+  left_not_in_right: 0
+  right_in_left: 544
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - longteng
+  - jingke
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_app_channel_config.code
+  right: open_sso_channel.channel_code
+  host: open_sso_channel
+  trust: proposed
+  authenticity: unknown
+  source: collide:fk_to_code
+  wiki_evidence: channel_code → cust_app_channel_config.code
+  left_stats:
+    table: cust_app_channel_config
+    column: code
+    exists: true
+    row_count: 2
+    non_null: 2
+    distinct_non_null: 2
+    sample:
+    - longteng
+    - jingke
+    error: ''
+  right_stats:
+    table: open_sso_channel
+    column: channel_code
+    exists: true
+    row_count: 3
+    non_null: 3
+    distinct_non_null: 2
+    sample:
+    - longteng
+    - longteng
+    - jingke
+    error: ''
+  join_hits: 2
+  left_in_right: 2
+  left_not_in_right: 0
+  right_in_left: 3
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - longteng
+  - jingke
+  left_only_sample: []
+  right_only_sample: []
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain /
+    business code space likely
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_auth_application
+    column: platform_product_code
+    exists: true
+    row_count: 32090
+    non_null: 31931
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 31371
+  left_in_right: 31371
+  left_not_in_right: 560
+  right_in_left: 4186
+  right_not_in_left: 411
+  left_in_right_ratio: 0.9825
+  right_in_left_ratio: 0.9106
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - STORAGE
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  - DRAFT
+  - DRAFTQA
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - '["ORDER"]'
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  - '["ACFLOW"]'
+  - '[null,null]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.9825, right->left=0.9106); same value domain
+    / business code space likely
+- left: cust_company_info.channel_code
+  right: open_sso_channel.channel_code
+  host: open_sso_channel
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `channel_code`
+  left_stats:
+    table: cust_company_info
+    column: channel_code
+    exists: true
+    row_count: 94912
+    non_null: 544
+    distinct_non_null: 2
+    sample:
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    - longteng
+    error: ''
+  right_stats:
+    table: open_sso_channel
+    column: channel_code
+    exists: true
+    row_count: 3
+    non_null: 3
+    distinct_non_null: 2
+    sample:
+    - longteng
+    - longteng
+    - jingke
+    error: ''
+  join_hits: 544
+  left_in_right: 544
+  left_not_in_right: 0
+  right_in_left: 3
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - longteng
+  - jingke
+  left_only_sample: []
+  right_only_sample: []
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain /
+    business code space likely
+- left: funding_exception_resolution.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 92
+    non_null: 92
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 1671
+    non_null: 1671
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 92
+  left_in_right: 92
+  left_not_in_right: 0
+  right_in_left: 1671
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_exception_resolution.product_code
+  right: funding_rule_front_cfg.product_code
+  host: funding_rule_front_cfg
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 92
+    non_null: 92
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 92
+  left_in_right: 92
+  left_not_in_right: 0
+  right_in_left: 47
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_exception_resolution.product_code
+  right: platform_product.product_code
+  host: platform_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 92
+    non_null: 92
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - DRAFTQA
+    - HTCP1
+    - HTCP13
+    error: ''
+  join_hits: 92
+  left_in_right: 92
+  left_not_in_right: 0
+  right_in_left: 2
+  right_not_in_left: 18
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.1
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - DRAFTQA
+  - HTCP1
+  - HTCP13
+  - HTCP14
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=92)
+- left: funding_exception_resolution.product_code
+  right: platform_product_cust_role.product_code
+  host: platform_product_cust_role
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 92
+    non_null: 92
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 62
+    non_null: 62
+    distinct_non_null: 12
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 92
+  left_in_right: 92
+  left_not_in_right: 0
+  right_in_left: 11
+  right_not_in_left: 51
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.1774
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - ORDER
+  - CROSSBORDER
+  - BEECREDIT
+  - DEALER
+  - VOUCHER
+  - STORAGE
+  - DRAFTQA
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=92)
+- left: funding_exception_resolution.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 92
+    non_null: 92
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 92
+  left_in_right: 92
+  left_not_in_right: 0
+  right_in_left: 301
+  right_not_in_left: 141
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.681
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - ORDER
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=0.681); same value domain
+    / business code space likely
+- left: funding_rule_front_cfg.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 1671
+    non_null: 1671
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 47
+  left_in_right: 47
+  left_not_in_right: 0
+  right_in_left: 1671
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_rule_front_cfg.product_code
+  right: platform_product.product_code
+  host: platform_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - DRAFTQA
+    - HTCP1
+    - HTCP13
+    error: ''
+  join_hits: 47
+  left_in_right: 47
+  left_not_in_right: 0
+  right_in_left: 2
+  right_not_in_left: 18
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.1
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - DRAFTQA
+  - HTCP1
+  - HTCP13
+  - HTCP14
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=47)
+- left: funding_rule_front_cfg.product_code
+  right: platform_product_cust_role.product_code
+  host: platform_product_cust_role
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 62
+    non_null: 62
+    distinct_non_null: 12
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 47
+  left_in_right: 47
+  left_not_in_right: 0
+  right_in_left: 11
+  right_not_in_left: 51
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.1774
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - ORDER
+  - CROSSBORDER
+  - BEECREDIT
+  - DEALER
+  - VOUCHER
+  - STORAGE
+  - DRAFTQA
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=47)
+- left: funding_rule_front_cfg.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 47
+  left_in_right: 47
+  left_not_in_right: 0
+  right_in_left: 301
+  right_not_in_left: 141
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.681
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - ORDER
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=0.681); same value domain
+    / business code space likely
+- left: funding_rule_info.product_code
+  right: platform_product.product_code
+  host: platform_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_info
+    column: product_code
+    exists: true
+    row_count: 53
+    non_null: 53
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - DRAFTQA
+    - HTCP1
+    - HTCP13
+    error: ''
+  join_hits: 53
+  left_in_right: 53
+  left_not_in_right: 0
+  right_in_left: 2
+  right_not_in_left: 18
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.1
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - DRAFTQA
+  - HTCP1
+  - HTCP13
+  - HTCP14
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=53)
+- left: funding_rule_info.product_code
+  right: platform_product_cust_role.product_code
+  host: platform_product_cust_role
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_info
+    column: product_code
+    exists: true
+    row_count: 53
+    non_null: 53
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 62
+    non_null: 62
+    distinct_non_null: 12
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 53
+  left_in_right: 53
+  left_not_in_right: 0
+  right_in_left: 11
+  right_not_in_left: 51
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.1774
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - ORDER
+  - CROSSBORDER
+  - BEECREDIT
+  - DEALER
+  - VOUCHER
+  - STORAGE
+  - DRAFTQA
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=53)
+- left: funding_rule_info.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_info
+    column: product_code
+    exists: true
+    row_count: 53
+    non_null: 53
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 53
+  left_in_right: 53
+  left_not_in_right: 0
+  right_in_left: 301
+  right_not_in_left: 141
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.681
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - ORDER
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=0.681); same value domain
+    / business code space likely
+- left: platform_product.id
+  right: cust_project_rel.product_id
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:hub_id
+  wiki_evidence: 'pattern: product_id → platform_product.id'
+  left_stats:
+    table: platform_product
+    column: id
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - '11'
+    - '13'
+    - '12'
+    - '1881239448301518849'
+    - '14'
+    - '15'
+    - '16'
+    - '17'
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: product_id
+    exists: true
+    row_count: 60138
+    non_null: 60080
+    distinct_non_null: 209
+    sample:
+    - '1795047363653136386'
+    - '1823335930310791170'
+    - '1828338709404180481'
+    - '1829056399900778498'
+    - '1797564722686484482'
+    - '1797564722686484482'
+    - '1797564722686484482'
+    - '1797564722686484482'
+    error: ''
+  join_hits: 3
+  left_in_right: 3
+  left_not_in_right: 17
+  right_in_left: 24
+  right_not_in_left: 60056
+  left_in_right_ratio: 0.15
+  right_in_left_ratio: 0.0004
+  intersection_sample:
+  - '5'
+  - '7'
+  - '2'
+  left_only_sample:
+  - '11'
+  - '13'
+  - '12'
+  - '1881239448301518849'
+  - '14'
+  - '15'
+  - '16'
+  - '17'
+  right_only_sample:
+  - '1795047363653136386'
+  - '1823335930310791170'
+  - '1828338709404180481'
+  - '1829056399900778498'
+  - '1797564722686484482'
+  - '1830931997592944642'
+  - '1829056506230579202'
+  - '1797628152482992129'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.15, right->left=0.0004, join_hits=3)
+- left: platform_product.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - DRAFTQA
+    - HTCP1
+    - HTCP13
+    error: ''
+  right_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 1671
+    non_null: 1671
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 2
+  left_in_right: 2
+  left_not_in_right: 18
+  right_in_left: 1671
+  right_not_in_left: 0
+  left_in_right_ratio: 0.1
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample:
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - DRAFTQA
+  - HTCP1
+  - HTCP13
+  - HTCP14
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.product_code
+  right: tenant_product_menu.product_code
+  host: tenant_product_menu
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - DRAFTQA
+    - HTCP1
+    - HTCP13
+    error: ''
+  right_stats:
+    table: tenant_product_menu
+    column: product_code
+    exists: true
+    row_count: 2538
+    non_null: 2538
+    distinct_non_null: 3
+    sample:
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    error: ''
+  join_hits: 2
+  left_in_right: 2
+  left_not_in_right: 18
+  right_in_left: 2396
+  right_not_in_left: 142
+  left_in_right_ratio: 0.1
+  right_in_left_ratio: 0.9441
+  intersection_sample:
+  - BEECREDIT
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  - AMS
+  - DEALER
+  - DRAFT
+  - DRAFTQA
+  - HTCP1
+  - HTCP13
+  - HTCP14
+  right_only_sample:
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.1, right->left=0.9441, join_hits=2)
+- left: platform_product_cust_role.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 62
+    non_null: 62
+    distinct_non_null: 12
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 1671
+    non_null: 1671
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 11
+  left_in_right: 11
+  left_not_in_right: 51
+  right_in_left: 1671
+  right_not_in_left: 0
+  left_in_right_ratio: 0.1774
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample:
+  - AMS
+  - ORDER
+  - CROSSBORDER
+  - BEECREDIT
+  - DEALER
+  - VOUCHER
+  - STORAGE
+  - DRAFTQA
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 62
+    non_null: 62
+    distinct_non_null: 12
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_product_menu_res
+    column: product_code
+    exists: true
+    row_count: 110
+    non_null: 110
+    distinct_non_null: 2
+    sample:
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    error: ''
+  join_hits: 12
+  left_in_right: 12
+  left_not_in_right: 50
+  right_in_left: 110
+  right_not_in_left: 0
+  left_in_right_ratio: 0.1935
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - RVSFACTOR_PC
+  - ACCOUNT_PRODUCT
+  left_only_sample:
+  - AMS
+  - ACFLOW
+  - ORDER
+  - CROSSBORDER
+  - BEECREDIT
+  - DEALER
+  - VOUCHER
+  - STORAGE
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_product
+    column: platform_product_code
+    exists: true
+    row_count: 501
+    non_null: 501
+    distinct_non_null: 8
+    sample:
+    - ACFLOW
+    - ORDER
+    - BEECREDIT
+    - BEECREDIT
+    - ACFLOW
+    - VOUCHER
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 421
+  left_in_right: 421
+  left_not_in_right: 80
+  right_in_left: 4186
+  right_not_in_left: 411
+  left_in_right_ratio: 0.8403
+  right_in_left_ratio: 0.9106
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - STORAGE
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  - DRAFTQA
+  - DRAFT
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - '["ORDER"]'
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  - '["ACFLOW"]'
+  - '[null,null]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.8403, right->left=0.9106); same value domain
+    / business code space likely
+- left: tenant_project.id
+  right: wec_project_cust_operation_rel.project_id
+  host: wec_project_cust_operation_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:hub_id
+  wiki_evidence: 'pattern: project_id → tenant_project.id'
+  left_stats:
+    table: tenant_project
+    column: id
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 3586
+    sample:
+    - '2203106338874073180'
+    - '1999381039371583489'
+    - '7193142624923394048'
+    - '1203026947395813404'
+    - '1986272085919219713'
+    - '2188980103331987482'
+    - '2139595791851864103'
+    - '1905464553752363009'
+    error: ''
+  right_stats:
+    table: wec_project_cust_operation_rel
+    column: project_id
+    exists: true
+    row_count: 2331
+    non_null: 2331
+    distinct_non_null: 173
+    sample:
+    - '100002'
+    - '6606082674815668224'
+    - '6606082674815668224'
+    - '6606082674815668224'
+    - '6606082674815668224'
+    - '100004'
+    - '1247245793941786680'
+    - '1251134813386051647'
+    error: ''
+  join_hits: 2
+  left_in_right: 2
+  left_not_in_right: 3584
+  right_in_left: 5
+  right_not_in_left: 2326
+  left_in_right_ratio: 0.0006
+  right_in_left_ratio: 0.0021
+  intersection_sample:
+  - '7383800930013659136'
+  - '7384076079942144000'
+  left_only_sample:
+  - '2203106338874073180'
+  - '1999381039371583489'
+  - '7193142624923394048'
+  - '1203026947395813404'
+  - '1986272085919219713'
+  - '2188980103331987482'
+  - '2139595791851864103'
+  - '1905464553752363009'
+  right_only_sample:
+  - '100002'
+  - '6606082674815668224'
+  - '100004'
+  - '1247245793941786680'
+  - '1251134813386051647'
+  - '6837993668279926784'
+  - '7267374337280811008'
+  - '7267375290331537408'
+  verdict: false_friend
+  reason: negligible overlap on large domains (left->right=0.0006, right->left=0.0021,
+    join_hits=2, distinct L/R=3586/173); not a usable equi-join
+- left: tenant_project.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_project
+    column: platform_product_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 8
+    sample:
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 3568
+  left_in_right: 3568
+  left_not_in_right: 18
+  right_in_left: 34485
+  right_not_in_left: 3170
+  left_in_right_ratio: 0.995
+  right_in_left_ratio: 0.9158
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - BEECREDIT
+  - VOUCHER
+  - STORAGE
+  left_only_sample:
+  - DRAFT
+  - DRAFTQA
+  right_only_sample:
+  - AMS
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.995, right->left=0.9158); same value domain
+    / business code space likely
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_project
+    column: platform_product_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 8
+    sample:
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 3487
+  left_in_right: 3487
+  left_not_in_right: 99
+  right_in_left: 123792
+  right_not_in_left: 30959
+  left_in_right_ratio: 0.9724
+  right_in_left_ratio: 0.7999
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  - ORDER
+  - STORAGE
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  - DRAFT
+  - DRAFTQA
+  right_only_sample:
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  - '["ORDER","ACFLOW"]'
+  - '["ORDER","RVSFACTOR_PC","ACFLOW"]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.9724, right->left=0.7999); same value domain
+    / business code space likely
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_project
+    column: platform_product_code
+    exists: true
+    row_count: 3586
+    non_null: 3586
+    distinct_non_null: 8
+    sample:
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ORDER
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 3487
+  left_in_right: 3487
+  left_not_in_right: 99
+  right_in_left: 4186
+  right_not_in_left: 411
+  left_in_right_ratio: 0.9724
+  right_in_left_ratio: 0.9106
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - STORAGE
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  - DRAFT
+  - DRAFTQA
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - '["ORDER"]'
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  - '["ACFLOW"]'
+  - '[null,null]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.9724, right->left=0.9106); same value domain
+    / business code space likely
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  host: wechat_project_approval_field_history
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `sp_no`
+  left_stats:
+    table: tenant_project_approval
+    column: sp_no
+    exists: true
+    row_count: 527
+    non_null: 510
+    distinct_non_null: 32
+    sample:
+    - '202605110011'
+    - '202605110011'
+    - '202604270003'
+    - '202604270003'
+    - '202604270003'
+    - '202605110011'
+    - '202604270003'
+    - '202604270003'
+    error: ''
+  right_stats:
+    table: wechat_project_approval_field_history
+    column: sp_no
+    exists: true
+    row_count: 1735
+    non_null: 1735
+    distinct_non_null: 79
+    sample:
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    error: ''
+  join_hits: 510
+  left_in_right: 510
+  left_not_in_right: 0
+  right_in_left: 885
+  right_not_in_left: 850
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.5101
+  intersection_sample:
+  - '202605110011'
+  - '202604270003'
+  - '202604090001'
+  - '202605120011'
+  - '202512290002'
+  - MN-202606030156
+  - MN-202604300059
+  - MN-202605060097
+  left_only_sample: []
+  right_only_sample:
+  - '202512290017'
+  - '202512300002'
+  - '202512310005'
+  - '202601040004'
+  - '202601040005'
+  - '202601060002'
+  - '202601060005'
+  - '202601060006'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=0.5101); same value domain
+    / business code space likely
+- left: tenant_project_approval_business_info.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 1671
+    non_null: 1671
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 301
+  left_in_right: 301
+  left_not_in_right: 141
+  right_in_left: 1671
+  right_not_in_left: 0
+  left_in_right_ratio: 0.681
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ORDER
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 36750
+  left_in_right: 36750
+  left_not_in_right: 905
+  right_in_left: 4205
+  right_not_in_left: 392
+  left_in_right_ratio: 0.976
+  right_in_left_ratio: 0.9147
+  intersection_sample:
+  - ORDER
+  - ACFLOW
+  - RVSFACTOR_PC
+  - STORAGE
+  - AMS
+  left_only_sample:
+  - BEECREDIT
+  - VOUCHER
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - '["ORDER"]'
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  - '["ACFLOW"]'
+  - '[null,null]'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.976, right->left=0.9147); same value domain
+    / business code space likely
+- left: authorization_agreement.platform_product_code
+  right: cust_interworking_product.platform_product_code
+  host: cust_interworking_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: cust_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 304
+    non_null: 304
+    distinct_non_null: 6
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP14
+    - HTCP5
+    - HTCP14
+    - HTCP14
+    error: ''
+  join_hits: 34
+  left_in_right: 34
+  left_not_in_right: 31341
+  right_in_left: 3
+  right_not_in_left: 301
+  left_in_right_ratio: 0.0011
+  right_in_left_ratio: 0.0099
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - PLATFORM
+  - ACFLOW
+  - BEECREDIT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - VOUCHER
+  - RVSFACTOR
+  right_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0011, right->left=0.0099, join_hits=34)
+- left: authorization_agreement.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  host: tenant_interworking_product
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: tenant_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 40
+    non_null: 40
+    distinct_non_null: 11
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP5
+    error: ''
+  join_hits: 34
+  left_in_right: 34
+  left_not_in_right: 31341
+  right_in_left: 7
+  right_not_in_left: 33
+  left_in_right_ratio: 0.0011
+  right_in_left_ratio: 0.175
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - PLATFORM
+  - ACFLOW
+  - BEECREDIT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - VOUCHER
+  - RVSFACTOR
+  right_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  - HTCP19
+  - HTCP18
+  - HTCP7
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0011, right->left=0.175, join_hits=34)
+- left: authorization_agreement.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  host: tenant_interworking_project
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: authorization_agreement
+    column: platform_product_code
+    exists: true
+    row_count: 31375
+    non_null: 31375
+    distinct_non_null: 10
+    sample:
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    - PLATFORM
+    error: ''
+  right_stats:
+    table: tenant_interworking_project
+    column: platform_product_code
+    exists: true
+    row_count: 12
+    non_null: 12
+    distinct_non_null: 5
+    sample:
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP5
+    - AMS
+    error: ''
+  join_hits: 34
+  left_in_right: 34
+  left_not_in_right: 31341
+  right_in_left: 1
+  right_not_in_left: 11
+  left_in_right_ratio: 0.0011
+  right_in_left_ratio: 0.0833
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - PLATFORM
+  - ACFLOW
+  - BEECREDIT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - VOUCHER
+  - RVSFACTOR
+  right_only_sample:
+  - HTCP1
+  - HTCP5
+  - HTCP13
+  - HTCP14
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0011, right->left=0.0833, join_hits=34)
+- left: cust_company_info.certification_no
+  right: cust_shareholder_info.certification_no
+  host: cust_shareholder_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: cust_company_info
+    column: certification_no
+    exists: true
+    row_count: 94912
+    non_null: 94477
+    distinct_non_null: 53428
+    sample:
+    - ',9144200028213222XT'
+    - ',9144200028213222XT'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    - '-'
+    error: ''
+  right_stats:
+    table: cust_shareholder_info
+    column: certification_no
+    exists: true
+    row_count: 6
+    non_null: 3
+    distinct_non_null: 2
+    sample:
+    - wertwetew
+    - '11'
+    - wertwetew
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 94476
+  right_in_left: 1
+  right_not_in_left: 2
+  left_in_right_ratio: 0.0
+  right_in_left_ratio: 0.3333
+  intersection_sample:
+  - '11'
+  left_only_sample:
+  - ',9144200028213222XT'
+  - '-'
+  - '000000000000000'
+  - 00000000000000000X
+  - '000000000000000011'
+  - 000000005607170850
+  - 00010107054941260M
+  - 000OAKV6W1J02XQZ68
+  right_only_sample:
+  - wertwetew
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=1)
+- left: cust_company_info.legal_certification_no
+  right: cust_head_company_info.legal_certification_no
+  host: cust_head_company_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `legal_certification_no`
+  left_stats:
+    table: cust_company_info
+    column: legal_certification_no
+    exists: true
+    row_count: 94912
+    non_null: 51812
+    distinct_non_null: 49521
+    sample:
+    - cd39e3501f92a6a6289939d7afd03c0e401799db910676d2f84d14efb4f15bf9
+    - '311529199010101212'
+    - 724fb0a55096318d293640ad322d3509bd27b473ed34aa4d5f7391971439da30
+    - 227f342dbe2ebf100b7366ad8b87f057bc6547613d47b43d5c296c8dd41fdfcb
+    - d9883545bbc2d54925cee87869d63aba9c82c4e910e879d965249961d3623ec1
+    - 8a9552b99e33a8460b9944ac266ceb8cf948b946b92cb6baf44499f754a47719
+    - a2b8cc8c11bec48b9eba9c8bb6ca6f05bc6547613d47b43d5c296c8dd41fdfcb
+    - aecee86d917f8d3575ee406baa750620e27949e85f931ae9c082715a41d11fde
+    error: ''
+  right_stats:
+    table: cust_head_company_info
+    column: legal_certification_no
+    exists: true
+    row_count: 881
+    non_null: 509
+    distinct_non_null: 426
+    sample:
+    - '3607891999020252652'
+    - '360789199902016526'
+    - '360789199902062462'
+    - '360789199902243526'
+    - '360789199009032622'
+    - 65412419460916075X
+    - '320322199412293111'
+    - '370281198801161023'
+    error: ''
+  join_hits: 41
+  left_in_right: 41
+  left_not_in_right: 51771
+  right_in_left: 57
+  right_not_in_left: 452
+  left_in_right_ratio: 0.0008
+  right_in_left_ratio: 0.112
+  intersection_sample:
+  - '370281198801161023'
+  - '421125198307100961'
+  - '110106196508012739'
+  - '140522198301107518'
+  - '362324199606292418'
+  - 32068119821101005X
+  - '131026198203010613'
+  - '330724197702275613'
+  left_only_sample:
+  - 0000312c5c3e922714971d79597f2119ab51e94ac867999e2a841b4dfbf394cd
+  - 00005899dd664862265891ad6ef25c5d1892915262f3523aa081c219cd912d47
+  - 00023029a85383ff58e888abd4ab657d2bd37a10566b1f581ec974e0f0de0512
+  - 0002ec91714bc09a004544cd47f91e713a58add70d9c0ac3227712abc31c4b83
+  - 00033693be637d41df94fec81916ab4ea0c68cc6e65f24b33e0a5663f53bc2fe
+  - 0003a0bea5f176b6bc7fcc2401f03c4c3d9d4eef16e3a29e2d50889366863d4f
+  - 0008765d0b28f88c75b117b954ff9d85c8cf4d99cb4808319309d948de6a4afd
+  - 0008cd045939b6cc8e3c6dadc4200a048ebac670878a2878a604e5acc3a8a800
+  right_only_sample:
+  - '3607891999020252652'
+  - '360789199902016526'
+  - '360789199902062462'
+  - '360789199902243526'
+  - '360789199009032622'
+  - 65412419460916075X
+  - '320322199412293111'
+  - '110101202406264034'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0008, right->left=0.112, join_hits=41)
+- left: cust_head_company_info.id
+  right: authorization_agreement.original_cust_id
+  host: authorization_agreement
+  trust: proposed
+  authenticity: unknown
+  source: collide:fk_to_id
+  wiki_evidence: original_cust_id → cust_head_company_info.id
+  left_stats:
+    table: cust_head_company_info
+    column: id
+    exists: true
+    row_count: 881
+    non_null: 881
+    distinct_non_null: 881
+    sample:
+    - '1794920497169264642'
+    - '1794920498628882433'
+    - '1794972034845573122'
+    - '1794973494110666754'
+    - '1805532396352622594'
+    - '1805532472001089537'
+    - '1805532603727400962'
+    - '1805558886221381633'
+    error: ''
+  right_stats:
+    table: authorization_agreement
+    column: original_cust_id
+    exists: true
+    row_count: 31375
+    non_null: 6
+    distinct_non_null: 3
+    sample:
+    - '1796784307050151938'
+    - '1796784307050151938'
+    - '1796784307050151938'
+    - '1796784307050151938'
+    - '1797504376757383169'
+    - '1798257982988562434'
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 880
+  right_in_left: 1
+  right_not_in_left: 5
+  left_in_right_ratio: 0.0011
+  right_in_left_ratio: 0.1667
+  intersection_sample:
+  - '1797504376757383169'
+  left_only_sample:
+  - '1794920497169264642'
+  - '1794920498628882433'
+  - '1794972034845573122'
+  - '1794973494110666754'
+  - '1805532396352622594'
+  - '1805532472001089537'
+  - '1805532603727400962'
+  - '1805558886221381633'
+  right_only_sample:
+  - '1796784307050151938'
+  - '1798257982988562434'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0011, right->left=0.1667, join_hits=1)
+- left: cust_head_company_info.id
+  right: cust_company_info.relate_company_id
+  host: cust_company_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:fk_to_id
+  wiki_evidence: relate_company_id → cust_head_company_info.id
+  left_stats:
+    table: cust_head_company_info
+    column: id
+    exists: true
+    row_count: 881
+    non_null: 881
+    distinct_non_null: 881
+    sample:
+    - '1794920497169264642'
+    - '1794920498628882433'
+    - '1794972034845573122'
+    - '1794973494110666754'
+    - '1805532396352622594'
+    - '1805532472001089537'
+    - '1805532603727400962'
+    - '1805558886221381633'
+    error: ''
+  right_stats:
+    table: cust_company_info
+    column: relate_company_id
+    exists: true
+    row_count: 94912
+    non_null: 37
+    distinct_non_null: 24
+    sample:
+    - '43543543543543'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 880
+  right_in_left: 1
+  right_not_in_left: 36
+  left_in_right_ratio: 0.0011
+  right_in_left_ratio: 0.027
+  intersection_sample:
+  - '1824055863570935810'
+  left_only_sample:
+  - '1794920497169264642'
+  - '1794920498628882433'
+  - '1794972034845573122'
+  - '1794973494110666754'
+  - '1805532396352622594'
+  - '1805532472001089537'
+  - '1805532603727400962'
+  - '1805558886221381633'
+  right_only_sample:
+  - '43543543543543'
+  - '0'
+  - '1798612744333221890'
+  - '1803255693649825794'
+  - '1803267300680802305'
+  - '1803305809441464322'
+  - '1824277351367680001'
+  - '1826824294346235906'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0011, right->left=0.027, join_hits=1)
+- left: cust_interworking_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 304
+    non_null: 304
+    distinct_non_null: 6
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP14
+    - HTCP5
+    - HTCP14
+    - HTCP14
+    error: ''
+  right_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 3
+  left_in_right: 3
+  left_not_in_right: 301
+  right_in_left: 3170
+  right_not_in_left: 34485
+  left_in_right_ratio: 0.0099
+  right_in_left_ratio: 0.0842
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  right_only_sample:
+  - ACFLOW
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - BEECREDIT
+  - VOUCHER
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0099, right->left=0.0842, join_hits=3)
+- left: cust_interworking_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 304
+    non_null: 304
+    distinct_non_null: 6
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP14
+    - HTCP5
+    - HTCP14
+    - HTCP14
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 3
+  left_in_right: 3
+  left_not_in_right: 301
+  right_in_left: 106
+  right_not_in_left: 154645
+  left_in_right_ratio: 0.0099
+  right_in_left_ratio: 0.0007
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  right_only_sample:
+  - ACFLOW
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - RVSFACTOR_PC
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0099, right->left=0.0007, join_hits=3)
+- left: cust_interworking_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: cust_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 304
+    non_null: 304
+    distinct_non_null: 6
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP14
+    - HTCP5
+    - HTCP14
+    - HTCP14
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 3
+  left_in_right: 3
+  left_not_in_right: 301
+  right_in_left: 19
+  right_not_in_left: 4578
+  left_in_right_ratio: 0.0099
+  right_in_left_ratio: 0.0041
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - ORDER
+  - '["ORDER"]'
+  - ACFLOW
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0099, right->left=0.0041, join_hits=3)
+- left: cust_person_info.certification_no
+  right: cust_shareholder_info.certification_no
+  host: cust_shareholder_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `certification_no`
+  left_stats:
+    table: cust_person_info
+    column: certification_no
+    exists: true
+    row_count: 62046
+    non_null: 56675
+    distinct_non_null: 50890
+    sample:
+    - 33c29e05306e9868f1aa670ea87b8edc707ab86fb17c5a9e5022b3bdae191b5c
+    - 6a9d7bf7bd48093548c0c551761c964eedba256e83d45700784a07a35a9c1c9c
+    - ab10d9d2bf019efc2ccc0adfb2de7ff0f9aec7765639ee18f882f553e695dd68
+    - d5a8b00fba8000c1a5b09e7b878ea5dc809be86be47ec300475c8637a2009449
+    - 61140f0f961da760e7243f9714d67e2458527c8e3a851c03f83a6187c33d94fe
+    - 02e759fd4eef0ac2e373e7b166575a4db8ee20318d59d276884dad6d20cc50f7
+    - 599ad6f8526b7192d3ca28c79c29737209d259d2027c28283be4f0309df983fa
+    - 7b969b5ac13c48c5c28559a3bc987398982874433c888bd5a96b8493c65202fe
+    error: ''
+  right_stats:
+    table: cust_shareholder_info
+    column: certification_no
+    exists: true
+    row_count: 6
+    non_null: 3
+    distinct_non_null: 2
+    sample:
+    - wertwetew
+    - '11'
+    - wertwetew
+    error: ''
+  join_hits: 2
+  left_in_right: 2
+  left_not_in_right: 56673
+  right_in_left: 1
+  right_not_in_left: 2
+  left_in_right_ratio: 0.0
+  right_in_left_ratio: 0.3333
+  intersection_sample:
+  - '11'
+  left_only_sample:
+  - 0005844f53407df6149df10fffdae28cb099400302e025da81b709ff2b0df6aa
+  - 00087ca94e0ed95211426a4c468ee387cedca9be8940224f776cba887eff8789
+  - 0008a89464896391f3b05ed2446fb352b9d2b74493a4a7667c2d9afc869c5d2f
+  - 0010cf1085f87037a5d25d7112b8f64fc264cc05cb484c8cd25d82c7a19ea904
+  - 0010ff5dfb3da157b108b68b796f6adbe6c930e84d8d6f2c586c8fa732426fd6
+  - 0011a61a5dd62561c082b084cdfb6a59c69fd214e7303727d527be44a6279ebe
+  - 0014c59484afc76f68a3689715a810863aef4577dea4587189fc28b45d8b588a
+  - 00151ffcca958f06c9a143365bec8df247a854373b05eedb1bee33a3b3880f50
+  right_only_sample:
+  - wertwetew
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=2)
+- left: funding_exception_resolution.product_code
+  right: tenant_product_menu.product_code
+  host: tenant_product_menu
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 92
+    non_null: 92
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_product_menu
+    column: product_code
+    exists: true
+    row_count: 2538
+    non_null: 2538
+    distinct_non_null: 3
+    sample:
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    error: ''
+  join_hits: 34
+  left_in_right: 34
+  left_not_in_right: 58
+  right_in_left: 2190
+  right_not_in_left: 348
+  left_in_right_ratio: 0.3696
+  right_in_left_ratio: 0.8629
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  right_only_sample:
+  - BEECREDIT
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.3696, right->left=0.8629, join_hits=34)
+- left: funding_exception_resolution.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 92
+    non_null: 92
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_product_menu_res
+    column: product_code
+    exists: true
+    row_count: 110
+    non_null: 110
+    distinct_non_null: 2
+    sample:
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    error: ''
+  join_hits: 34
+  left_in_right: 34
+  left_not_in_right: 58
+  right_in_left: 5
+  right_not_in_left: 105
+  left_in_right_ratio: 0.3696
+  right_in_left_ratio: 0.0455
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  right_only_sample:
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.3696, right->left=0.0455, join_hits=34)
+- left: funding_rule_detail.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 1671
+    non_null: 1671
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_product_menu_res
+    column: product_code
+    exists: true
+    row_count: 110
+    non_null: 110
+    distinct_non_null: 2
+    sample:
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    error: ''
+  join_hits: 522
+  left_in_right: 522
+  left_not_in_right: 1149
+  right_in_left: 5
+  right_not_in_left: 105
+  left_in_right_ratio: 0.3124
+  right_in_left_ratio: 0.0455
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  right_only_sample:
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.3124, right->left=0.0455, join_hits=522)
+- left: funding_rule_front_cfg.product_code
+  right: tenant_product_menu.product_code
+  host: tenant_product_menu
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_product_menu
+    column: product_code
+    exists: true
+    row_count: 2538
+    non_null: 2538
+    distinct_non_null: 3
+    sample:
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    error: ''
+  join_hits: 18
+  left_in_right: 18
+  left_not_in_right: 29
+  right_in_left: 2190
+  right_not_in_left: 348
+  left_in_right_ratio: 0.383
+  right_in_left_ratio: 0.8629
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  right_only_sample:
+  - BEECREDIT
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.383, right->left=0.8629, join_hits=18)
+- left: funding_rule_front_cfg.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_product_menu_res
+    column: product_code
+    exists: true
+    row_count: 110
+    non_null: 110
+    distinct_non_null: 2
+    sample:
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    error: ''
+  join_hits: 18
+  left_in_right: 18
+  left_not_in_right: 29
+  right_in_left: 5
+  right_not_in_left: 105
+  left_in_right_ratio: 0.383
+  right_in_left_ratio: 0.0455
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  right_only_sample:
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.383, right->left=0.0455, join_hits=18)
+- left: funding_rule_info.product_code
+  right: tenant_product_menu.product_code
+  host: tenant_product_menu
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_info
+    column: product_code
+    exists: true
+    row_count: 53
+    non_null: 53
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_product_menu
+    column: product_code
+    exists: true
+    row_count: 2538
+    non_null: 2538
+    distinct_non_null: 3
+    sample:
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    error: ''
+  join_hits: 25
+  left_in_right: 25
+  left_not_in_right: 28
+  right_in_left: 2190
+  right_not_in_left: 348
+  left_in_right_ratio: 0.4717
+  right_in_left_ratio: 0.8629
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  right_only_sample:
+  - BEECREDIT
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.4717, right->left=0.8629, join_hits=25)
+- left: funding_rule_info.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: funding_rule_info
+    column: product_code
+    exists: true
+    row_count: 53
+    non_null: 53
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: tenant_product_menu_res
+    column: product_code
+    exists: true
+    row_count: 110
+    non_null: 110
+    distinct_non_null: 2
+    sample:
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    error: ''
+  join_hits: 25
+  left_in_right: 25
+  left_not_in_right: 28
+  right_in_left: 5
+  right_not_in_left: 105
+  left_in_right_ratio: 0.4717
+  right_in_left_ratio: 0.0455
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  right_only_sample:
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.4717, right->left=0.0455, join_hits=25)
+- left: platform_product.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 20
+    non_null: 20
+    distinct_non_null: 20
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - DRAFTQA
+    - HTCP1
+    - HTCP13
+    error: ''
+  right_stats:
+    table: tenant_product_menu_res
+    column: product_code
+    exists: true
+    row_count: 110
+    non_null: 110
+    distinct_non_null: 2
+    sample:
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 19
+  right_in_left: 5
+  right_not_in_left: 105
+  left_in_right_ratio: 0.05
+  right_in_left_ratio: 0.0455
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - DRAFTQA
+  - HTCP1
+  - HTCP13
+  right_only_sample:
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.05, right->left=0.0455, join_hits=1)
+- left: tenant_interworking_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 40
+    non_null: 40
+    distinct_non_null: 11
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP5
+    error: ''
+  right_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 33
+  right_in_left: 3170
+  right_not_in_left: 34485
+  left_in_right_ratio: 0.175
+  right_in_left_ratio: 0.0842
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  - HTCP19
+  - HTCP18
+  - HTCP7
+  right_only_sample:
+  - ACFLOW
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - BEECREDIT
+  - VOUCHER
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.175, right->left=0.0842, join_hits=7)
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 40
+    non_null: 40
+    distinct_non_null: 11
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP5
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 33
+  right_in_left: 106
+  right_not_in_left: 154645
+  left_in_right_ratio: 0.175
+  right_in_left_ratio: 0.0007
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  - HTCP19
+  - HTCP18
+  - HTCP7
+  right_only_sample:
+  - ACFLOW
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - RVSFACTOR_PC
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.175, right->left=0.0007, join_hits=7)
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 40
+    non_null: 40
+    distinct_non_null: 11
+    sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP5
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 33
+  right_in_left: 19
+  right_not_in_left: 4578
+  left_in_right_ratio: 0.175
+  right_in_left_ratio: 0.0041
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP13
+  - HTCP14
+  - HTCP5
+  - HTCP19
+  - HTCP18
+  - HTCP7
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - ORDER
+  - '["ORDER"]'
+  - ACFLOW
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.175, right->left=0.0041, join_hits=7)
+- left: tenant_interworking_project.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_interworking_project
+    column: platform_product_code
+    exists: true
+    row_count: 12
+    non_null: 12
+    distinct_non_null: 5
+    sample:
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP5
+    - AMS
+    error: ''
+  right_stats:
+    table: argeement_migratory_record
+    column: platform_product_code
+    exists: true
+    row_count: 37655
+    non_null: 37655
+    distinct_non_null: 7
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 11
+  right_in_left: 3170
+  right_not_in_left: 34485
+  left_in_right_ratio: 0.0833
+  right_in_left_ratio: 0.0842
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP5
+  - HTCP13
+  - HTCP14
+  right_only_sample:
+  - ACFLOW
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - BEECREDIT
+  - VOUCHER
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0833, right->left=0.0842, join_hits=1)
+- left: tenant_interworking_project.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_interworking_project
+    column: platform_product_code
+    exists: true
+    row_count: 12
+    non_null: 12
+    distinct_non_null: 5
+    sample:
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP5
+    - AMS
+    error: ''
+  right_stats:
+    table: tenant_migarory_log
+    column: platform_product_code
+    exists: true
+    row_count: 154754
+    non_null: 154751
+    distinct_non_null: 72
+    sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["ACFLOW"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 11
+  right_in_left: 106
+  right_not_in_left: 154645
+  left_in_right_ratio: 0.0833
+  right_in_left_ratio: 0.0007
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP5
+  - HTCP13
+  - HTCP14
+  right_only_sample:
+  - ACFLOW
+  - '["ACFLOW"]'
+  - '["RVSFACTOR_PC","ACFLOW"]'
+  - RVSFACTOR_PC
+  - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC"]'
+  - '["ORDER"]'
+  - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0833, right->left=0.0007, join_hits=1)
+- left: tenant_interworking_project.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `platform_product_code`
+  left_stats:
+    table: tenant_interworking_project
+    column: platform_product_code
+    exists: true
+    row_count: 12
+    non_null: 12
+    distinct_non_null: 5
+    sample:
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP1
+    - HTCP5
+    - AMS
+    error: ''
+  right_stats:
+    table: tenant_migarory_log_bak
+    column: platform_product_code
+    exists: true
+    row_count: 4610
+    non_null: 4597
+    distinct_non_null: 22
+    sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 11
+  right_in_left: 19
+  right_not_in_left: 4578
+  left_in_right_ratio: 0.0833
+  right_in_left_ratio: 0.0041
+  intersection_sample:
+  - AMS
+  left_only_sample:
+  - HTCP1
+  - HTCP5
+  - HTCP13
+  - HTCP14
+  right_only_sample:
+  - '["RVSFACTOR_PC"]'
+  - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+  - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+  - ORDER
+  - '["ORDER"]'
+  - ACFLOW
+  - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+  - '["AMS"]'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0833, right->left=0.0041, join_hits=1)
+- left: tenant_product_menu.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: tenant_product_menu
+    column: product_code
+    exists: true
+    row_count: 2538
+    non_null: 2538
+    distinct_non_null: 3
+    sample:
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    error: ''
+  right_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 1671
+    non_null: 1671
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 2190
+  left_in_right: 2190
+  left_not_in_right: 348
+  right_in_left: 522
+  right_not_in_left: 1149
+  left_in_right_ratio: 0.8629
+  right_in_left_ratio: 0.3124
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - BEECREDIT
+  - ACCOUNT_PRODUCT
+  right_only_sample:
+  - ACFLOW
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.8629, right->left=0.3124, join_hits=2190)
+- left: tenant_product_menu.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: tenant_product_menu
+    column: product_code
+    exists: true
+    row_count: 2538
+    non_null: 2538
+    distinct_non_null: 3
+    sample:
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    - BEECREDIT
+    error: ''
+  right_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 2190
+  left_in_right: 2190
+  left_not_in_right: 348
+  right_in_left: 77
+  right_not_in_left: 365
+  left_in_right_ratio: 0.8629
+  right_in_left_ratio: 0.1742
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - BEECREDIT
+  - ACCOUNT_PRODUCT
+  right_only_sample:
+  - ACFLOW
+  - ORDER
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.8629, right->left=0.1742, join_hits=2190)
+- left: tenant_project.wechat_audit_no
+  right: wec_project_operation_rel.wechat_audit_no
+  host: wec_project_operation_rel
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `wechat_audit_no`
+  left_stats:
+    table: tenant_project
+    column: wechat_audit_no
+    exists: true
+    row_count: 3586
+    non_null: 407
+    distinct_non_null: 139
+    sample:
+    - '1'
+    - '202308190001'
+    - AS543543543543
+    - /
+    - '1'
+    - 立项审批编号0527
+    - '202605110011'
+    - /
+    error: ''
+  right_stats:
+    table: wec_project_operation_rel
+    column: wechat_audit_no
+    exists: true
+    row_count: 431
+    non_null: 134
+    distinct_non_null: 92
+    sample:
+    - '14142626'
+    - '5252452354'
+    - '87897797897'
+    - '321321'
+    - '5252345'
+    - '759327957'
+    - '412414'
+    - '12133456'
+    error: ''
+  join_hits: 72
+  left_in_right: 72
+  left_not_in_right: 335
+  right_in_left: 33
+  right_not_in_left: 101
+  left_in_right_ratio: 0.1769
+  right_in_left_ratio: 0.2463
+  intersection_sample:
+  - '321321'
+  - /
+  - '12312312'
+  - '1212'
+  - '1'
+  - '202605110011'
+  - '321'
+  - '202605120015'
+  left_only_sample:
+  - '202308190001'
+  - AS543543543543
+  - 立项审批编号0527
+  - '202512290017'
+  - '202601060002'
+  - '6766876'
+  - '634643636'
+  - '202506060048'
+  right_only_sample:
+  - '14142626'
+  - '5252452354'
+  - '87897797897'
+  - '5252345'
+  - '759327957'
+  - '412414'
+  - '12133456'
+  - '20220101'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.1769, right->left=0.2463, join_hits=72)
+- left: tenant_project_approval_business_info.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  trust: proposed
+  authenticity: unknown
+  source: collide:same_name
+  wiki_evidence: same-name `product_code`
+  left_stats:
+    table: tenant_project_approval_business_info
+    column: product_code
+    exists: true
+    row_count: 442
+    non_null: 442
+    distinct_non_null: 3
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: tenant_product_menu_res
+    column: product_code
+    exists: true
+    row_count: 110
+    non_null: 110
+    distinct_non_null: 2
+    sample:
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    - ACCOUNT_PRODUCT
+    error: ''
+  join_hits: 77
+  left_in_right: 77
+  left_not_in_right: 365
+  right_in_left: 5
+  right_not_in_left: 105
+  left_in_right_ratio: 0.1742
+  right_in_left_ratio: 0.0455
+  intersection_sample:
+  - RVSFACTOR_PC
+  left_only_sample:
+  - ACFLOW
+  - ORDER
+  right_only_sample:
+  - ACCOUNT_PRODUCT
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.1742, right->left=0.0455, join_hits=77)

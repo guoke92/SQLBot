@@ -15,10 +15,14 @@ from apps.chat.curd.chat import save_question
 from apps.chat.models.chat_model import Chat, ChatQuestion, ChatRecord
 from apps.config_assistant.prompt import SYSTEM_PROMPT, TOOL_FREE_COMPLETION_MARKER
 from apps.config_assistant.tools import build_tools
-from apps.conversation.llm import get_chat_model, get_default_chat_config
+from apps.conversation.llm import (
+    get_chat_model,
+    get_default_chat_config,
+    resolve_chat_llm_config,
+)
 from apps.conversation.messages import serialize_messages
-from apps.conversation.outcome import running_outcome
 from apps.conversation.models import ConversationRun
+from apps.conversation.outcome import running_outcome
 from apps.conversation.run_service import create_run
 from apps.conversation.runtime_context import attach_runtime, runtime_value
 from apps.conversation.sink import StreamSink
@@ -51,6 +55,7 @@ async def initialize_config_state(
     chat_id: int,
     question: str,
     base_state: dict[str, Any],
+    reasoning_effort: str | None = None,
 ) -> ConfigState:
     """Validate and materialize a config turn before submitting its graph."""
     question = question.strip()
@@ -70,7 +75,9 @@ async def initialize_config_state(
             f"Chat {chat_id} is chat_type={chat.chat_type!r}, expected config"
         )
 
-    model_config = await get_default_chat_config()
+    model_config = await resolve_chat_llm_config(
+        session, user, None, reasoning_effort
+    )
     bound_tools = build_tools(user)
     llm = get_chat_model(model_config)
     history = load_text_history(session, chat_id, limit=_HISTORY_TURNS)
@@ -91,8 +98,9 @@ async def initialize_config_state(
         session,
         record=record,
         graph_key="config",
-        user_id=int(getattr(user, "id")),
+        user_id=int(user.id),
         oid=int(getattr(user, "oid", None) or 1),
+        reasoning_effort=reasoning_effort,
     )
     attach_runtime(
         run.run_id,
@@ -147,6 +155,12 @@ def hydrate_config_runtime(run: ConversationRun) -> dict[str, Any]:
         if user is None:
             raise LookupError(f"User {run.user_id} not found")
         model_config = run_coro_sync(get_default_chat_config())
+        snap = run.route_snapshot if isinstance(run.route_snapshot, dict) else {}
+        effort = snap.get("reasoning_effort")
+        if effort is not None:
+            from apps.ai_model.model_factory import with_reasoning_effort
+
+            model_config = with_reasoning_effort(model_config, effort)
         return {
             "current_user": user,
             "bound_tools": build_tools(user),

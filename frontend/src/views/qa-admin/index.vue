@@ -57,6 +57,7 @@ const selectedOid = ref('')
 const selectedOperator = ref('')
 const selectedDatasource = ref('')
 const feedbackFilter = ref('all')
+const chatTypeFilter = ref('chat')
 const keyword = ref('')
 const timeRange = ref<[string, string] | null>(null)
 const selectedChatIds = ref<string[]>([])
@@ -112,6 +113,10 @@ const timeShortcuts = computed(() => [
   { text: t('qa_admin.time_30d'), value: () => lastDays(30) },
 ])
 
+function operatorDisplay(row: DevChatRow) {
+  return (row.user_name || row.user_account || '').trim()
+}
+
 function timeAgo(value?: string | null) {
   if (!value) return ''
   return dayjs(value).locale(dayjsLocale(locale.value)).fromNow()
@@ -147,6 +152,7 @@ const currentFilters = computed<DevChatFilters | null>(() => {
     created_from: timeRange.value?.[0],
     created_to: timeRange.value?.[1],
     chat_ids: selectedChatIds.value.length ? selectedChatIds.value : undefined,
+    chat_type: chatTypeFilter.value,
   }
 })
 
@@ -206,6 +212,7 @@ const reloadChats = async () => {
         datasource: selectedDatasource.value || undefined,
         created_from: timeRange.value?.[0],
         created_to: timeRange.value?.[1],
+        chat_type: chatTypeFilter.value,
       })) || []
     selectedChatIds.value = []
   } finally {
@@ -234,11 +241,11 @@ const openChat = async (row: DevChatRow) => {
   }
 }
 
-const exportFeedbackCsv = async () => {
+const exportFeedback = async () => {
   if (!currentFilters.value) return
   exporting.value = true
   try {
-    await qaAdminApi.downloadFeedbackCsv(currentFilters.value)
+    await qaAdminApi.downloadFeedbackXlsx(currentFilters.value)
   } finally {
     exporting.value = false
   }
@@ -264,9 +271,9 @@ void bootstrap()
     <div class="qa-admin-header">
       <div class="title-row">
         <div class="title">{{ t('menu.qa_admin') }}</div>
-        <el-button :loading="exporting" :disabled="!selectedOid" @click="exportFeedbackCsv">
+        <el-button :loading="exporting" :disabled="!selectedOid" @click="exportFeedback">
           <el-icon><icon_export_outlined /></el-icon>
-          {{ t('qa_admin.export_feedback_csv') }}
+          {{ t('qa_admin.export_feedback') }}
         </el-button>
       </div>
       <div class="filters">
@@ -322,6 +329,18 @@ void bootstrap()
               :label="ds.name"
               :value="String(ds.id)"
             />
+          </el-select>
+        </div>
+        <div class="filter-field">
+          <span class="label">{{ t('qa_admin.chat_type') }}</span>
+          <el-select
+            v-model="chatTypeFilter"
+            style="width: 140px"
+            @change="reloadChats"
+          >
+            <el-option :label="t('qa_admin.chat_type_chat')" value="chat" />
+            <el-option :label="t('qa_admin.chat_type_config')" value="config" />
+            <el-option :label="t('qa_admin.chat_type_all')" value="all" />
           </el-select>
         </div>
         <div class="filter-field">
@@ -394,6 +413,9 @@ void bootstrap()
           <div class="chat-item-main">
             <div class="brief" :title="chatTitle(row)">{{ chatTitle(row) }}</div>
             <div class="meta">
+              <span v-if="operatorDisplay(row)" class="operator" :title="operatorDisplay(row)">
+                {{ operatorDisplay(row) }}
+              </span>
               <span class="ago">{{ timeAgo(row.last_time || row.create_time) }}</span>
               <span v-if="row.datasource_name" class="ds-name" :title="row.datasource_name">
                 {{ row.datasource_name }}
@@ -655,6 +677,15 @@ void bootstrap()
 .ago {
   color: #8f959e;
   font-size: 12px;
+  white-space: nowrap;
+}
+.operator {
+  flex: none;
+  max-width: 96px;
+  color: #646a73;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ds-name {

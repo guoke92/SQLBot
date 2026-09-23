@@ -1,0 +1,1498 @@
+generated_at: '2026-09-23T04:05:48.942304+00:00'
+database: lowcode_pplatform
+relation_count: 24
+by_verdict:
+  fk_like: 15
+  weak_overlap: 2
+  empty_endpoint: 4
+  shared_domain: 3
+edges:
+- left: platform_product.product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:TenantProductDomainService
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - HTCP1
+    - HTCP2
+    - HTCP3
+    error: ''
+  right_stats:
+    table: tenant_product
+    column: platform_product_code
+    exists: true
+    row_count: 388
+    non_null: 388
+    distinct_non_null: 7
+    sample:
+    - RVSFACTOR_PC
+    - ACFLOW
+    - BEECREDIT
+    - ORDER
+    - STORAGE
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ORDER
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 6
+  right_in_left: 388
+  right_not_in_left: 0
+  left_in_right_ratio: 0.5385
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - BEECREDIT
+  - DRAFT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - VOUCHER
+  left_only_sample:
+  - AMS
+  - DEALER
+  - HTCP1
+  - HTCP2
+  - HTCP3
+  - HTCP4
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.product_code
+  right: tenant_interworking_product.platform_product_code
+  host: tenant_interworking_product
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:TenantInterworkingProductDomainService
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - HTCP1
+    - HTCP2
+    - HTCP3
+    error: ''
+  right_stats:
+    table: tenant_interworking_product
+    column: platform_product_code
+    exists: true
+    row_count: 30
+    non_null: 30
+    distinct_non_null: 5
+    sample:
+    - AMS
+    - HTCP2
+    - HTCP2
+    - AMS
+    - AMS
+    - HTCP2
+    - AMS
+    - AMS
+    error: ''
+  join_hits: 5
+  left_in_right: 5
+  left_not_in_right: 8
+  right_in_left: 30
+  right_not_in_left: 0
+  left_in_right_ratio: 0.3846
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - AMS
+  - HTCP1
+  - HTCP2
+  - HTCP3
+  - HTCP4
+  left_only_sample:
+  - ACFLOW
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - VOUCHER
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:via_tenant_product_copy
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - HTCP1
+    - HTCP2
+    - HTCP3
+    error: ''
+  right_stats:
+    table: tenant_project
+    column: platform_product_code
+    exists: true
+    row_count: 3955
+    non_null: 3955
+    distinct_non_null: 6
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 6
+  left_in_right: 6
+  left_not_in_right: 7
+  right_in_left: 3955
+  right_not_in_left: 0
+  left_in_right_ratio: 0.4615
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - BEECREDIT
+  - DRAFT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  left_only_sample:
+  - AMS
+  - DEALER
+  - HTCP1
+  - HTCP2
+  - HTCP3
+  - HTCP4
+  - VOUCHER
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.code
+  right: tenant_product.ref_tenant_product_project_code
+  host: tenant_product
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:TenantProductDomainService
+  left_stats:
+    table: platform_product
+    column: code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefe93d3a513a65
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    error: ''
+  right_stats:
+    table: tenant_product
+    column: ref_tenant_product_project_code
+    exists: true
+    row_count: 388
+    non_null: 388
+    distinct_non_null: 7
+    sample:
+    - 007142024a5c425bb3673f753060e534
+    - 007142024a5c425bb3673f753060e534
+    - 007142024a5c425bb3673f753060e534
+    - 007142024a5c425bb3673f753060e534
+    - 007142024a5c425bb3673f753060e534
+    - 007142024a5c425bb3673f753060e534
+    - 007142024a5c425bb3673f753060e534
+    - 007142024a5c425bb3673f753060e534
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 6
+  right_in_left: 388
+  right_not_in_left: 0
+  left_in_right_ratio: 0.5385
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - f285fa5cf17f4a8f9eefe93d3a513a6b
+  - f285fa5cf17f4a8f9eefe93d3a513a61
+  - f285fa5cf17f4a8f9eefe93d3a513a63
+  - f285fa5cf17f4a8f9eefe93d3a513a6e
+  - f285fa5cf17f4a8f9eefe93d3a513a65
+  - b8468d68ba0a4762bda0f7b9164e4f6a
+  - 007142024a5c425bb3673f753060e534
+  left_only_sample:
+  - f285fa5cf17f4a8f9eefe93d3a513a64
+  - 007142024a5c425bb3673f753060e533
+  - 0621bc920a7e41db856a435d5b64933c
+  - 0621bc920a7e41db856a435d5b64934c
+  - 0621bc920a7e41db856a435d5b64932c
+  - 86a5bebc474449d4abc02bb896723ef6
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.code
+  right: tenant_interworking_product.ref_tenant_interworking_product_platform_product
+  host: tenant_interworking_product
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: platform_product
+    column: code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefe93d3a513a65
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    error: ''
+  right_stats:
+    table: tenant_interworking_product
+    column: ref_tenant_interworking_product_platform_product
+    exists: true
+    row_count: 30
+    non_null: 30
+    distinct_non_null: 5
+    sample:
+    - 0621bc920a7e41db856a435d5b64932c
+    - 86a5bebc474449d4abc02bb896723ef6
+    - 86a5bebc474449d4abc02bb896723ef6
+    - 0621bc920a7e41db856a435d5b64932c
+    - 0621bc920a7e41db856a435d5b64932c
+    - 86a5bebc474449d4abc02bb896723ef6
+    - 007142024a5c425bb3673f753060e533
+    - 007142024a5c425bb3673f753060e533
+    error: ''
+  join_hits: 5
+  left_in_right: 5
+  left_not_in_right: 8
+  right_in_left: 30
+  right_not_in_left: 0
+  left_in_right_ratio: 0.3846
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - 007142024a5c425bb3673f753060e533
+  - 0621bc920a7e41db856a435d5b64933c
+  - 0621bc920a7e41db856a435d5b64934c
+  - 0621bc920a7e41db856a435d5b64932c
+  - 86a5bebc474449d4abc02bb896723ef6
+  left_only_sample:
+  - f285fa5cf17f4a8f9eefe93d3a513a6b
+  - f285fa5cf17f4a8f9eefe93d3a513a61
+  - f285fa5cf17f4a8f9eefe93d3a513a64
+  - f285fa5cf17f4a8f9eefe93d3a513a63
+  - f285fa5cf17f4a8f9eefe93d3a513a6e
+  - f285fa5cf17f4a8f9eefe93d3a513a65
+  - b8468d68ba0a4762bda0f7b9164e4f6a
+  - 007142024a5c425bb3673f753060e534
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.code
+  right: cust_project_rel.ref_cust_project_rel_platform_product
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: platform_product
+    column: code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefe93d3a513a65
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: ref_cust_project_rel_platform_product
+    exists: true
+    row_count: 16023
+    non_null: 3005
+    distinct_non_null: 8
+    sample:
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - 007142024a5c425bb3673f753060e533
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 6
+  right_in_left: 2999
+  right_not_in_left: 6
+  left_in_right_ratio: 0.5385
+  right_in_left_ratio: 0.998
+  intersection_sample:
+  - f285fa5cf17f4a8f9eefe93d3a513a6b
+  - f285fa5cf17f4a8f9eefe93d3a513a61
+  - f285fa5cf17f4a8f9eefe93d3a513a64
+  - f285fa5cf17f4a8f9eefe93d3a513a63
+  - 007142024a5c425bb3673f753060e533
+  - b8468d68ba0a4762bda0f7b9164e4f6a
+  - 007142024a5c425bb3673f753060e534
+  left_only_sample:
+  - f285fa5cf17f4a8f9eefe93d3a513a6e
+  - f285fa5cf17f4a8f9eefe93d3a513a65
+  - 0621bc920a7e41db856a435d5b64933c
+  - 0621bc920a7e41db856a435d5b64934c
+  - 0621bc920a7e41db856a435d5b64932c
+  - 86a5bebc474449d4abc02bb896723ef6
+  right_only_sample:
+  - ACFLOW
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.998); consistent with
+    FK / identity reference'
+- left: tenant_product.code
+  right: cust_auth_application.ref_cust_auth_application_tenant_product
+  host: cust_auth_application
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: tenant_product
+    column: code
+    exists: true
+    row_count: 388
+    non_null: 388
+    distinct_non_null: 388
+    sample:
+    - 00343497fb824960ac930eca5cbf6f86
+    - 006a8312406143cc9e2c581bc600efe9
+    - 00f8c0adc7c646ca9e6902a1298559bb
+    - 01938b7506724987b0bc678aed2b0445
+    - 01d3a5eab4f941059142665799c5655f
+    - 0204d91f86fb4de6bf6c621f601523fa
+    - 02104322b1df4f26965ca336703014b7
+    - 027289c536844aa681958e579912d512
+    error: ''
+  right_stats:
+    table: cust_auth_application
+    column: ref_cust_auth_application_tenant_product
+    exists: true
+    row_count: 8376
+    non_null: 8376
+    distinct_non_null: 223
+    sample:
+    - d99b5d990fd042c49afab13ad7a71f63
+    - dad6038235be488a89dd414e0d7718f5
+    - dad6038235be488a89dd414e0d7718f5
+    - e74c8d3a44b04f408cb0577f697c6d10
+    - dad6038235be488a89dd414e0d7718f5
+    - fd8edd56e9bd4f4ba70db01617d87bfa
+    - 762bf7c5af854d2ebcc074b51ccd81ef
+    - dad6038235be488a89dd414e0d7718f5
+    error: ''
+  join_hits: 217
+  left_in_right: 217
+  left_not_in_right: 171
+  right_in_left: 8370
+  right_not_in_left: 6
+  left_in_right_ratio: 0.5593
+  right_in_left_ratio: 0.9993
+  intersection_sample:
+  - 00343497fb824960ac930eca5cbf6f86
+  - 00f8c0adc7c646ca9e6902a1298559bb
+  - 01938b7506724987b0bc678aed2b0445
+  - 01d3a5eab4f941059142665799c5655f
+  - 0204d91f86fb4de6bf6c621f601523fa
+  - 02104322b1df4f26965ca336703014b7
+  - 027289c536844aa681958e579912d512
+  - 028f49a112854e02bd09df65c8d8dfde
+  left_only_sample:
+  - 006a8312406143cc9e2c581bc600efe9
+  - 0361ed97a5354ba8860fe384fb39cd55
+  - 04907460b46c4fb2a847a66e2ab97ce7
+  - 04fe7f548e6b4f70acdfa562bed5f76a
+  - 0603ae6014ba481080af7420247acf21
+  - 06cc45d757c94d21b20ed6fb68399211
+  - 072a581a46e44d988b9f73bfcb3704f7
+  - 08172127df524dc78b6b364d318e6d32
+  right_only_sample:
+  - 6523409e550f4da49f5a58ce5dea0ac9
+  - 3d75d7ad258d445c80504679cad59242
+  - a7535b2377a5410da18b1027fc1b5699
+  - cf3baa0707d3452f84ed68ba35be6df1
+  - da1e3038ba994de3aba89777ce4bfc87
+  - fb41b37d5f304bfb882f3f128c2f352a
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9993); consistent with
+    FK / identity reference'
+- left: tenant_setting_config.code
+  right: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+  host: tenant_interworking_product
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: tenant_setting_config
+    column: code
+    exists: true
+    row_count: 282
+    non_null: 282
+    distinct_non_null: 282
+    sample:
+    - 002d9a13362d487b91f61b0635a5c1af
+    - 00eca9456b3044a0853af8e783fd94c0
+    - 01084cb262c94144b020f72d3cceb2de
+    - 018507a1bc2446508a42847f5722e6dc
+    - 027c1a1d63444f2eb698e445750c9112
+    - 046bdd40b17d47098061f2606c777a95
+    - 05a6b1301e9542bfa8dc48d8fcfcf4f6
+    - 0773f70ab00f4310b6422dc13047035d
+    error: ''
+  right_stats:
+    table: tenant_interworking_product
+    column: ref_tenant_interworking_product_tenant_setting_config
+    exists: true
+    row_count: 30
+    non_null: 30
+    distinct_non_null: 17
+    sample:
+    - a5c1931c98b24d24a3d67d4d4d7104c8
+    - a5c1931c98b24d24a3d67d4d4d7104c8
+    - 29eaffbfa0e54b58a61288377682733b
+    - 194e2ce0100e4994b0a15845cc453aa6
+    - 4c957d107f2443febabafcbfe1183e28
+    - d77dc6bffbcc46fba7a864a07ef63c24
+    - d77dc6bffbcc46fba7a864a07ef63c24
+    - 75f3d7a4ce15457bb30d3be8118c897c
+    error: ''
+  join_hits: 17
+  left_in_right: 17
+  left_not_in_right: 265
+  right_in_left: 30
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0603
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - a5c1931c98b24d24a3d67d4d4d7104c8
+  - 29eaffbfa0e54b58a61288377682733b
+  - 194e2ce0100e4994b0a15845cc453aa6
+  - 4c957d107f2443febabafcbfe1183e28
+  - d77dc6bffbcc46fba7a864a07ef63c24
+  - 75f3d7a4ce15457bb30d3be8118c897c
+  - 9972c09cc75c422ab00f67f52b603c8e
+  - 71131041904d42e38dd12bef2abb4455
+  left_only_sample:
+  - 002d9a13362d487b91f61b0635a5c1af
+  - 00eca9456b3044a0853af8e783fd94c0
+  - 01084cb262c94144b020f72d3cceb2de
+  - 018507a1bc2446508a42847f5722e6dc
+  - 027c1a1d63444f2eb698e445750c9112
+  - 046bdd40b17d47098061f2606c777a95
+  - 05a6b1301e9542bfa8dc48d8fcfcf4f6
+  - 0773f70ab00f4310b6422dc13047035d
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_setting_config.code
+  right: tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
+  host: tenant_interworking_project
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: tenant_setting_config
+    column: code
+    exists: true
+    row_count: 282
+    non_null: 282
+    distinct_non_null: 282
+    sample:
+    - 002d9a13362d487b91f61b0635a5c1af
+    - 00eca9456b3044a0853af8e783fd94c0
+    - 01084cb262c94144b020f72d3cceb2de
+    - 018507a1bc2446508a42847f5722e6dc
+    - 027c1a1d63444f2eb698e445750c9112
+    - 046bdd40b17d47098061f2606c777a95
+    - 05a6b1301e9542bfa8dc48d8fcfcf4f6
+    - 0773f70ab00f4310b6422dc13047035d
+    error: ''
+  right_stats:
+    table: tenant_interworking_project
+    column: ref_tenant_interworking_project_tenant_setting_config
+    exists: true
+    row_count: 1
+    non_null: 1
+    distinct_non_null: 1
+    sample:
+    - a5c1931c98b24d24a3d67d4d4d7104c8
+    error: ''
+  join_hits: 1
+  left_in_right: 1
+  left_not_in_right: 281
+  right_in_left: 1
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0035
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - a5c1931c98b24d24a3d67d4d4d7104c8
+  left_only_sample:
+  - 002d9a13362d487b91f61b0635a5c1af
+  - 00eca9456b3044a0853af8e783fd94c0
+  - 01084cb262c94144b020f72d3cceb2de
+  - 018507a1bc2446508a42847f5722e6dc
+  - 027c1a1d63444f2eb698e445750c9112
+  - 046bdd40b17d47098061f2606c777a95
+  - 05a6b1301e9542bfa8dc48d8fcfcf4f6
+  - 0773f70ab00f4310b6422dc13047035d
+  right_only_sample: []
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0035, right->left=1.0, join_hits=1)
+- left: tenant_project_approval_flow_config.code
+  right: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config
+  host: tenant_project_approval
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: tenant_project_approval_flow_config
+    column: code
+    exists: true
+    row_count: 15
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  right_stats:
+    table: tenant_project_approval
+    column: ref_tenant_project_approval_tenant_project_approval_flow_config
+    exists: true
+    row_count: 102
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: cust_company_info.code
+  right: cust_customized_product.ref_cust_customized_product_cust_company_info
+  host: cust_customized_product
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: cust_company_info
+    column: code
+    exists: true
+    row_count: 6944
+    non_null: 6943
+    distinct_non_null: 6943
+    sample:
+    - 000ba01c643f4d398a98618fcce6914b
+    - 001331b8fd214bda9cd2c849cc2d1950
+    - 0013a1830f7640bb8cce61f83df7f4e9
+    - 0035a396ea45469ba25e9c8c15d06db3
+    - 003a42f8e26b40ee8deb47a049aa94c5
+    - 0040da4bfef04b168fd678952b01ba5e
+    - 005288badfcd4b4cab00635c2838221f
+    - 005531408c5249c288f6cc27fc5477d0
+    error: ''
+  right_stats:
+    table: cust_customized_product
+    column: ref_cust_customized_product_cust_company_info
+    exists: true
+    row_count: 18
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: cust_auth_application.code
+  right: cust_role_info.ref_cust_auth_application
+  host: cust_role_info
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:ref-convention
+  left_stats:
+    table: cust_auth_application
+    column: code
+    exists: true
+    row_count: 8376
+    non_null: 8376
+    distinct_non_null: 8376
+    sample:
+    - 0009e9a8f44540e4a3a0060a85147b61
+    - 0011ae6832904abaa11a7dc6d57b59c1
+    - 0027d92b089542dc8712e26c5d2256f0
+    - 004245ef7700436ca972834fbdcc5d56
+    - 00495661e6e24d5faac227ff86bf0c02
+    - 00586426f58e4709b9e40c5634a839c0
+    - 005a757611a34bccac49a4eeb41ac25d
+    - 005d5365919649ab908290244e31f2f5
+    error: ''
+  right_stats:
+    table: cust_role_info
+    column: ref_cust_auth_application
+    exists: true
+    row_count: 7381
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: cust_company_info.id
+  right: cust_group_rel.parent_cust_id
+  host: cust_group_rel
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:java-eq
+  left_stats:
+    table: cust_company_info
+    column: id
+    exists: true
+    row_count: 6944
+    non_null: 6944
+    distinct_non_null: 6944
+    sample:
+    - '1787385139422498817'
+    - '1911756589664497665'
+    - '2079488028335845378'
+    - '2069299454190993409'
+    - '1911755363692126209'
+    - '1938516931319115778'
+    - '1945812705981009921'
+    - '1783675878140190722'
+    error: ''
+  right_stats:
+    table: cust_group_rel
+    column: parent_cust_id
+    exists: true
+    row_count: 140
+    non_null: 89
+    distinct_non_null: 46
+    sample:
+    - '1834539392909041666'
+    - '1965330436031328257'
+    - '1965330436031328257'
+    - '1834436576525811713'
+    - '1965332272721244162'
+    - '1965332272721244162'
+    - '1965654687534739457'
+    - '1965654687534739457'
+    error: ''
+  join_hits: 46
+  left_in_right: 46
+  left_not_in_right: 6898
+  right_in_left: 89
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0066
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '1834539392909041666'
+  - '1965330436031328257'
+  - '1834436576525811713'
+  - '1965332272721244162'
+  - '1965654687534739457'
+  - '1965654688495235073'
+  - '1965654689376038914'
+  - '1965979723597365250'
+  left_only_sample:
+  - '1787385139422498817'
+  - '1911756589664497665'
+  - '2079488028335845378'
+  - '2069299454190993409'
+  - '1911755363692126209'
+  - '1938516931319115778'
+  - '1945812705981009921'
+  - '1783675878140190722'
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_company_info.id
+  right: cust_group_rel.root_cust_id
+  host: cust_group_rel
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:java-eq
+  left_stats:
+    table: cust_company_info
+    column: id
+    exists: true
+    row_count: 6944
+    non_null: 6944
+    distinct_non_null: 6944
+    sample:
+    - '1787385139422498817'
+    - '1911756589664497665'
+    - '2079488028335845378'
+    - '2069299454190993409'
+    - '1911755363692126209'
+    - '1938516931319115778'
+    - '1945812705981009921'
+    - '1783675878140190722'
+    error: ''
+  right_stats:
+    table: cust_group_rel
+    column: root_cust_id
+    exists: true
+    row_count: 140
+    non_null: 140
+    distinct_non_null: 51
+    sample:
+    - '1834539392909041666'
+    - '1834539392909041666'
+    - '1965330436031328257'
+    - '1965332272721244162'
+    - '1965330436031328257'
+    - '1965330436031328257'
+    - '1965330436031328257'
+    - '1911759518485782529'
+    error: ''
+  join_hits: 51
+  left_in_right: 51
+  left_not_in_right: 6893
+  right_in_left: 140
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0073
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '1834539392909041666'
+  - '1965330436031328257'
+  - '1965332272721244162'
+  - '1911759518485782529'
+  - '1965654687534739457'
+  - '1965959866540949505'
+  - '1962409679496609794'
+  - '1965974881130815490'
+  left_only_sample:
+  - '1787385139422498817'
+  - '1911756589664497665'
+  - '2079488028335845378'
+  - '2069299454190993409'
+  - '1911755363692126209'
+  - '1938516931319115778'
+  - '1945812705981009921'
+  - '1783675878140190722'
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_company_info.id
+  right: cust_auth_application.main_data_id
+  host: cust_auth_application
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:write-flow
+  left_stats:
+    table: cust_company_info
+    column: id
+    exists: true
+    row_count: 6944
+    non_null: 6944
+    distinct_non_null: 6944
+    sample:
+    - '1787385139422498817'
+    - '1911756589664497665'
+    - '2079488028335845378'
+    - '2069299454190993409'
+    - '1911755363692126209'
+    - '1938516931319115778'
+    - '1945812705981009921'
+    - '1783675878140190722'
+    error: ''
+  right_stats:
+    table: cust_auth_application
+    column: main_data_id
+    exists: true
+    row_count: 8376
+    non_null: 8376
+    distinct_non_null: 6685
+    sample:
+    - '1911764211331428353'
+    - '1911764627932389377'
+    - '1911765197202583554'
+    - '1911765325619589122'
+    - '1911765499888726017'
+    - '1911765597301436418'
+    - '1911765651631972353'
+    - '1911765825020305410'
+    error: ''
+  join_hits: 6565
+  left_in_right: 6565
+  left_not_in_right: 379
+  right_in_left: 8163
+  right_not_in_left: 213
+  left_in_right_ratio: 0.9454
+  right_in_left_ratio: 0.9746
+  intersection_sample:
+  - '1911764211331428353'
+  - '1911764627932389377'
+  - '1911765197202583554'
+  - '1911765325619589122'
+  - '1911765499888726017'
+  - '1911765597301436418'
+  - '1911765651631972353'
+  - '1911765825020305410'
+  left_only_sample:
+  - '1787385139422498817'
+  - '1900463248852353026'
+  - '1950150439090098178'
+  - '1904179267850670082'
+  - '1839241780684365826'
+  - '2079841489887232001'
+  - '1952298365217972226'
+  - '1946042010986131458'
+  right_only_sample:
+  - '1834422377406496769'
+  - '1849375432775680001'
+  - '1911755448287043585'
+  - '1911757889183227906'
+  - '1911761398668914689'
+  - '1911764928173252609'
+  - '1911765078705106945'
+  - '1911765328039702529'
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9746); consistent with
+    FK / identity reference'
+- left: tenant_product.id
+  right: cust_project_rel.product_id
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:java-eq
+  left_stats:
+    table: tenant_product
+    column: id
+    exists: true
+    row_count: 388
+    non_null: 388
+    distinct_non_null: 388
+    sample:
+    - '1834421823984832513'
+    - '1834501357903728641'
+    - '1849327198790553601'
+    - '1858473041906651137'
+    - '1859785562995314690'
+    - '1866381772388724737'
+    - '1866382027452739585'
+    - '1867028236592979969'
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: product_id
+    exists: true
+    row_count: 16023
+    non_null: 15993
+    distinct_non_null: 138
+    sample:
+    - '1834422381302976514'
+    - '1834425570605105153'
+    - '1834421823984832513'
+    - '1834422381302976514'
+    - '1834422381302976514'
+    - '1834422381302976514'
+    - '1834425570605105153'
+    - '1834466120545275905'
+    error: ''
+  join_hits: 136
+  left_in_right: 136
+  left_not_in_right: 252
+  right_in_left: 15990
+  right_not_in_left: 3
+  left_in_right_ratio: 0.3505
+  right_in_left_ratio: 0.9998
+  intersection_sample:
+  - '1834422381302976514'
+  - '1834425570605105153'
+  - '1834421823984832513'
+  - '1834466120545275905'
+  - '1834503699675926530'
+  - '1834501559561670658'
+  - '1834501357903728641'
+  - '1834503606881144834'
+  left_only_sample:
+  - '1858473041906651137'
+  - '1859785562995314690'
+  - '1866381772388724737'
+  - '1866382027452739585'
+  - '1867028236592979969'
+  - '1881971306351542274'
+  - '1881973388026560514'
+  - '1882000081135255554'
+  right_only_sample:
+  - '7'
+  - '1797628152482992129'
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9998); consistent with
+    FK / identity reference'
+- left: cust_change_cfg.id
+  right: cust_change_record.alter_type_id
+  host: cust_change_record
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:read-flow
+  left_stats:
+    table: cust_change_cfg
+    column: id
+    exists: true
+    row_count: 140
+    non_null: 140
+    distinct_non_null: 140
+    sample:
+    - '110'
+    - '111'
+    - '112'
+    - '113'
+    - '114'
+    - '115'
+    - '116'
+    - '117'
+    error: ''
+  right_stats:
+    table: cust_change_record
+    column: alter_type_id
+    exists: true
+    row_count: 1139
+    non_null: 1139
+    distinct_non_null: 109
+    sample:
+    - '165'
+    - '165'
+    - '151'
+    - 158,159,160,161,162
+    - 158,159,160,161,162
+    - 159,160
+    - '157'
+    - '151'
+    error: ''
+  join_hits: 72
+  left_in_right: 72
+  left_not_in_right: 68
+  right_in_left: 1068
+  right_not_in_left: 71
+  left_in_right_ratio: 0.5143
+  right_in_left_ratio: 0.9377
+  intersection_sample:
+  - '165'
+  - '151'
+  - '157'
+  - '159'
+  - '152'
+  - '163'
+  - '175'
+  - '172'
+  left_only_sample:
+  - '110'
+  - '111'
+  - '112'
+  - '114'
+  - '115'
+  - '116'
+  - '117'
+  - '118'
+  right_only_sample:
+  - 158,159,160,161,162
+  - 159,160
+  - '120'
+  - 174,175,176
+  - '156'
+  - 146,148,149
+  - 177,180
+  - 172,173,181
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.5143, right->left=0.9377); same value domain
+    / business code space likely
+- left: wechat_project_approval_apply.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  host: wechat_project_approval_field_history
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:copy
+  left_stats:
+    table: wechat_project_approval_apply
+    column: sp_no
+    exists: true
+    row_count: 53
+    non_null: 53
+    distinct_non_null: 53
+    sample:
+    - '202512290002'
+    - '202512290017'
+    - '202512300002'
+    - '202512310005'
+    - '202601040004'
+    - '202601040005'
+    - '202601060002'
+    - '202601060005'
+    error: ''
+  right_stats:
+    table: wechat_project_approval_field_history
+    column: sp_no
+    exists: true
+    row_count: 952
+    non_null: 952
+    distinct_non_null: 53
+    sample:
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    - '202512290002'
+    error: ''
+  join_hits: 53
+  left_in_right: 53
+  left_not_in_right: 0
+  right_in_left: 952
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '202512290002'
+  - '202512290017'
+  - '202512300002'
+  - '202512310005'
+  - '202601040004'
+  - '202601040005'
+  - '202601060002'
+  - '202601060005'
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_project.channel_code
+  right: cust_project_rel.channel_code
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: code:copy
+  left_stats:
+    table: tenant_project
+    column: channel_code
+    exists: true
+    row_count: 3955
+    non_null: 3955
+    distinct_non_null: 3953
+    sample:
+    - RYD000583
+    - RYD943942
+    - RYD485272
+    - RYD000910
+    - RYD582960
+    - RYD921922
+    - RYD788591
+    - C7ajlKAQ
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: channel_code
+    exists: true
+    row_count: 16023
+    non_null: 116
+    distinct_non_null: 60
+    sample:
+    - LN1RYDXM6947211195
+    - LN1RYDXM6947211195
+    - 0919-WYWCSXM0559540242
+    - 0919-WYWCSXM0559540242
+    - 0919-WYWCSXM0559540242
+    - RYD000026
+    - LN1RYDXM6947211195
+    - BLYR563810
+    error: ''
+  join_hits: 60
+  left_in_right: 60
+  left_not_in_right: 3895
+  right_in_left: 116
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0152
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - LN1RYDXM6947211195
+  - 0919-WYWCSXM0559540242
+  - BLYR563810
+  - RYD436411
+  - RYD234591
+  - GP456008
+  - RYD978505
+  - RYD420439
+  left_only_sample:
+  - RYD000583
+  - RYD943942
+  - RYD485272
+  - RYD000910
+  - RYD582960
+  - RYD921922
+  - RYD788591
+  - C7ajlKAQ
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: open_sso_channel.channel_code
+  right: cust_company_info.channel_code
+  host: cust_company_info
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: same_semantic:sso_archive
+  left_stats:
+    table: open_sso_channel
+    column: channel_code
+    exists: true
+    row_count: 1
+    non_null: 1
+    distinct_non_null: 1
+    sample:
+    - longteng
+    error: ''
+  right_stats:
+    table: cust_company_info
+    column: channel_code
+    exists: true
+    row_count: 6944
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: funding_rule_detail.product_code
+  right: funding_rule_front_cfg.product_code
+  host: funding_rule_front_cfg
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: same_semantic:B_C
+  left_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 210
+    non_null: 210
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  join_hits: 210
+  left_in_right: 210
+  left_not_in_right: 0
+  right_in_left: 47
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_rule_detail.product_code
+  right: funding_exception_resolution.product_code
+  host: funding_exception_resolution
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: same_semantic:B_C
+  left_stats:
+    table: funding_rule_detail
+    column: product_code
+    exists: true
+    row_count: 210
+    non_null: 210
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 3
+    non_null: 3
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 210
+  left_in_right: 210
+  left_not_in_right: 0
+  right_in_left: 3
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample: []
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain /
+    business code space likely
+- left: funding_rule_front_cfg.product_code
+  right: funding_exception_resolution.product_code
+  host: funding_exception_resolution
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: same_semantic:B_C
+  left_stats:
+    table: funding_rule_front_cfg
+    column: product_code
+    exists: true
+    row_count: 47
+    non_null: 47
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    error: ''
+  right_stats:
+    table: funding_exception_resolution
+    column: product_code
+    exists: true
+    row_count: 3
+    non_null: 3
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 47
+  left_in_right: 47
+  left_not_in_right: 0
+  right_in_left: 3
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample: []
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain /
+    business code space likely
+- left: funding_rule_info.product_code
+  right: platform_product.product_code
+  host: platform_product
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep
+  wiki_evidence: same_semantic:cross
+  left_stats:
+    table: funding_rule_info
+    column: product_code
+    exists: true
+    row_count: 7
+    non_null: 7
+    distinct_non_null: 2
+    sample:
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - ACFLOW
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    - RVSFACTOR_PC
+    error: ''
+  right_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - HTCP1
+    - HTCP2
+    - HTCP3
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 0
+  right_in_left: 2
+  right_not_in_left: 11
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.1538
+  intersection_sample:
+  - ACFLOW
+  - RVSFACTOR_PC
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - HTCP1
+  - HTCP2
+  - HTCP3
+  - HTCP4
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=1.0, right->left=0.1538, join_hits=7)

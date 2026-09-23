@@ -4,19 +4,32 @@ title: 客户联系人表
 page_key: cust_person_info
 belong: tables
 status: draft
-anchors: [cust_person_info]
-sources: ['database_schema:lowcode_pplatform.cust_person_info', 'code_path:CustCompanyInfoApplication.java:1553']
+anchors:
+- cust_person_info
+sources:
+- database_schema:lowcode_pplatform.cust_person_info
+- code_path:CustCompanyInfoApplication.java:1553
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_build_record, cust_oper_change_record, cust_company_info, cust_person_info__enable,
-  cust_person_info__certification_type, cust_person_info__status, cust_person_info__user_type,
-  cust_person_info__face_status, cust_person_info__realname_status, cust_person_info__test_data,
-  cust_person_info__company_type, cust_person_info__cust_build_status, cust_person_info__operator_push_system,
-  cust_person_info__skip_auth_flag, cust_person_info__source, cust_person_info__real_name_result]
+databases:
+- lowcode_pplatform
+related:
+- ca_cfca_upgrade_report
+- cust_build_record
+- cust_company_info
+- cust_oper_change_record
+- migratory_user_record
+- cust_person_info__enable
+- cust_person_info__certification_type
+- cust_person_info__status
+- cust_person_info__user_type
+- cust_person_info__face_status
+- cust_person_info__realname_status
+- cust_person_info__company_type
+- cust_person_info__cust_build_status
+- cust_person_info__skip_auth_flag
 ---
-
 # 客户联系人表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -28,9 +41,15 @@ table: cust_person_info
 database: lowcode_pplatform
 desc: 客户联系人表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name, en_name, handby_person_name, user_name]
+name_anchors:
+- code
+- name
+- en_name
+- handby_person_name
+- user_name
 fields:
 - name: id
   type: number
@@ -45,8 +64,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
-  written_with: [status]
+  dict:
+  - Y
+  - N
+  written_with:
+  - status
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -97,11 +120,25 @@ fields:
 - name: certification_type
   type: string
   desc: 证件类型
-  dict: [CRET_ID, CREDENTIALS_ID, CERT_RESIDENT_PERMIT, CERT_PASSPORT, CERT_GREEN_CARD,
-    CERT_TAIWAN, CERT_MAINLAND_PASS, CERT_HK_AND_MACAU_PASS, CRET_ID_HK]
-  label: {CRET_ID: 二代居民身份证, CERT_RESIDENT_PERMIT: 港澳台居民居住证, CERT_PASSPORT: 护照, CERT_GREEN_CARD: 外国人永久居留证,
-    CERT_TAIWAN: 台胞证, CERT_MAINLAND_PASS: 港澳居民来往内地通行证, CERT_HK_AND_MACAU_PASS: 港澳通行证,
-    CRET_ID_HK: 香港身份证}
+  dict:
+  - CRET_ID
+  - CREDENTIALS_ID
+  - CERT_RESIDENT_PERMIT
+  - CERT_PASSPORT
+  - CERT_GREEN_CARD
+  - CERT_TAIWAN
+  - CERT_MAINLAND_PASS
+  - CERT_HK_AND_MACAU_PASS
+  - CRET_ID_HK
+  label:
+    CRET_ID: 二代居民身份证
+    CERT_RESIDENT_PERMIT: 港澳台居民居住证
+    CERT_PASSPORT: 护照
+    CERT_GREEN_CARD: 外国人永久居留证
+    CERT_TAIWAN: 台胞证
+    CERT_MAINLAND_PASS: 港澳居民来往内地通行证
+    CERT_HK_AND_MACAU_PASS: 港澳通行证
+    CRET_ID_HK: 香港身份证
 - name: certification_no
   type: string
   desc: 证件号码
@@ -123,30 +160,52 @@ fields:
 - name: status
   type: string
   desc: 联系人账号状态
-  dict: [ADD, EFFECT, FREEZE, N, WRITEOFF]
-  label: {ADD: 未激活, EFFECT: 已激活, FREEZE: 冻结, WRITEOFF: 注销}
-  written_with: [enable]
+  dict:
+  - ADD
+  - EFFECT
+  - FREEZE
+  - N
+  - WRITEOFF
+  label:
+    ADD: 未激活
+    EFFECT: 已激活
+    FREEZE: 冻结
+    WRITEOFF: 注销
+  written_with:
+  - enable
 - name: cust_company_id
   type: number
   desc: 冗余企业id
 - name: user_type
   type: string
   desc: 联系人类型
-  dict: [accountAdmin, accountNormal, accountGuest]
-  label: [管理员, 经办人, 游客]
+  dict:
+  - accountAdmin
+  - accountNormal
+  - accountGuest
+  label:
+  - 管理员
+  - 经办人
+  - 游客
 - name: face_status
   type: string
   desc: 人脸认证结果
-  dict: [TO_BE_VERIFIED, AUTOMATIC_AUTHENTICATION_PASSED, MANUAL_AUTHENTICATION_PASSED,
-    AUTOMATIC_AUTHENTICATION_FAILED]
+  dict:
+  - TO_BE_VERIFIED
+  - AUTOMATIC_AUTHENTICATION_PASSED
+  - MANUAL_AUTHENTICATION_PASSED
+  - AUTOMATIC_AUTHENTICATION_FAILED
 - name: auth_application
   type: string
   desc: 开通产品
 - name: realname_status
   type: string
   desc: 实名认证
-  dict: [TO_BE_VERIFIED, AUTOMATIC_AUTHENTICATION_PASSED, MANUAL_AUTHENTICATION_PASSED,
-    AUTOMATIC_AUTHENTICATION_FAILED]
+  dict:
+  - TO_BE_VERIFIED
+  - AUTOMATIC_AUTHENTICATION_PASSED
+  - MANUAL_AUTHENTICATION_PASSED
+  - AUTOMATIC_AUTHENTICATION_FAILED
 - name: platform_user_id
   type: number
   desc: 运营系统用户id
@@ -161,15 +220,37 @@ fields:
   desc: 人名 (英文)
 - name: test_data
   type: string
-  dict: [N, Y]
 - name: company_type
   type: string
-  dict: [SUPPLIER, CORE, FINANCE, PROJECT_COMPANY, CORPORATION_COMPANY, PLATFORM_OPERATOR_COMPANY,
-    DEALER, CORE_MANAGER, '["SUPPLIER"]', CORE_FUNCTIONAL_DEPARTMENT, CORE_SUB, CORE_BRANCH,
-    FACTOR_COMPANY, PLATFORM_COMPANY]
-  label: {SUPPLIER: 供应商, CORE: 核心企业, FINANCE: 金融机构, PROJECT_COMPANY: 项目公司, CORPORATION_COMPANY: 集团公司,
-    PLATFORM_OPERATOR_COMPANY: 平台运营方, DEALER: 经销商, CORE_MANAGER: 核心企业管理机构, CORE_FUNCTIONAL_DEPARTMENT: 核心企业职能部门,
-    CORE_SUB: 核心企业子公司, CORE_BRANCH: 核心企业分公司, FACTOR_COMPANY: 保理买卖方, PLATFORM_COMPANY: 平台方}
+  dict:
+  - SUPPLIER
+  - CORE
+  - FINANCE
+  - PROJECT_COMPANY
+  - CORPORATION_COMPANY
+  - PLATFORM_OPERATOR_COMPANY
+  - DEALER
+  - CORE_MANAGER
+  - '["SUPPLIER"]'
+  - CORE_FUNCTIONAL_DEPARTMENT
+  - CORE_SUB
+  - CORE_BRANCH
+  - FACTOR_COMPANY
+  - PLATFORM_COMPANY
+  label:
+    SUPPLIER: 供应商
+    CORE: 核心企业
+    FINANCE: 金融机构
+    PROJECT_COMPANY: 项目公司
+    CORPORATION_COMPANY: 集团公司
+    PLATFORM_OPERATOR_COMPANY: 平台运营方
+    DEALER: 经销商
+    CORE_MANAGER: 核心企业管理机构
+    CORE_FUNCTIONAL_DEPARTMENT: 核心企业职能部门
+    CORE_SUB: 核心企业子公司
+    CORE_BRANCH: 核心企业分公司
+    FACTOR_COMPANY: 保理买卖方
+    PLATFORM_COMPANY: 平台方
 - name: operator
   type: string
 - name: handby_person
@@ -192,27 +273,35 @@ fields:
 - name: cust_build_status
   type: string
   desc: 建档状态
-  dict: [CUST_CONFIRM_AWAIT, BUILD_SUCCESS, BUILD_FAIL, CUST_BUILDING, INIT]
+  dict:
+  - CUST_CONFIRM_AWAIT
+  - BUILD_SUCCESS
+  - BUILD_FAIL
+  - CUST_BUILDING
+  - INIT
 - name: operator_push_system
   type: string
   desc: 经办人推送系统列表
-  dict: [ams_supplier_pc, ams_proj_pc, ams_finance_pc, smebee_pc]
 - name: skip_auth_flag
   type: string
   desc: 跳过实名认证标识
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label: [否, 是]
 - name: source
   type: string
   desc: 来源
-  dict: [longteng, AMS, jingke]
-  label: {longteng: 龙腾, AMS: 管理员}
 - name: ext_data
   type: string
   desc: 扩展字段
 - name: real_name_result
   type: string
   desc: 实名认证结果
-  dict: [INIT, VERIFIED_SUCCESS, VERIFIED_FAILED]
+  dict:
+  - INIT
+  - VERIFIED_SUCCESS
+  - VERIFIED_FAILED
 default_filter:
   predicate: cust_person_info.enable = 'Y'
   trust: confirmed
@@ -263,45 +352,107 @@ overlap:
 authenticity_note: 冗余企业 id，查询里与 code 引用并存，不是 ref_cust_company_info。
 ```
 
-### disputed — 与已确认边冲突
-
 ```ground:relation
 type: EQUI_JOIN
-left: cust_company_info.id
-right: cust_person_info.ref_cust_company_info
+left: cust_person_info.id
+right: cust_build_record.person_id
 cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_person_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_person_info.ref_cust_company_info
-source: name
+trust: confirmed
+authenticity: likely
+evidence: code_path:OperCustFacade.java:893
+source: l1_code
 join_role: identity
 priority: primary
 name_evidence:
-  match: exact_table
-  stem: cust_company_info
-  comment: 关联企业
+  match: family_suffix
+  stem: person
+  comment: 联系人ID
 overlap:
   probed: true
-  ratio: 0.0
-  sample_size: 200
-  miss: 200
+  ratio: 0.9699
+  ratio_reverse: 0.56
+  sample_size: 599
+  miss: 18
+  deepened: true
+  query_ok: true
+  authenticity: likely
+authenticity_note: 建档记录保存联系人 personId。
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: cust_person_info.id
+right: cust_oper_change_record.person_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:OperChangeRecordApplication.java:46
+source: l1_code
+join_role: identity
+priority: primary
+name_evidence:
+  match: family_suffix
+  stem: person
+  comment: 企业联系人id
+overlap:
+  probed: true
+  ratio: 0.9947
+  sample_size: 190
+  miss: 1
   deepened: false
   query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: cust_company_info.code, right: cust_person_info.ref_cust_company_info,
-  trust: confirmed}
-- {source: name, left: cust_company_info.id, right: cust_person_info.ref_cust_company_info,
-  trust: proposed}
+  authenticity: likely
+authenticity_note: 变更记录按联系人主键倒序查。
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: cust_person_info.user_id
+right: ca_cfca_upgrade_report.authorized_user_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep_cont:live_fk_like;code:write-flow
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:write-flow
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: cust_person_info.user_id
+right: migratory_user_record.user_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep_cont:live_fk_like;code:copy
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:copy
 ```
 
 ## 页面链接
 
 ### 关联表
 
+- [[tables/ca_cfca_upgrade_report]]
 - [[tables/cust_build_record]]
-- [[tables/cust_oper_change_record]]
 - [[tables/cust_company_info]]
+- [[tables/cust_oper_change_record]]
+- [[tables/migratory_user_record]]
+
+### 概念
+
+- [[concepts/account_admin]]
+- [[concepts/account_operator]]
+- [[concepts/admin_change_topic]]
+- [[concepts/admin_email_optional]]
+- [[concepts/archive_handby]]
+- [[concepts/login_account_term]]
+- [[concepts/oper_staff_field]]
+- [[concepts/skip_realname]]
 
 ### 字典
 
@@ -311,10 +462,7 @@ sides:
 - [[dicts/cust_person_info__user_type]]（`cust_person_info.user_type`）
 - [[dicts/cust_person_info__face_status]]（`cust_person_info.face_status`）
 - [[dicts/cust_person_info__realname_status]]（`cust_person_info.realname_status`）
-- [[dicts/cust_person_info__test_data]]（`cust_person_info.test_data`）
 - [[dicts/cust_person_info__company_type]]（`cust_person_info.company_type`）
 - [[dicts/cust_person_info__cust_build_status]]（`cust_person_info.cust_build_status`）
-- [[dicts/cust_person_info__operator_push_system]]（`cust_person_info.operator_push_system`）
 - [[dicts/cust_person_info__skip_auth_flag]]（`cust_person_info.skip_auth_flag`）
-- [[dicts/cust_person_info__source]]（`cust_person_info.source`）
 - [[dicts/cust_person_info__real_name_result]]（`cust_person_info.real_name_result`）

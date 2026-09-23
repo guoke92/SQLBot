@@ -4,16 +4,22 @@ title: 集团成员单位关系表
 page_key: cust_group_rel
 belong: tables
 status: draft
-anchors: [cust_group_rel]
-sources: ['database_schema:lowcode_pplatform.cust_group_rel', 'code_path:CustCompanyQueryMapper.xml:112']
+anchors:
+- cust_group_rel
+sources:
+- database_schema:lowcode_pplatform.cust_group_rel
+- code_path:CustCompanyQueryMapper.xml:112
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_group_rel__root_flag, cust_group_rel__level, cust_group_rel__status,
-  cust_group_rel__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_group_rel__root_flag
+- cust_group_rel__status
+- cust_group_rel__enable
 ---
-
 # 集团成员单位关系表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +31,12 @@ table: cust_group_rel
 database: lowcode_pplatform
 desc: 集团成员单位关系表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -51,20 +60,29 @@ fields:
 - name: root_flag
   type: string
   desc: 是否集团企业 Y:是 N:不是
-  dict: [N, Y]
-  label: [不是, 是]
+  dict:
+  - N
+  - Y
+  label:
+  - 不是
+  - 是
 - name: level
   type: number
   desc: 层级
-  dict: ['1']
 - name: cust_type
   type: string
   desc: 企业角色 多企业角色用逗号分隔
 - name: status
   type: string
   desc: 状态 已生效:EFFECTIVE 未生效:INEFFECTIVE 已拒绝:REJECTED
-  dict: [EFFECTIVE, INEFFECTIVE, REJECTED]
-  label: [已生效, 未生效, 已拒绝]
+  dict:
+  - EFFECTIVE
+  - INEFFECTIVE
+  - REJECTED
+  label:
+  - 已生效
+  - 未生效
+  - 已拒绝
 - name: code
   type: string
   desc: 编码
@@ -74,7 +92,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -154,6 +175,32 @@ overlap:
   authenticity: likely
 authenticity_note: 集团关系 cust_id 是企业主键。
 ```
+```ground:relation
+type: EQUI_JOIN
+left: cust_company_info.id
+right: cust_group_rel.parent_cust_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
+join_role: identity
+priority: primary
+authenticity_note: code+live
+```
+```ground:relation
+type: EQUI_JOIN
+left: cust_company_info.id
+right: cust_group_rel.root_cust_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
+join_role: identity
+priority: primary
+authenticity_note: code+live
+```
 
 ## 页面链接
 
@@ -161,9 +208,12 @@ authenticity_note: 集团关系 cust_id 是企业主键。
 
 - [[tables/cust_company_info]]
 
+### 概念
+
+- [[concepts/group_member_rel]]
+
 ### 字典
 
 - [[dicts/cust_group_rel__root_flag]]（`cust_group_rel.root_flag`）
-- [[dicts/cust_group_rel__level]]（`cust_group_rel.level`）
 - [[dicts/cust_group_rel__status]]（`cust_group_rel.status`）
 - [[dicts/cust_group_rel__enable]]（`cust_group_rel.enable`）

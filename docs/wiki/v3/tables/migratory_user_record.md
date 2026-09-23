@@ -4,15 +4,20 @@ title: 迁移用户记录表
 page_key: migratory_user_record
 belong: tables
 status: draft
-anchors: [migratory_user_record]
-sources: ['database_schema:lowcode_pplatform.migratory_user_record']
+anchors:
+- migratory_user_record
+sources:
+- database_schema:lowcode_pplatform.migratory_user_record
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [migratory_user_record__is_login, migratory_user_record__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_person_info
+- migratory_user_record__is_login
+- migratory_user_record__enable
 ---
-
 # 迁移用户记录表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -24,9 +29,12 @@ table: migratory_user_record
 database: lowcode_pplatform
 desc: 迁移用户记录表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 用户迁移记录
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -44,11 +52,17 @@ fields:
 - name: is_login
   type: string
   desc: 是否登录过
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label: [否, 是]
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -95,7 +109,27 @@ fields:
   desc: 机构编号
 ```
 
+## 关联关系
+
+```ground:relation
+type: EQUI_JOIN
+left: cust_person_info.user_id
+right: migratory_user_record.user_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep_cont:live_fk_like;code:copy
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:copy
+```
+
 ## 页面链接
+
+### 关联表
+
+- [[tables/cust_person_info]]
 
 ### 字典
 

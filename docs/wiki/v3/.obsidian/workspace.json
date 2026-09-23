@@ -4,53 +4,24 @@
     "type": "split",
     "children": [
       {
-        "id": "93a69f081d497e73",
+        "id": "b1270a7b770d02fe",
         "type": "tabs",
         "children": [
           {
-            "id": "b3b8794e3be173fe",
+            "id": "99a036deb9dd1bfd",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "_index.md",
+                "file": "tables/cust_person_info.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "_index"
-            }
-          },
-          {
-            "id": "b6e5addccee36955",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "tables/cust_company_info.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "cust_company_info"
-            }
-          },
-          {
-            "id": "8edbeee0cce2bf05",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "tables/platform_product.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "platform_product"
+              "title": "cust_person_info"
             }
           }
-        ],
-        "currentTab": 2
+        ]
       }
     ],
     "direction": "vertical"
@@ -84,7 +55,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "product_cate",
+                "query": "operator_realname",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -129,7 +100,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "tables/platform_product.md",
+                "file": "tables/cust_person_info.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -148,7 +119,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "tables/platform_product.md",
+                "file": "tables/cust_person_info.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
@@ -191,7 +162,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "tables/platform_product.md",
+                "file": "tables/cust_person_info.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -218,43 +189,44 @@
       "bases:新建数据库": false
     }
   },
-  "active": "8edbeee0cce2bf05",
+  "active": "99a036deb9dd1bfd",
   "lastOpenFiles": [
+    "dicts/argeement_migratory_record__enable.md",
     "_index.md",
-    "dicts/platform_product__product_cate.md",
-    "concepts/agw_build.md",
-    "concepts/product_cate_term.md",
-    "concepts/account_admin.md",
-    "processes/tenant_project_approval__wf_status.md",
-    "concepts/electronic_auth_sign_status_term.md",
-    "processes/open_sso_channel__sso_sync_status.md",
-    "processes/cust_change_record__oper_channel_direct.md",
-    "processes/cust_change_record__electronic_auth_sign_status.md",
-    "concepts/app_channel_config_term.md",
-    "concepts/tenant_code_vs_db_tenant.md",
-    "dicts/tenant_project_approval__wf_status.md",
-    "concepts/online_approval_wf.md",
-    "processes/cust_company_info__check_status.md",
-    "_raw/overlap.yaml",
-    "_raw/profile_instance.yaml",
-    "_raw/profile.yaml",
-    "_raw/l1_intermediate/code/cust/traces/channel_change_direct.trace.yaml",
-    "_raw/l1_intermediate/code/remaining/traces/open_sso_channel.trace.yaml",
-    "concepts/open_sso_channel_term.md",
-    "concepts/channel_archive_longteng.md",
-    "concepts/direct_init_need_resign.md",
-    "concepts/direct_init_change_record.md",
-    "concepts/direct_init_access_mode.md",
-    "dicts/cust_setting_config__sending_interval.md",
-    "dicts/tenant_setting_config_share__source_id.md",
-    "dicts/cust_customized_product__code.md",
-    "dicts/tenant_project_approval_business_info__service_fee_min_amount.md",
-    "dicts/tenant_setting_config_share__prd_mp_app_id.md",
-    "dicts/funding_rule_info__version.md",
-    "_raw/l1_intermediate/docs/req_index_walk_display.yaml",
-    "_raw/l1_intermediate/code/remaining/traces/agreement_migratory_pull.trace.yaml",
-    "_raw/l1_intermediate/code/remaining/traces/async_io_task.trace.yaml",
-    "_raw/l1_intermediate/code/remaining/traces/platform_product_effective.trace.yaml",
-    "_raw/l1_intermediate/code/remaining/traces/authorization_agreement.trace.yaml"
+    "processes/tenant_project__project_status.md",
+    "tables/argeement_migratory_record.md",
+    "tables/cust_auth_application.md",
+    "tables/cust_build_record.md",
+    "tables/cust_company_info.md",
+    "tables/ca_fee_project_config.md",
+    "_raw/full_sweep/relation_related_consistency.md",
+    "concepts/wec_project_ops_peer.md",
+    "_raw/full_sweep/orphan_repair_written.yaml",
+    "未命名.canvas",
+    "_raw/full_sweep/orphan_repair_validate.yaml",
+    "tables/cust_setting_config.md",
+    "tables/cust_auth_application_config.md",
+    "tables/tenant_product.md",
+    "tables/ca_fee_order.md",
+    "tables/ca_fee_special_config.md",
+    "rules/ca_fee_evaluate_priority.md",
+    "_raw/full_sweep/orphan_and_unref.md",
+    "_raw/full_sweep/orphan_and_unref.yaml",
+    "dicts/cust_oper_change_record__enable.md",
+    "tables/cust_person_info.md",
+    "tables/cust_access_secret.md",
+    "dicts/funding_rule_detail__check_scene.md",
+    "_raw/full_sweep/code_diff_rejected.yaml",
+    "_raw/full_sweep/continue_candidate_validate.yaml",
+    "_raw/full_sweep/hold_promote_result.yaml",
+    "_raw/full_sweep/hold_promote_llm.yaml",
+    "_raw/full_sweep/audit_final_review.md",
+    "_raw/full_sweep/remaining_relations.md",
+    "_raw/full_sweep/dict_llm_residual.yaml",
+    "_raw/full_sweep/join_validate_after.md",
+    "_raw/full_sweep/join_validate_after.yaml",
+    "_raw/full_sweep/dict_llm_large.yaml",
+    "dicts/funding_exception_resolution__enable.md",
+    "dicts/funding_rule_detail__enable.md"
   ]
 }

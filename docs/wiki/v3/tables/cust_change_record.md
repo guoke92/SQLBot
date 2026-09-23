@@ -4,18 +4,23 @@ title: 客户变更记录
 page_key: cust_change_record
 belong: tables
 status: draft
-anchors: [cust_change_record]
-sources: ['database_schema:lowcode_pplatform.cust_change_record']
+anchors:
+- cust_change_record
+sources:
+- database_schema:lowcode_pplatform.cust_change_record
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_change_record__alter_mode, cust_change_record__admin_auth,
-  cust_change_record__legal_auth, cust_change_record__cust_type, cust_change_record__enable,
-  cust_change_record__msg_send, cust_change_record__need_cust_confirm, cust_change_record__need_resign_auth,
-  cust_change_record__oper_channel, cust_change_record__electronic_auth_sign_status]
+databases:
+- lowcode_pplatform
+related:
+- cust_change_cfg
+- cust_company_info
+- cust_change_record__enable
+- cust_change_record__need_cust_confirm
+- cust_change_record__need_resign_auth
+- cust_change_record__electronic_auth_sign_status
 ---
-
 # 客户变更记录
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -27,9 +32,13 @@ table: cust_change_record
 database: lowcode_pplatform
 desc: 客户变更记录
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企业变更单；直推单 oper_channel=DIRECT_INIT + serial_no 幂等
-name_anchors: [code, name, cust_name]
+name_anchors:
+- code
+- name
+- cust_name
 fields:
 - name: id
   type: number
@@ -53,23 +62,18 @@ fields:
 - name: alter_mode
   type: string
   desc: 变更方式
-  dict: ['1', '2']
-  label: [平台变更, 企业自行变更]
 - name: admin_auth
   type: string
   desc: 企业管理授权
-  dict: [N, Y]
 - name: legal_auth
   type: string
   desc: 法人代表授权
-  dict: [N, Y]
 - name: alter_type
   type: string
   desc: 变更类型
 - name: cust_type
   type: string
   desc: 客户类型
-  dict: ['2', '1', '4', '3']
 - name: oper_app_no
   type: string
   desc: 运营中台流程编号
@@ -82,12 +86,20 @@ fields:
 - name: status
   type: string
   desc: 变更状态
-  written_with: [need_resign_auth, need_cust_confirm, electronic_auth_sign_status,
-    oper_channel]
+  written_with:
+  - need_resign_auth
+  - need_cust_confirm
+  - electronic_auth_sign_status
+  - oper_channel
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -144,30 +156,61 @@ fields:
 - name: msg_send
   type: string
   desc: 消息发送
-  dict: [Y, N]
 - name: need_cust_confirm
   type: string
   desc: 是否需要客户确认
-  dict: [Y, N]
-  written_with: [need_resign_auth, electronic_auth_sign_status, status, oper_channel]
+  dict:
+  - Y
+  - N
+  written_with:
+  - need_resign_auth
+  - electronic_auth_sign_status
+  - status
+  - oper_channel
+  label:
+    Y: 是
+    N: 否
 - name: need_resign_auth
   type: string
   desc: 是否需要重签授权书：Y-是，N-否。直推在识别变更项时写入，后续只读
-  dict: [Y, N]
-  label: [是, 否。直推在识别变更项时写入]
-  written_with: [need_cust_confirm, electronic_auth_sign_status, status, oper_channel]
+  dict:
+  - Y
+  - N
+  label:
+    Y: 是
+    N: 否
+  written_with:
+  - need_cust_confirm
+  - electronic_auth_sign_status
+  - status
+  - oper_channel
 - name: oper_channel
   type: string
   desc: 运营中台变更渠道
-  dict: [operation-pplatform-common-new, operation-pplatform-not-edit-new, DIRECT_INIT]
-  label: {DIRECT_INIT: 方案2直推}
-  written_with: [need_resign_auth, need_cust_confirm, electronic_auth_sign_status,
-    status]
+  written_with:
+  - need_resign_auth
+  - need_cust_confirm
+  - electronic_auth_sign_status
+  - status
 - name: electronic_auth_sign_status
   type: string
-  dict: [VOIDED, SIGNED, PENDING, UPLOAD_FAILED, FAILED]
-  label: [作废, 已签署, 待签署, 影像上传失败, 签署失败]
-  written_with: [need_resign_auth, need_cust_confirm, status, oper_channel]
+  dict:
+  - VOIDED
+  - SIGNED
+  - PENDING
+  - UPLOAD_FAILED
+  - FAILED
+  label:
+  - 作废
+  - 已签署
+  - 待签署
+  - 影像上传失败
+  - 签署失败
+  written_with:
+  - need_resign_auth
+  - need_cust_confirm
+  - status
+  - oper_channel
 ```
 
 ## 关联关系
@@ -200,22 +243,37 @@ overlap:
   authenticity: likely
 authenticity_note: 变更记录 cust_id 是企业主键。
 ```
+```ground:relation
+type: EQUI_JOIN
+left: cust_change_cfg.id
+right: cust_change_record.alter_type_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_shared_domain
+source: full_sweep
+join_role: identity
+priority: primary
+authenticity_note: code+live
+```
 
 ## 页面链接
 
 ### 关联表
 
+- [[tables/cust_change_cfg]]
 - [[tables/cust_company_info]]
+
+### 概念
+
+- [[concepts/alter_mode_self]]
+- [[concepts/direct_init_change_record]]
+- [[concepts/direct_init_need_resign]]
+- [[concepts/electronic_auth_sign_status_term]]
 
 ### 字典
 
-- [[dicts/cust_change_record__alter_mode]]（`cust_change_record.alter_mode`）
-- [[dicts/cust_change_record__admin_auth]]（`cust_change_record.admin_auth`）
-- [[dicts/cust_change_record__legal_auth]]（`cust_change_record.legal_auth`）
-- [[dicts/cust_change_record__cust_type]]（`cust_change_record.cust_type`）
 - [[dicts/cust_change_record__enable]]（`cust_change_record.enable`）
-- [[dicts/cust_change_record__msg_send]]（`cust_change_record.msg_send`）
 - [[dicts/cust_change_record__need_cust_confirm]]（`cust_change_record.need_cust_confirm`）
 - [[dicts/cust_change_record__need_resign_auth]]（`cust_change_record.need_resign_auth`）
-- [[dicts/cust_change_record__oper_channel]]（`cust_change_record.oper_channel`）
 - [[dicts/cust_change_record__electronic_auth_sign_status]]（`cust_change_record.electronic_auth_sign_status`）

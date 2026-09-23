@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from apps.ai_model.openai.llm import BaseChatOpenAI
+from apps.ai_model.runtime import apply_openai_ctor_kwargs, overlay_reasoning_effort
 from apps.system.models.system_model import AiModelDetail
 from common.core.config import settings
 from common.core.db import engine
@@ -18,8 +19,10 @@ from common.utils.utils import prepare_model_arg
 
 # from langchain_community.llms import Tongyi, VLLM
 
+
 class LLMConfig(BaseModel):
     """Base configuration class for large language models"""
+
     model_id: int | None = None
     model_type: str  # Model type: openai/tongyi/vllm etc.
     model_name: str  # Specific model name
@@ -31,20 +34,34 @@ class LLMConfig(BaseModel):
         frozen = True
 
     def __hash__(self):
-        if hasattr(self, 'additional_params') and isinstance(self.additional_params, dict):
-            hashable_params = frozenset((k, tuple(v) if isinstance(v, list | dict) else v)
-                                        for k, v in self.additional_params.items())
+        if hasattr(self, "additional_params") and isinstance(
+            self.additional_params, dict
+        ):
+            hashable_params = frozenset(
+                (k, tuple(v) if isinstance(v, list | dict) else v)
+                for k, v in self.additional_params.items()
+            )
         else:
             hashable_params = None
 
-        return hash((
-            self.model_id,
-            self.model_type,
-            self.model_name,
-            self.api_key,
-            self.api_base_url,
-            hashable_params
-        ))
+        return hash(
+            (
+                self.model_id,
+                self.model_type,
+                self.model_name,
+                self.api_key,
+                self.api_base_url,
+                hashable_params,
+            )
+        )
+
+
+def with_reasoning_effort(config: LLMConfig, effort: Any) -> LLMConfig:
+    """Return a copy of ``config`` with a per-turn reasoning effort overlay."""
+    params = overlay_reasoning_effort(config.additional_params, effort)
+    if params == dict(config.additional_params or {}):
+        return config
+    return config.model_copy(update={"additional_params": params})
 
 
 class BaseLLM(ABC):
@@ -80,7 +97,7 @@ class OpenAIvLLM(BaseLLM):
     def _init_llm(self) -> VLLMOpenAI:
         params = self._request_params()
         return VLLMOpenAI(
-            openai_api_key=self.config.api_key or 'Empty',
+            openai_api_key=self.config.api_key or "Empty",
             openai_api_base=self.config.api_base_url,
             model_name=self.config.model_name,
             streaming=True,
@@ -95,7 +112,7 @@ class OpenAIAzureLLM(BaseLLM):
         deployment_name = params.pop("deployment_name", None)
         return AzureChatOpenAI(
             azure_endpoint=self.config.api_base_url,
-            api_key=self.config.api_key or 'Empty',
+            api_key=self.config.api_key or "Empty",
             model_name=self.config.model_name,
             api_version=api_version,
             deployment_name=deployment_name,
@@ -106,10 +123,10 @@ class OpenAIAzureLLM(BaseLLM):
 
 class OpenAILLM(BaseLLM):
     def _init_llm(self) -> BaseChatModel:
-        params = self._request_params()
+        params = apply_openai_ctor_kwargs(self._request_params())
         return BaseChatOpenAI(
             model=self.config.model_name,
-            api_key=self.config.api_key or 'Empty',
+            api_key=self.config.api_key or "Empty",
             base_url=self.config.api_base_url,
             stream_usage=True,
             **params,
@@ -171,8 +188,11 @@ async def get_default_config(custom_model_id: int | None = None) -> LLMConfig:
         if db_model.config:
             try:
                 config_raw = json.loads(db_model.config)
-                additional_params = {item["key"]: prepare_model_arg(item.get('val')) for item in config_raw if
-                                     "key" in item and "val" in item}
+                additional_params = {
+                    item["key"]: prepare_model_arg(item.get("val"))
+                    for item in config_raw
+                    if "key" in item and "val" in item
+                }
             except Exception:
                 pass
         if not db_model.api_domain.startswith("http"):

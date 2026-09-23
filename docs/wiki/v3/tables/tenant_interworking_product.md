@@ -4,22 +4,27 @@ title: 租户互通产品
 page_key: tenant_interworking_product
 belong: tables
 status: draft
-anchors: [tenant_interworking_product]
-sources: ['database_schema:lowcode_pplatform.tenant_interworking_product', 'code_path:TenantInterworkingProductDaoImpl.java:37']
+anchors:
+- tenant_interworking_product
+sources:
+- database_schema:lowcode_pplatform.tenant_interworking_product
+- code_path:TenantInterworkingProductDaoImpl.java:37
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_interworking_product, platform_product, tenant_setting_config, tenant_interworking_project,
-  tenant_interworking_product__platform_product_id, tenant_interworking_product__product_cate,
-  tenant_interworking_product__open_status, tenant_interworking_product__max_financing_amount_flag,
-  tenant_interworking_product__credit_measures, tenant_interworking_product__max_financing_period,
-  tenant_interworking_product__max_financing_amount, tenant_interworking_product__platform_product_code,
-  tenant_interworking_product__target_sys_channel, tenant_interworking_product__scope,
-  tenant_interworking_product__ref_tenant_interworking_product_platform_product, tenant_interworking_product__ref_tenant_interworking_product_tenant_setting_config,
-  tenant_interworking_product__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_interworking_product
+- platform_product
+- tenant_interworking_project
+- tenant_setting_config
+- tenant_interworking_product__open_status
+- tenant_interworking_product__max_financing_amount_flag
+- tenant_interworking_product__enable
+- tenant_interworking_product__product_cate
+- tenant_interworking_product__scope
 ---
-
 # 租户互通产品
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -31,9 +36,12 @@ table: tenant_interworking_product
 database: lowcode_pplatform
 desc: 租户互通产品
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一租户一互通产品一行
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -48,48 +56,56 @@ fields:
 - name: platform_product_id
   type: number
   desc: 平台产品id
-  dict: ['11', '6', '12', '13', '14', '16', '19', '1881239448301518849', '15', '17',
-    '18']
 - name: product_cate
   type: string
   desc: 产品类型
-  dict: [WEAKLY, STRONG, CREDIT]
-  label: [弱确权, 强确权, 信用类]
+  dict:
+  - WEAKLY
+  - STRONG
+  - CREDIT
+  label:
+  - 弱确权
+  - 强确权
+  - 信用类
 - name: tenant_id
   type: number
   desc: 租户id
 - name: open_status
   type: string
   desc: 产品开通状态
-  dict: [N, Y]
-  label: [未开通, 已开通]
+  dict:
+  - N
+  - Y
+  label:
+  - 未开通
+  - 已开通
 - name: max_financing_amount_flag
   type: string
   desc: 是否限额融资资金上限
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 - name: logo_icon_url
   type: string
   desc: 产品logo
 - name: credit_measures
   type: string
   desc: 增信措施
-  dict: [ddd, 共同债务人增信、差额补足, HTCP15]
 - name: max_financing_period
   type: string
   desc: 融资期限上限
-  dict: ['6', 1-3年, HTCP15]
 - name: max_financing_amount
   type: string
   desc: 融资金额上限
-  dict: ['0', 不限, '88888888']
 - name: transaction_structure
   type: string
   desc: 交易结构
 - name: platform_product_code
   type: string
   desc: 平台产品编号
-  dict: [HTCP1, HTCP2, HTCP13, AMS, HTCP6, HTCP14, HTCP5, HTCP19, HTCP15, HTCP18,
-    HTCP7]
 - name: product_summary
   type: string
   desc: 产品概述
@@ -102,8 +118,6 @@ fields:
 - name: target_sys_channel
   type: string
   desc: 目标系统ssochannel
-  dict: [ams_supplier_pc, ams_finance_pc, ams_proj_pc, smebee_pc, wec_easy_pc, smebee_pc_org91210200241281392f,
-    scpr-pplatform-pc_org91130421356828896h]
 - name: scope
   type: string
   desc: 适应范围标识
@@ -115,19 +129,18 @@ fields:
 - name: ref_tenant_interworking_product_platform_product
   type: string
   desc: 关联产品大类
-  dict: [f285fa5cf17f4a8f9eefe93d3a513a6g, 007142024a5c425bb3673f753060e533, 956b7f49cc00471db99e552d778a12c2]
 - name: ref_tenant_interworking_product_tenant_setting_config
   type: string
   desc: 关联租户
-  dict: [a285d4cf94ec4384bb7b6cf5ba994b4a, d77dc6bffbcc46fba7a864a07ef63c24, 53509862c98e42e8b174ceadf5ea0e7f,
-    0e3c8c4cbe2a4989b49dfed206ae7c77, 98f508b0151a48c494b2d2a383f71e10, fde987b21154469fa3df7f415ab63890,
-    89832c8f7ab6413a90205cad82d2088a, fec598d1efc04156b1e39d5643c8ad3b, 70fa21f1efbd47938d58c8487681fb42,
-    94d6c35c8b4145149355b76c59a0e307, 570844039be64a079e4b1a9b5a7bb05a, a1c642847cf6423fa6aeeef420e2c3af,
-    d19b81c772a6471f95cf3751316d1eb7]
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -223,94 +236,125 @@ join_role: identity
 priority: primary
 authenticity_note: 互通产品按租户配置主键。
 ```
-
-### disputed — 与已确认边冲突
-
 ```ground:relation
 type: EQUI_JOIN
-left: platform_product.id
-right: tenant_interworking_product.ref_tenant_interworking_product_platform_product
+left: cust_interworking_product.platform_product_code
+right: tenant_interworking_product.platform_product_code
 cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_platform_product;database_profile:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_platform_product
-source: name
-join_role: identity
+trust: confirmed
+authenticity: likely
+evidence: live_validate:shared_domain;collide_refine:企业互通与租户互通产品业务码；重合高可连
+source: collide_refine
+join_role: business_code
 priority: primary
-name_evidence:
-  match: long_ref
-  stem: platform_product
-  comment: 关联产品大类
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 3
-  miss: 3
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: platform_product.id, right: tenant_interworking_product.platform_product_id,
-  trust: confirmed}
-- {source: name, left: platform_product.id, right: tenant_interworking_product.ref_tenant_interworking_product_platform_product,
-  trust: proposed}
+authenticity_note: 企业互通与租户互通产品业务码；重合高可连
 ```
 
 ```ground:relation
 type: EQUI_JOIN
-left: tenant_setting_config.id
-right: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+left: tenant_interworking_product.code
+right: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
 cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config;database_profile:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
-source: name
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;reextract:互通产品 code→ref
+source: reextract_joins
+join_role: business_code
+priority: primary
+authenticity_note: 互通产品 code→ref
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_interworking_product.id
+right: tenant_interworking_project.product_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:TenantInterworkingProjectDaoImpl.java:32
+source: l1_code
 join_role: identity
 priority: primary
 name_evidence:
-  match: long_ref
-  stem: tenant_setting_config
-  comment: 关联租户
+  match: family_suffix
+  stem: product
+  comment: 产品id
 overlap:
   probed: true
-  ratio: 0.0
-  sample_size: 13
-  miss: 13
-  deepened: false
+  ratio: 0.8333
+  ratio_reverse: 0.125
+  sample_size: 6
+  miss: 1
+  deepened: true
   query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: tenant_setting_config.id, right: tenant_interworking_product.tenant_id,
-  trust: confirmed}
-- {source: name, left: tenant_setting_config.id, right: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config,
-  trust: proposed}
+  authenticity: unknown
+authenticity_note: 互通项目绑定的是互通产品主键，不是 tenant_product.id。
 ```
 
-### unlikely — 值域不支持或冲突
+```ground:relation
+type: EQUI_JOIN
+left: tenant_interworking_product.code
+right: tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:TenantInterworkingProjectApplicationService.java:67
+source: l1_code
+join_role: identity
+priority: primary
+```
 
+```ground:relation
+type: EQUI_JOIN
+left: tenant_interworking_product.platform_product_code
+right: tenant_interworking_project.platform_product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;collide_refine:互通产品/项目同语义业务码；重合高
+source: collide_refine
+join_role: business_code
+priority: primary
+authenticity_note: 互通产品/项目同语义业务码；重合高
+```
+```ground:relation
+type: EQUI_JOIN
+left: platform_product.product_code
+right: tenant_interworking_product.platform_product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code+live
+```
 ```ground:relation
 type: EQUI_JOIN
 left: platform_product.code
-right: tenant_interworking_product.platform_product_code
+right: tenant_interworking_product.ref_tenant_interworking_product_platform_product
 cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.tenant_interworking_product.platform_product_code;database_profile:lowcode_pplatform.tenant_interworking_product.platform_product_code
-source: name
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
 join_role: business_code
-priority: secondary
-name_evidence:
-  match: exact_table
-  stem: platform_product
-  comment: 平台产品编号
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 11
-  miss: 11
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
+priority: primary
+authenticity_note: code+live
+```
+```ground:relation
+type: EQUI_JOIN
+left: tenant_setting_config.code
+right: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code+live
 ```
 
 ## 页面链接
@@ -319,21 +363,19 @@ overlap:
 
 - [[tables/cust_interworking_product]]
 - [[tables/platform_product]]
-- [[tables/tenant_setting_config]]
 - [[tables/tenant_interworking_project]]
+- [[tables/tenant_setting_config]]
+
+### 概念
+
+- [[concepts/interworking_open_term]]
+- [[concepts/platform_product_code_term]]
+- [[concepts/product_cate_term]]
 
 ### 字典
 
-- [[dicts/tenant_interworking_product__platform_product_id]]（`tenant_interworking_product.platform_product_id`）
 - [[dicts/tenant_interworking_product__product_cate]]（`tenant_interworking_product.product_cate`）
 - [[dicts/tenant_interworking_product__open_status]]（`tenant_interworking_product.open_status`）
 - [[dicts/tenant_interworking_product__max_financing_amount_flag]]（`tenant_interworking_product.max_financing_amount_flag`）
-- [[dicts/tenant_interworking_product__credit_measures]]（`tenant_interworking_product.credit_measures`）
-- [[dicts/tenant_interworking_product__max_financing_period]]（`tenant_interworking_product.max_financing_period`）
-- [[dicts/tenant_interworking_product__max_financing_amount]]（`tenant_interworking_product.max_financing_amount`）
-- [[dicts/tenant_interworking_product__platform_product_code]]（`tenant_interworking_product.platform_product_code`）
-- [[dicts/tenant_interworking_product__target_sys_channel]]（`tenant_interworking_product.target_sys_channel`）
 - [[dicts/tenant_interworking_product__scope]]（`tenant_interworking_product.scope`）
-- [[dicts/tenant_interworking_product__ref_tenant_interworking_product_platform_product]]（`tenant_interworking_product.ref_tenant_interworking_product_platform_product`）
-- [[dicts/tenant_interworking_product__ref_tenant_interworking_product_tenant_setting_config]]（`tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config`）
 - [[dicts/tenant_interworking_product__enable]]（`tenant_interworking_product.enable`）

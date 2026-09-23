@@ -4,17 +4,19 @@ title: 项目立项字段更新历史
 page_key: wechat_project_approval_field_history
 belong: tables
 status: draft
-anchors: [wechat_project_approval_field_history]
-sources: ['database_schema:lowcode_pplatform.wechat_project_approval_field_history']
+anchors:
+- wechat_project_approval_field_history
+sources:
+- database_schema:lowcode_pplatform.wechat_project_approval_field_history
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [wechat_project_approval_apply, wechat_project_approval_field_history__field_name,
-  wechat_project_approval_field_history__change_source, wechat_project_approval_field_history__operator_name,
-  wechat_project_approval_field_history__enable]
+databases:
+- lowcode_pplatform
+related:
+- wechat_project_approval_apply
+- wechat_project_approval_field_history__enable
 ---
-
 # 项目立项字段更新历史
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +28,14 @@ table: wechat_project_approval_field_history
 database: lowcode_pplatform
 desc: 项目立项字段更新历史
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企微审批字段历史
-name_anchors: [field_name, operator_name, code, name]
+name_anchors:
+- field_name
+- operator_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -43,12 +50,6 @@ fields:
 - name: field_name
   type: string
   desc: 列名
-  dict: [solution_manager, project_phase, business_center, project_type, bussiness_manager,
-    main_project_name, project_approval_name, apply_start_time, product_type, enterprise_full_name,
-    product_type_arr, act_procinst_status, capital_branch_name, capital_org_full_name,
-    ka_white_label, prd, first_settlement_time, system_delivery, old_solution_manager,
-    sp_pass_time, comment, project_focus_level, project_exception_remark, custom_field_statistics_one,
-    data_source]
 - name: field_label
   type: string
   desc: 中文标签
@@ -61,15 +62,18 @@ fields:
 - name: change_source
   type: string
   desc: 变更来源
-  dict: [SYNC, EDIT, MANUAL_CREATE, IMPORT, BATCH]
+  dict:
+  - SYNC
+  - EDIT
+  - MANUAL_CREATE
+  - IMPORT
+  - BATCH
 - name: operator_id
   type: string
   desc: 操作人ID
 - name: operator_name
   type: string
   desc: 操作人姓名
-  dict: [system-sync, liuning, linyanxiang, FDPAdmin, ouyangpengfei, xiaolonghao,
-    chenkaiwen, liubeicai, caiweicheng, chenzerong, liuhaiou, huangliyu3]
 - name: code
   type: string
   desc: 编码
@@ -79,7 +83,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -154,6 +161,19 @@ overlap:
   query_ok: true
   authenticity: likely
 ```
+```ground:relation
+type: EQUI_JOIN
+left: wechat_project_approval_apply.sp_no
+right: wechat_project_approval_field_history.sp_no
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like R→L=1
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:copy
+```
 
 ## 页面链接
 
@@ -161,9 +181,11 @@ overlap:
 
 - [[tables/wechat_project_approval_apply]]
 
+### 概念
+
+- [[concepts/wechat_apply_term]]
+
 ### 字典
 
-- [[dicts/wechat_project_approval_field_history__field_name]]（`wechat_project_approval_field_history.field_name`）
 - [[dicts/wechat_project_approval_field_history__change_source]]（`wechat_project_approval_field_history.change_source`）
-- [[dicts/wechat_project_approval_field_history__operator_name]]（`wechat_project_approval_field_history.operator_name`）
 - [[dicts/wechat_project_approval_field_history__enable]]（`wechat_project_approval_field_history.enable`）

@@ -4,19 +4,30 @@ title: CA服务费订单
 page_key: ca_fee_order
 belong: tables
 status: draft
-anchors: [ca_fee_order]
-sources: ['database_schema:lowcode_pplatform.ca_fee_order', 'code_path:CaFeeOrderBizMapper.java:13']
+anchors:
+- ca_fee_order
+sources:
+- database_schema:lowcode_pplatform.ca_fee_order
+- code_path:CaFeeOrderBizMapper.java:13
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [ca_fee_company, tenant_project, tenant_setting_config, cust_company_info,
-  ca_fee_order__company_type, ca_fee_order__order_type, ca_fee_order__order_status,
-  ca_fee_order__annual_fee, ca_fee_order__pay_amount, ca_fee_order__pay_method, ca_fee_order__bocom_plfm_bsn_id,
-  ca_fee_order__bocom_txn_sts, ca_fee_order__agreement_version, ca_fee_order__agreement_signed,
-  ca_fee_order__invoice_status, ca_fee_order__version, ca_fee_order__enable]
+databases:
+- lowcode_pplatform
+related:
+- ca_fee_company
+- ca_fee_special_config
+- cust_company_info
+- tenant_project
+- tenant_setting_config
+- ca_fee_order__company_type
+- ca_fee_order__order_type
+- ca_fee_order__order_status
+- ca_fee_order__agreement_signed
+- ca_fee_order__invoice_status
+- ca_fee_order__enable
+- ca_fee_order__pay_method
 ---
-
 # CA服务费订单
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -28,9 +39,14 @@ table: ca_fee_order
 database: lowcode_pplatform
 desc: CA服务费订单
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一订单号一行
-name_anchors: [company_name, project_name, code, name]
+name_anchors:
+- company_name
+- project_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -60,71 +76,115 @@ fields:
 - name: company_type
   type: string
   desc: 企业角色：SUPPLIER/CORE
-  dict: [SUPPLIER, CORE, PROJECT_COMPANY]
-  label: {SUPPLIER: 供应商, CORE: 核心企业}
+  dict:
+  - SUPPLIER
+  - CORE
+  - PROJECT_COMPANY
+  label:
+    SUPPLIER: 供应商
+    CORE: 核心企业
 - name: order_type
   type: string
   desc: 订单类型
-  dict: [STOCK, FIRST, RENEW_EXPIRED, RENEW]
-  label: [存量补录, 首次缴费, 已到期续费, 即将到期续费]
+  dict:
+  - STOCK
+  - FIRST
+  - RENEW_EXPIRED
+  - RENEW
+  label:
+  - 存量补录
+  - 首次缴费
+  - 已到期续费
+  - 即将到期续费
 - name: order_status
   type: string
   desc: 订单状态
-  dict: [CLOSED, PENDING, PAID, PAIDING, UNPAID, EXPIRED]
-  label: {CLOSED: 已关闭, PENDING: 未缴费, PAID: 已缴费, EXPIRED: 已过期}
-  written_with: [pay_amount, pay_time, service_start, service_end]
+  dict:
+  - CLOSED
+  - PENDING
+  - PAID
+  - PAIDING
+  - UNPAID
+  - EXPIRED
+  label:
+    CLOSED: 已关闭
+    PENDING: 未缴费
+    PAID: 已缴费
+    EXPIRED: 已过期
+  written_with:
+  - pay_amount
+  - pay_time
+  - service_start
+  - service_end
 - name: annual_fee
   type: number
   desc: 应缴年费（元）
-  dict: ['100', '80', '60', '50', '0', '88', '120', '99', '90', '6', '160', '40',
-    '16', '33', '156', '125', '70', '190', '170']
 - name: pay_amount
   type: number
   desc: 实缴金额（元）
-  dict: ['100', '80', '0', '60', '120', '6', '66', '99', '3', '50', '125', '90', '88']
-  written_with: [order_status, pay_time, service_start, service_end]
+  written_with:
+  - order_status
+  - pay_time
+  - service_start
+  - service_end
 - name: pay_method
   type: string
   desc: 支付方式
-  dict: [BOCOM]
-  label: [交e保对公打款]
+  dict:
+  - BOCOM
+  label:
+  - 交e保对公打款
 - name: pay_remark
   type: string
   desc: 打款备注
 - name: pay_time
   type: temporal
   desc: 缴费成功时间
-  written_with: [order_status, pay_amount, service_start, service_end]
+  written_with:
+  - order_status
+  - pay_amount
+  - service_start
+  - service_end
 - name: bocom_plfm_ser_no
   type: string
   desc: 交e保平台流水号
 - name: bocom_plfm_bsn_id
   type: string
   desc: 平台业务编号
-  dict: ['31020250010']
 - name: bocom_req_sn
   type: string
   desc: 请求流水号
 - name: bocom_txn_sts
   type: string
   desc: 响应状态
-  dict: ['00']
 - name: service_start
   type: temporal
   desc: 本单服务周期起始日（含）
-  written_with: [order_status, pay_amount, pay_time, service_end]
+  written_with:
+  - order_status
+  - pay_amount
+  - pay_time
+  - service_end
 - name: service_end
   type: temporal
   desc: 本单服务周期截止日（含）
-  written_with: [order_status, pay_amount, pay_time, service_start]
+  written_with:
+  - order_status
+  - pay_amount
+  - pay_time
+  - service_start
 - name: agreement_version
   type: string
   desc: 签署时绑定的收费协议版本号
-  dict: [V1.0]
 - name: agreement_signed
   type: string
   desc: 是否已签署收费协议
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 - name: agreement_sign_time
   type: temporal
   desc: 收费协议签署时间
@@ -137,8 +197,16 @@ fields:
 - name: invoice_status
   type: string
   desc: 发票状态
-  dict: [PENDING, ISSUED, FAILED, NONE]
-  label: [开票中, 已开票, 开票失败, 无需开票]
+  dict:
+  - PENDING
+  - ISSUED
+  - FAILED
+  - NONE
+  label:
+  - 开票中
+  - 已开票
+  - 开票失败
+  - 无需开票
 - name: invoice_no
   type: string
   desc: 发票号码
@@ -160,7 +228,6 @@ fields:
 - name: version
   type: number
   desc: 乐观锁版本号，更新订单状态时自增
-  dict: ['1', '0', '2', '3', '5', '4', '6', '7', '8', '18', '9']
 - name: code
   type: string
   desc: 编码
@@ -170,7 +237,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -278,35 +350,46 @@ join_role: identity
 priority: primary
 authenticity_note: 企业宽表与订单按统码关联。
 ```
-
-### disputed — 与已确认边冲突
+```ground:relation
+type: EQUI_JOIN
+left: cust_company_info.certification_no
+right: ca_fee_order.certification_no
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: 'live_validate:fk_like;collide_refine:promoted: ca_fee_order.certification_no
+  ⊆ cust_company_info.certification_no'
+source: collide_refine
+join_role: business_code
+priority: primary
+authenticity_note: 'promoted: ca_fee_order.certification_no ⊆ cust_company_info.certification_no'
+```
+```ground:relation
+type: EQUI_JOIN
+left: ca_fee_company.source_project_id
+right: ca_fee_order.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep_cont:live_fk_like;code:copy same project
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:copy same project
+```
 
 ```ground:relation
 type: EQUI_JOIN
-left: ca_fee_company.id
-right: ca_fee_order.company_id
+left: ca_fee_order.project_id
+right: ca_fee_special_config.project_id
 cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.ca_fee_order.company_id;database_profile:lowcode_pplatform.ca_fee_order.company_id
-source: name
-join_role: identity
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_shared_domain B↔C
+source: orphan_repair
+join_role: business_code
 priority: primary
-name_evidence:
-  match: family_suffix
-  stem: company
-  comment: 企业 ID
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 145
-  miss: 145
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: cust_company_info.id, right: ca_fee_order.company_id, trust: confirmed}
-- {source: name, left: ca_fee_company.id, right: ca_fee_order.company_id, trust: proposed}
+authenticity_note: CA 场景附属↔订单同 project_id
 ```
 
 ## 页面链接
@@ -314,22 +397,22 @@ sides:
 ### 关联表
 
 - [[tables/ca_fee_company]]
+- [[tables/ca_fee_special_config]]
+- [[tables/cust_company_info]]
 - [[tables/tenant_project]]
 - [[tables/tenant_setting_config]]
-- [[tables/cust_company_info]]
+
+### 概念
+
+- [[concepts/ca_fee_paid]]
+- [[concepts/certification_no_term]]
 
 ### 字典
 
 - [[dicts/ca_fee_order__company_type]]（`ca_fee_order.company_type`）
 - [[dicts/ca_fee_order__order_type]]（`ca_fee_order.order_type`）
 - [[dicts/ca_fee_order__order_status]]（`ca_fee_order.order_status`）
-- [[dicts/ca_fee_order__annual_fee]]（`ca_fee_order.annual_fee`）
-- [[dicts/ca_fee_order__pay_amount]]（`ca_fee_order.pay_amount`）
 - [[dicts/ca_fee_order__pay_method]]（`ca_fee_order.pay_method`）
-- [[dicts/ca_fee_order__bocom_plfm_bsn_id]]（`ca_fee_order.bocom_plfm_bsn_id`）
-- [[dicts/ca_fee_order__bocom_txn_sts]]（`ca_fee_order.bocom_txn_sts`）
-- [[dicts/ca_fee_order__agreement_version]]（`ca_fee_order.agreement_version`）
 - [[dicts/ca_fee_order__agreement_signed]]（`ca_fee_order.agreement_signed`）
 - [[dicts/ca_fee_order__invoice_status]]（`ca_fee_order.invoice_status`）
-- [[dicts/ca_fee_order__version]]（`ca_fee_order.version`）
 - [[dicts/ca_fee_order__enable]]（`ca_fee_order.enable`）

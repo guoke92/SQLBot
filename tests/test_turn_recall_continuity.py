@@ -294,11 +294,7 @@ def test_clarify_resume_message_is_chinese_and_bound(monkeypatch) -> None:
         lambda *_a, **_k: pending,
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.attach_running_clarification_span",
-        lambda **_k: dummy_span,
-    )
-    monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.open_process_span",
+        "apps.chat.graphs.nodes.agent_clarify.ensure_clarification_span",
         lambda **_k: dummy_span,
     )
     monkeypatch.setattr(

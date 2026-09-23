@@ -117,6 +117,7 @@ def list_chats(
     datasource: int | None = None,
     created_from: datetime | None = None,
     created_to: datetime | None = None,
+    chat_type: str | None = None,
 ) -> list[dict[str, Any]]:
     stats = (
         select(
@@ -175,6 +176,17 @@ def list_chats(
         stmt = stmt.where(Chat.create_time <= created_to)
     if chat_ids:
         stmt = stmt.where(Chat.id.in_(chat_ids))
+    resolved_type = (chat_type or "").strip().lower()
+    if resolved_type in {"chat", "config"}:
+        # Legacy rows may have null/empty chat_type; treat them as ordinary chat.
+        if resolved_type == "chat":
+            stmt = stmt.where(
+                (Chat.chat_type.is_(None))
+                | (Chat.chat_type == "")
+                | (Chat.chat_type == "chat")
+            )
+        else:
+            stmt = stmt.where(Chat.chat_type == "config")
     if q and q.strip():
         pattern = f"%{q.strip()}%"
         stmt = stmt.where(Chat.brief.ilike(pattern))

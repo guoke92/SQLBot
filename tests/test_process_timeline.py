@@ -461,6 +461,139 @@ def test_fold_clarification_flow_merges_tool_and_wait_into_one_card() -> None:
     assert folded[1]["kind"] == "thought"
 
 
+def test_fold_clarification_flow_keeps_rounds_separate() -> None:
+    from apps.conversation.process_timeline import fold_clarification_flow
+
+    folded = fold_clarification_flow(
+        [
+            {
+                "id": 1,
+                "kind": "tool",
+                "status": "completed",
+                "tool": {"name": "request_clarification", "call_id": "c1"},
+                "summary_key": "chat.summary.tool_ok",
+            },
+            {
+                "id": 2,
+                "kind": "clarification",
+                "status": "completed",
+                "summary_key": "chat.summary.clarification_confirmed",
+                "meta": {
+                    "interrupt_id": "intr-1",
+                    "version": 1,
+                    "clarification_card": {"questions": [{"question_id": "q1"}]},
+                },
+            },
+            {"id": 3, "kind": "thought", "status": "completed"},
+            {
+                "id": 4,
+                "kind": "tool",
+                "status": "completed",
+                "tool": {"name": "request_clarification", "call_id": "c2"},
+                "summary_key": "chat.summary.tool_ok",
+            },
+            {
+                "id": 5,
+                "kind": "clarification",
+                "status": "running",
+                "summary_key": "chat.summary.clarification_waiting",
+                "meta": {
+                    "interrupt_id": "intr-2",
+                    "version": 2,
+                    "clarification_card": {"questions": [{"question_id": "q2"}]},
+                },
+            },
+        ]
+    )
+    assert [item["kind"] for item in folded] == [
+        "clarification",
+        "thought",
+        "clarification",
+    ]
+    assert folded[0]["meta"]["interrupt_id"] == "intr-1"
+    assert folded[0]["summary_key"] == "chat.summary.clarification_confirmed"
+    assert folded[2]["meta"]["interrupt_id"] == "intr-2"
+    assert folded[2]["status"] == "running"
+    assert folded[2]["summary_key"] == "chat.summary.clarification_waiting"
+
+
+def test_fold_clarification_flow_leaves_orphan_tool_as_tool() -> None:
+    from apps.conversation.process_timeline import fold_clarification_flow
+
+    folded = fold_clarification_flow(
+        [
+            {"id": 1, "kind": "thought", "status": "completed"},
+            {
+                "id": 2,
+                "kind": "tool",
+                "status": "completed",
+                "tool": {"name": "request_clarification", "call_id": "c2"},
+                "summary_key": "chat.summary.tool_ok",
+            },
+        ]
+    )
+    assert len(folded) == 2
+    assert folded[1]["kind"] == "tool"
+    assert folded[1]["summary_key"] == "chat.summary.tool_ok"
+
+
+def test_create_interrupt_keeps_worker_token_for_inline_span(monkeypatch) -> None:
+    """Parked clarify must still emit process events under the same worker."""
+    from datetime import datetime
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from apps.conversation import run_service
+    from apps.conversation.models import ConversationInterrupt
+
+    run = SimpleNamespace(
+        run_id="run-1",
+        status="running",
+        worker_token="tok-alive",
+        lease_expires_at=datetime.now(),
+        active_interrupt_id=None,
+        update_time=datetime.now(),
+        chat_record_id=1,
+        graph_key="chat",
+        event_cursor=0,
+    )
+    session = MagicMock()
+    session.refresh = MagicMock()
+    monkeypatch.setattr(run_service, "_entity_one", lambda *_a, **_k: run)
+    monkeypatch.setattr(run_service, "_assert_worker_ownership", lambda *_a, **_k: None)
+    monkeypatch.setattr(run_service, "_assert_transition", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        run_service,
+        "public_interrupt_payload",
+        lambda payload: {
+            "questions": [
+                {
+                    "question_id": "q1",
+                    "question": "?",
+                    "options": [{"option_id": "a", "label": "A", "meaning": "A"}],
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(run_service, "_entity_one_or_none", lambda *_a, **_k: None)
+    monkeypatch.setattr(run_service, "_append_run_event_locked", lambda *_a, **_k: 1)
+    monkeypatch.setattr(run_service, "log_lifecycle", lambda *_a, **_k: None)
+
+    pending = run_service.create_interrupt(
+        session,
+        run_id="run-1",
+        payload={"questions": [{"question_id": "q1", "question": "?", "options": []}]},
+    )
+    assert isinstance(pending, ConversationInterrupt)
+    assert pending.interrupt_id
+    assert run.status == "awaiting_input"
+    assert run.worker_token == "tok-alive"
+    assert run.lease_expires_at is None
+    assert run.active_interrupt_id == pending.interrupt_id
+    session.commit.assert_called()
+    session.add.assert_called()
+
+
 def test_caliber_surface_splits_confirmed_from_assumptions() -> None:
     from apps.chat.caliber_surface import project_caliber_surface
 

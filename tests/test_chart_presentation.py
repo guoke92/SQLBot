@@ -145,7 +145,6 @@ def test_execute_sql_defaults_delivery_chart_type_table(monkeypatch) -> None:  #
 
     monkeypatch.setattr(mod, "upsert_result_dataset", _upsert)
     monkeypatch.setattr(mod, "current_worker_identity", lambda: ("run1", None))
-    monkeypatch.setattr(mod, "_schema_ready", lambda: None)
     monkeypatch.setattr(mod, "_reject_enum_discovery", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_consume_probe_budget", lambda *_a, **_k: None)
     monkeypatch.setattr(

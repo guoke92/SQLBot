@@ -1,0 +1,475 @@
+generated_at: '2026-09-23T04:13:04.600712+00:00'
+database: lowcode_pplatform
+relation_count: 7
+by_verdict:
+  fk_like: 3
+  weak_overlap: 2
+  empty_endpoint: 1
+  impossible: 1
+edges:
+- left: cust_person_info.user_id
+  right: ca_cfca_upgrade_report.authorized_user_id
+  host: ca_cfca_upgrade_report
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep_cont
+  wiki_evidence: code:write-flow
+  left_stats:
+    table: cust_person_info
+    column: user_id
+    exists: true
+    row_count: 9750
+    non_null: 9568
+    distinct_non_null: 7878
+    sample:
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '399'
+    - '400'
+    - '445'
+    - '450'
+    error: ''
+  right_stats:
+    table: ca_cfca_upgrade_report
+    column: authorized_user_id
+    exists: true
+    row_count: 54
+    non_null: 11
+    distinct_non_null: 8
+    sample:
+    - '1990312514952515585'
+    - '1911763720876478465'
+    - '1911756022969683969'
+    - '1990312514952515585'
+    - '1990312514952515585'
+    - '1911763720876478465'
+    - '2000863653792231426'
+    - '1911759738259001345'
+    error: ''
+  join_hits: 11
+  left_in_right: 11
+  left_not_in_right: 9557
+  right_in_left: 11
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0011
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '1990312514952515585'
+  - '1911763720876478465'
+  - '1911756022969683969'
+  - '2000863653792231426'
+  - '1911759738259001345'
+  - '1911759763378688002'
+  - '1911760389412114433'
+  - '1911760441849303042'
+  left_only_sample:
+  - '0'
+  - '399'
+  - '400'
+  - '445'
+  - '450'
+  - '508'
+  - '1317758873288998921'
+  - '1317758873288998931'
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_person_info.user_id
+  right: migratory_user_record.user_id
+  host: migratory_user_record
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep_cont
+  wiki_evidence: code:copy
+  left_stats:
+    table: cust_person_info
+    column: user_id
+    exists: true
+    row_count: 9750
+    non_null: 9568
+    distinct_non_null: 7878
+    sample:
+    - '0'
+    - '0'
+    - '0'
+    - '0'
+    - '399'
+    - '400'
+    - '445'
+    - '450'
+    error: ''
+  right_stats:
+    table: migratory_user_record
+    column: user_id
+    exists: true
+    row_count: 5382
+    non_null: 5382
+    distinct_non_null: 5319
+    sample:
+    - '1836337877011517441'
+    - '1836337926349115393'
+    - '1836337974164180994'
+    - '1846884312291332098'
+    - '1846884314271043585'
+    - '1846884315629998082'
+    - '1846884317022507010'
+    - '1846884318331129857'
+    error: ''
+  join_hits: 6258
+  left_in_right: 6258
+  left_not_in_right: 3310
+  right_in_left: 5378
+  right_not_in_left: 4
+  left_in_right_ratio: 0.6541
+  right_in_left_ratio: 0.9993
+  intersection_sample:
+  - '1836337877011517441'
+  - '1836337926349115393'
+  - '1836337974164180994'
+  - '1846884312291332098'
+  - '1846884314271043585'
+  - '1846884315629998082'
+  - '1846884317022507010'
+  - '1846884318331129857'
+  left_only_sample:
+  - '0'
+  - '1834426239745318914'
+  - '1834430599762075649'
+  - '1834437722193584130'
+  - '1834468659845455874'
+  - '1834478426127130626'
+  - '1834497375330410497'
+  - '1834511902549778434'
+  right_only_sample:
+  - '1927194269576974338'
+  - '1935952107796606977'
+  - '1935952110992666625'
+  - '1946025359550099458'
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9993); consistent with
+    FK / identity reference'
+- left: ca_fee_company.source_project_id
+  right: ca_fee_order.project_id
+  host: ca_fee_order
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep_cont
+  wiki_evidence: code:copy same project
+  left_stats:
+    table: ca_fee_company
+    column: source_project_id
+    exists: true
+    row_count: 309
+    non_null: 302
+    distinct_non_null: 20
+    sample:
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '1999360669689671682'
+    - '2000809635448430593'
+    - '1999360669689671682'
+    - '2079758199390646273'
+    error: ''
+  right_stats:
+    table: ca_fee_order
+    column: project_id
+    exists: true
+    row_count: 520
+    non_null: 520
+    distinct_non_null: 20
+    sample:
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2000809635448430593'
+    - '2000809635448430593'
+    - '2000809635448430593'
+    - '2000809635448430593'
+    error: ''
+  join_hits: 302
+  left_in_right: 302
+  left_not_in_right: 0
+  right_in_left: 520
+  right_not_in_left: 0
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '2071776024215285762'
+  - '1999360669689671682'
+  - '2000809635448430593'
+  - '2079758199390646273'
+  - '1834469788501377025'
+  - '2076865658692407297'
+  - '7108364188005183488'
+  - '2081554793423179777'
+  left_only_sample: []
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_person_info.code
+  right: cust_certification_info.ref_cust_company_info
+  host: cust_certification_info
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep_cont
+  wiki_evidence: FALSE_FRIEND probe
+  left_stats:
+    table: cust_person_info
+    column: code
+    exists: true
+    row_count: 9750
+    non_null: 9750
+    distinct_non_null: 9750
+    sample:
+    - 0002dddf0b16413db80e5a059f7351bc
+    - 000af0ce56284d37b6a5de3ef8780b1a
+    - 000b484e0189441c929dccf352957a31
+    - 000d3b2f3bd3482a894bc4db521e3db1
+    - 0018a429ff664dc6857875b76e96944d
+    - 001c5a22f61ec5193799954e9c31c4b6
+    - 0022dbe556ee473489ebb269d049e3ff
+    - 002321b3e18a461b98692ebac645c29f
+    error: ''
+  right_stats:
+    table: cust_certification_info
+    column: ref_cust_company_info
+    exists: true
+    row_count: 349894
+    non_null: 3189
+    distinct_non_null: 953
+    sample:
+    - d9087abbed89420aaa8d599869e53b8d
+    - 7e240d2624b84753bbcb68e729530351
+    - fc4e02b72f41409ca80abdbdf5b399e2
+    - b44e85bf1e4448fba7a8183d6d23ab5e
+    - 5f55dee3c72e476582ceb3015c8d2e30
+    - 6041b0ea25ff45e4a1346adf3aa65b5a
+    - e78baed648534b71a9ab09baafd4f1ac
+    - e1803fc5ee4241ffba342e85dbf0c082
+    error: ''
+  join_hits: 157
+  left_in_right: 157
+  left_not_in_right: 9593
+  right_in_left: 164
+  right_not_in_left: 3025
+  left_in_right_ratio: 0.0161
+  right_in_left_ratio: 0.0514
+  intersection_sample:
+  - 0002dddf0b16413db80e5a059f7351bc
+  - 010dac2e956745949d2a56faedf255b0
+  - 04167f035b1941fabb2a55a0fed2ac45
+  - 05f51b754c7e4077b6a771fa68a0605e
+  - 0647cfbd6d9d4d4f8f110c4671aabd5b
+  - 0df2614792ae4dadb610e0b9cd790eda
+  - 0e9e3217cc3546afbe6f46e25a48e180
+  - 0ec24b97b23c41de9432df32b8d5ef46
+  left_only_sample:
+  - 000af0ce56284d37b6a5de3ef8780b1a
+  - 000b484e0189441c929dccf352957a31
+  - 000d3b2f3bd3482a894bc4db521e3db1
+  - 0018a429ff664dc6857875b76e96944d
+  - 001c5a22f61ec5193799954e9c31c4b6
+  - 0022dbe556ee473489ebb269d049e3ff
+  - 002321b3e18a461b98692ebac645c29f
+  - 002bcdf4e63c43dc89c59e186ee4a2e7
+  right_only_sample:
+  - d9087abbed89420aaa8d599869e53b8d
+  - 7e240d2624b84753bbcb68e729530351
+  - fc4e02b72f41409ca80abdbdf5b399e2
+  - b44e85bf1e4448fba7a8183d6d23ab5e
+  - 5f55dee3c72e476582ceb3015c8d2e30
+  - 6041b0ea25ff45e4a1346adf3aa65b5a
+  - e78baed648534b71a9ab09baafd4f1ac
+  - e1803fc5ee4241ffba342e85dbf0c082
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0161, right->left=0.0514, join_hits=157)
+- left: cust_change_cfg.code
+  right: cust_person_info.ref_cust_company_info
+  host: cust_person_info
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep_cont
+  wiki_evidence: FALSE_FRIEND probe
+  left_stats:
+    table: cust_change_cfg
+    column: code
+    exists: true
+    row_count: 140
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  right_stats:
+    table: cust_person_info
+    column: ref_cust_company_info
+    exists: true
+    row_count: 9750
+    non_null: 9750
+    distinct_non_null: 6937
+    sample:
+    - 000ba01c643f4d398a98618fcce6914b
+    - 001331b8fd214bda9cd2c849cc2d1950
+    - 0013a1830f7640bb8cce61f83df7f4e9
+    - 0035a396ea45469ba25e9c8c15d06db3
+    - 003a42f8e26b40ee8deb47a049aa94c5
+    - 0040da4bfef04b168fd678952b01ba5e
+    - 005288badfcd4b4cab00635c2838221f
+    - 005288badfcd4b4cab00635c2838221f
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: cust_change_cfg.id
+  right: cust_project_rel.product_id
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep_cont
+  wiki_evidence: FALSE_FRIEND probe
+  left_stats:
+    table: cust_change_cfg
+    column: id
+    exists: true
+    row_count: 140
+    non_null: 140
+    distinct_non_null: 140
+    sample:
+    - '110'
+    - '111'
+    - '112'
+    - '113'
+    - '114'
+    - '115'
+    - '116'
+    - '117'
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: product_id
+    exists: true
+    row_count: 16023
+    non_null: 15993
+    distinct_non_null: 138
+    sample:
+    - '1834422381302976514'
+    - '1834425570605105153'
+    - '1834421823984832513'
+    - '1834422381302976514'
+    - '1834422381302976514'
+    - '1834422381302976514'
+    - '1834425570605105153'
+    - '1834466120545275905'
+    error: ''
+  join_hits: 0
+  left_in_right: 0
+  left_not_in_right: 140
+  right_in_left: 0
+  right_not_in_left: 15993
+  left_in_right_ratio: 0.0
+  right_in_left_ratio: 0.0
+  intersection_sample: []
+  left_only_sample:
+  - '110'
+  - '111'
+  - '112'
+  - '113'
+  - '114'
+  - '115'
+  - '116'
+  - '117'
+  right_only_sample:
+  - '1834422381302976514'
+  - '1834425570605105153'
+  - '1834421823984832513'
+  - '1834466120545275905'
+  - '1834503699675926530'
+  - '1834501559561670658'
+  - '1834501357903728641'
+  - '1834503606881144834'
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.platform_product_id
+  right: cust_project_rel.product_id
+  host: cust_project_rel
+  trust: proposed
+  authenticity: unknown
+  source: full_sweep_cont
+  wiki_evidence: FALSE_FRIEND probe wrong target
+  left_stats:
+    table: tenant_product
+    column: platform_product_id
+    exists: true
+    row_count: 388
+    non_null: 388
+    distinct_non_null: 7
+    sample:
+    - '2'
+    - '2'
+    - '2'
+    - '2'
+    - '2'
+    - '2'
+    - '2'
+    - '2'
+    error: ''
+  right_stats:
+    table: cust_project_rel
+    column: product_id
+    exists: true
+    row_count: 16023
+    non_null: 15993
+    distinct_non_null: 138
+    sample:
+    - '1834422381302976514'
+    - '1834425570605105153'
+    - '1834421823984832513'
+    - '1834422381302976514'
+    - '1834422381302976514'
+    - '1834422381302976514'
+    - '1834425570605105153'
+    - '1834466120545275905'
+    error: ''
+  join_hits: 6
+  left_in_right: 6
+  left_not_in_right: 382
+  right_in_left: 2
+  right_not_in_left: 15991
+  left_in_right_ratio: 0.0155
+  right_in_left_ratio: 0.0001
+  intersection_sample:
+  - '7'
+  left_only_sample:
+  - '2'
+  - '3'
+  - '5'
+  - '8'
+  - '10'
+  - '11'
+  right_only_sample:
+  - '1834422381302976514'
+  - '1834425570605105153'
+  - '1834421823984832513'
+  - '1834466120545275905'
+  - '1834503699675926530'
+  - '1834501559561670658'
+  - '1834501357903728641'
+  - '1834503606881144834'
+  verdict: weak_overlap
+  reason: non-empty but thin overlap (left->right=0.0155, right->left=0.0001, join_hits=6)

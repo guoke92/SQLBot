@@ -1,0 +1,910 @@
+generated_at: '2026-09-22T08:14:15.854426+00:00'
+stats:
+  tables: 78
+  edges: 70
+  components: 34
+  orphans: 31
+  gap_candidates: 42
+orphans:
+- table: async_io_task
+  title: 异步导入导出任务
+  fields:
+  - task_no
+  - task_type
+  - task_name
+  - menu_code
+  - menu_name
+  - biz_class
+  - biz_method
+  - biz_args_json
+  - ctx_json
+  - status
+  - result_text
+  - file_url
+  - file_name
+  - error_msg
+  - user_id
+  - user_name
+  - is_deleted
+  - start_time
+  - end_time
+- table: ca_cfca_upgrade_report
+  title: CFCA证书升级业务上报与触达记录
+  fields:
+  - task_id
+  - source_system
+  - company_id
+  - company_type
+  - certification_no
+  - customer_name
+  - title
+  - content
+  - biz_module
+  - occur_time
+  - related_biz_no
+  - trigger_scene
+  - pass_info
+  - todo_triggered
+  - notify_time
+  - authorized_user_id
+  - authorized_user_name
+- table: ca_fee_special_config
+  title: CA服务费特殊企业配置
+  fields:
+  - certification_no
+  - company_name
+  - annual_fee
+  - valid_start
+  - valid_end
+  - operate_logs
+  - project_id
+- table: client_api_sync_error
+  title: 客户端接口同步失败记录
+  fields:
+  - service_class_name
+  - param
+  - retry_num
+- table: cust_access_secret
+  title: 客户接入秘钥信息
+  fields:
+  - channel
+  - encry_type
+  - pub_key
+  - pri_key
+  - password
+  - key_num
+  - rel_lls_secret_id
+  - status_query_license_enabled
+- table: cust_app_channel_config
+  title: 客户应用渠道关系
+  fields:
+  - app_id
+- table: cust_auth_application_config
+  title: 客户产品开通配置
+  fields:
+  - cust_id
+  - product_sign_mode
+  - product_protocol_agreement
+  - needs_company_type_configuration
+  - needs_product_agreement_configuration
+  - ref_cust_auth_application_config_cust_auth_application
+- table: cust_change_cfg
+  title: 客户变更配置
+  fields:
+  - plat_item
+  - oper_item
+  - data_desc
+  - cust_type
+  - identify_style
+  - head_company
+  - open_process
+  - item_code
+  - client_type
+- table: cust_config_mapping
+  title: 企业信息配置表
+  fields:
+  - outer_channel
+  - inner_code
+  - inner_name
+  - outer_code
+  - outer_name
+  - type
+  - groups
+- table: cust_message_send_policy
+  title: 客户消息发送策略
+  fields:
+  - scenes_type
+  - msg_kind
+  - send_enable
+- table: cust_setting_config
+  title: 客户认证配置
+  fields:
+  - key_word
+  - need_verify_no_key
+  - user_agreement
+  - privacy_policy_agreement
+  - authorization_online
+  - authorization_offline
+  - authorization_change
+  - cfca_agreement
+  - need_auth_verify
+  - face_recognition
+  - payment_verification
+  - payment_maximum_number
+  - no_key_word
+  - invitation_code_period
+  - invitation_code_period_unit
+  - sending_interval
+  - sending_interval_unti
+  - cust_id
+- table: cust_sftp
+  title: 客戶sftp信息
+  fields:
+  - host
+  - port
+  - user_name
+  - password
+  - private_key
+  - private_key_pwd
+  - channel
+- table: funding_exception_resolution
+  title: 资金方异常解析及建议主表
+  fields:
+  - exception_no
+  - funding_party_code
+  - funding_party_name
+  - error_keyword
+  - error_reason
+  - suggestion
+  - file_path
+  - product_code
+- table: funding_rule_front_cfg
+  title: 资方规则前端配置页面
+  fields:
+  - rule_layer
+  - product_code
+  - front_key_name
+  - front_key
+  - front_field_style
+  - key_name
+  - key_type
+  - rule_key
+  - check_scene
+- table: gpt_learn_poster_log
+  title: 智能审核引流卡片埋点记录
+  fields:
+  - user_id
+  - user_name
+  - company_id
+  - company_name
+  - popup_time
+  - click_time
+- table: lc_sql_init_log
+  title: 蜂搭插件sql执行记录
+  fields:
+  - description
+- table: migratory_user_record
+  title: 迁移用户记录表
+  fields:
+  - user_id
+  - is_login
+- table: open_sso_channel
+  title: 开放登录SSO渠道
+  fields:
+  - channel_code
+  - channel_name
+  - channel_kind
+  - app_id
+  - sso_client_id
+  - sso_client_secret
+  - sys_type
+  - sys_channel
+  - org_code
+  - open_mode_default
+  - default_session_expire_minute
+  - max_session_expire_minute
+  - sso_sync_status
+  - sso_sync_msg
+  - sso_synced_at
+  - tenant_code
+- table: operation_user
+  title: 运营中台人员数据
+  fields:
+  - operation_id
+  - status
+  - operation_group
+  - deleted
+  - operation_name
+- table: org_manage
+  title: 机构管理
+  fields:
+  - org_no
+  - org_name
+  - org_level
+  - org_type
+  - status
+  - client_type
+  - parent_code
+- table: platform_product_cust_role
+  title: 平台产品企业角色
+  fields:
+  - product_code
+  - company_type_code
+  - company_type_name
+- table: project_file_info
+  title: 项目运营文件管理
+  fields:
+  - title
+  - content
+  - file_type
+  - project_id
+- table: short_link
+  title: 短链接
+  fields:
+  - source_url
+  - expire_time
+  - number
+  - type
+  - is_forever
+- table: tenant_migarory_log
+  title: 租户项目迁移记录表
+  fields:
+  - platform_product_code
+  - direction
+  - type
+  - batch_no
+  - status
+  - req_sn
+  - req_no
+  - trace_id
+  - request
+  - response
+  - message
+  - data
+  - success_number
+  - falied_number
+  - total_number
+- table: tenant_migarory_log_bak
+  title: 租户项目迁移记录表
+  fields:
+  - direction
+  - type
+  - batch_no
+  - status
+  - req_sn
+  - platform_product_code
+  - req_no
+  - request
+  - response
+  - error
+  - data
+  - success_number
+  - falied_number
+  - total_number
+  - trace_id
+- table: tenant_product_menu
+  title: 租户产品菜单表
+  fields:
+  - product_code
+  - company_type
+  - menu_id
+- table: tenant_product_menu_res
+  title: 租户产品菜单按钮表
+  fields:
+  - product_code
+  - company_type
+  - menu_id
+  - resource_id
+- table: tenant_project_approval_flow_config
+  title: 租户项目审批流程配置表
+  fields:
+  - flow_code
+  - node_code
+  - node_name
+  - node_order
+  - is_optional
+  - is_operate
+- table: tenant_setting_config_share
+  title: 共享租户配置
+  fields:
+  - source_id
+  - source
+  - band_name
+  - cust_service_number
+  - web_title
+  - web_logo_url
+  - dev_domain
+  - sit_domain
+  - uat_domain
+  - prd_domain
+  - privacy_policy_agreement
+  - user_protocol_agreement
+  - auth_agreement
+  - apaas_tenant_code
+  - dbass_app_id
+  - mp_dbass_app_id
+  - dbass_private_key
+  - sso_sys_channel
+  - sso_tenant_chanel
+  - mp_sso_tenant_chanel
+  - pc_login_logo_path
+  - pc_icon_path
+  - pc_logo_path
+  - pc_home_background_path
+  - mp_home_background_path
+  - mp_logo_path
+  - mp_sso_sys_channel
+  - uni_social_credit_code
+  - platform_operator
+  - pcimg_loginpage_bg_logo_url
+  - pcimg_indexpage_bg_logo_url
+  - pcimg_browser_tab_icon_url
+  - pcimg_loginpage_banner_url
+  - tenant_flag_zh
+  - tenant_flg_en
+  - uat_mp_app_id
+  - uat_mp_app_name
+  - uat_mp_wx_login_name
+  - uat_mp_wx_login_pwd
+  - prd_mp_app_id
+  - prd_mp_app_name
+  - prd_mp_wx_login_name
+  - prd_mp_wx_login_pwd
+  - need_hfive
+  - mobile_indexpage_bg_logo_url
+  - need_mp_wx
+  - main_theme_color
+  - status
+  - person_auth_agreement
+  - self_registration_flag
+  - company_share_flag
+  - mobile_indexpage_logo_url
+  - hfive_dev_domain
+  - hfive_test_domain
+  - hfive_uat_domain
+  - hfive_prd_domain
+  - operator_id
+  - operator_name
+  - operator_email
+  - send_email
+  - operator_ai_customer
+  - operator_wechat_code
+  - operator_qr_code
+  - operator_applet_code
+  - ai_zc_sysnum
+  - ai_zc_channel
+  - portal_flag
+  - share_flag
+- table: wec_project_cust_operation_rel
+  title: 微企链项目企业关联运营
+  fields:
+  - wec_rel_id
+  - company_id
+  - company_type
+  - project_id
+  - op_contact_a
+  - op_contact_b
+  - op_contact_a_group
+  - verification_contact
+  - verification_contact_group
+  - risk_control_contact_a
+  - risk_control_contact_b
+  - risk_control_contact_a_group
+  - top_flag
+- table: wec_project_operation_rel
+  title: 微企链项目关联运营
+  fields:
+  - wec_project_id
+  - wechat_audit_no
+  - wechat_audit_pass_time
+  - op_contact_a
+  - op_contact_b
+  - op_contact_a_group
+  - verification_contact
+  - verification_contact_group
+  - risk_control_contact_a
+  - risk_control_contact_b
+  - risk_control_contact_a_group
+  - solution_manager
+  - business_manager
+  - business_group
+  - first_settlement_time
+  - custom_field_one
+  - custom_field_two
+  - custom_field_three
+  - project_tag
+  - project_relation
+  - bussiness_project_relation
+  - top_flag
+  - text
+gaps:
+- a: tenant_project_approval_flow_config
+  b: tenant_project_approval
+  a_title: 租户项目审批流程配置表
+  b_title: 租户项目审批表
+  why: 审批流程预设配置：表名/描述同属立项审批流；approval.flow_code 注释指向 flow_config.flow_code
+  confidence: high
+  fields_a:
+  - flow_code
+  fields_b:
+  - ref_tenant_project_approval_tenant_project
+  - ref_tenant_project_approval_tenant_project_approval
+  - ref_tenant_project_approval_tenant_project_approval_flow_config
+  same_prefix: true
+- a: tenant_project_approval_flow_config
+  b: tenant_project_approval_flow
+  a_title: 租户项目审批流程配置表
+  b_title: 租户项目审批流程表
+  why: 审批流程预设配置：表名/描述同属立项审批流；approval.flow_code 注释指向 flow_config.flow_code
+  confidence: high
+  fields_a: []
+  fields_b:
+  - ref_tenant_project_approval_flow_tenant_project_approval
+  same_prefix: true
+- a: tenant_project_approval_flow_config
+  b: tenant_project_approval_flow_node
+  a_title: 租户项目审批流程配置表
+  b_title: 租户项目审批流程节点表
+  why: 审批流程预设配置：表名/描述同属立项审批流；approval.flow_code 注释指向 flow_config.flow_code
+  confidence: high
+  fields_a: []
+  fields_b:
+  - ref_tenant_project_approval_flow_node_project_approval
+  - ref_tenant_project_approval_flow_node_project_approval_flow
+  same_prefix: true
+- a: tenant_product_menu
+  b: tenant_product
+  a_title: 租户产品菜单表
+  b_title: 租户产品配置
+  why: 租户产品菜单：product_code 应对齐 tenant_product.code
+  confidence: high
+  fields_a:
+  - product_code
+  fields_b:
+  - ref_tenant_product_project_code
+  - ref_tenant_product_tenant_setting_config
+  same_prefix: true
+- a: tenant_product_menu_res
+  b: tenant_product_menu
+  a_title: 租户产品菜单按钮表
+  b_title: 租户产品菜单表
+  why: 菜单按钮：menu_id/product_code 应对齐菜单表
+  confidence: high
+  fields_a:
+  - menu_id
+  - product_code
+  fields_b: []
+  same_prefix: true
+- a: tenant_product_menu_res
+  b: tenant_product
+  a_title: 租户产品菜单按钮表
+  b_title: 租户产品配置
+  why: 菜单按钮：product_code 应对齐 tenant_product.code
+  confidence: high
+  fields_a:
+  - product_code
+  fields_b:
+  - ref_tenant_product_project_code
+  - ref_tenant_product_tenant_setting_config
+  same_prefix: true
+- a: platform_product_cust_role
+  b: platform_product
+  a_title: 平台产品企业角色
+  b_title: 平台产品基础配置
+  why: 平台产品企业角色：product_code 应对齐产品（注意非 UUID code）
+  confidence: high
+  fields_a:
+  - product_code
+  fields_b: []
+  same_prefix: true
+- a: ca_fee_special_config
+  b: tenant_project
+  a_title: CA服务费特殊企业配置
+  b_title: 租户项目配置
+  why: CA 特殊企业配置含 project_id
+  confidence: high
+  fields_a:
+  - project_id
+  fields_b: []
+  same_prefix: false
+- a: ca_fee_special_config
+  b: ca_fee_company
+  a_title: CA服务费特殊企业配置
+  b_title: CA服务费企业主数据
+  why: 同属 CA 服务费；certification_no 可对齐
+  confidence: medium
+  fields_a:
+  - certification_no
+  fields_b: []
+  same_prefix: true
+- a: ca_fee_special_config
+  b: ca_certification_info
+  a_title: CA服务费特殊企业配置
+  b_title: CA认证信息
+  why: certification_no 证书编号场景
+  confidence: medium
+  fields_a:
+  - certification_no
+  fields_b: []
+  same_prefix: true
+- a: ca_cfca_upgrade_report
+  b: cust_company_info
+  a_title: CFCA证书升级业务上报与触达记录
+  b_title: 客户信息主表
+  why: 升级上报含 company_id
+  confidence: high
+  fields_a:
+  - company_id
+  fields_b: []
+  same_prefix: false
+- a: ca_cfca_upgrade_report
+  b: ca_certification_info
+  a_title: CFCA证书升级业务上报与触达记录
+  b_title: CA认证信息
+  why: 含 certification_no，证书业务闭环
+  confidence: high
+  fields_a:
+  - certification_no
+  fields_b: []
+  same_prefix: true
+- a: cust_auth_application_config
+  b: cust_auth_application
+  a_title: 客户产品开通配置
+  b_title: 客户产品开通表
+  why: 表名/ref_* 指向开通申请；字段现为空但业务上应挂申请
+  confidence: medium
+  fields_a:
+  - ref_cust_auth_application_config_cust_auth_application
+  fields_b:
+  - ref_cust_auth_application_tenant_product
+  - ref_cust_company_info
+  same_prefix: true
+- a: cust_auth_application_config
+  b: cust_company_info
+  a_title: 客户产品开通配置
+  b_title: 客户信息主表
+  why: 含 cust_id（库侧可能空）
+  confidence: low
+  fields_a:
+  - cust_id
+  - ref_cust_auth_application_config_cust_auth_application
+  fields_b: []
+  same_prefix: true
+- a: tenant_setting_config_share
+  b: tenant_setting_config
+  a_title: 共享租户配置
+  b_title: 租户配置
+  why: 共享租户配置 vs 租户配置，同 prefix/setting
+  confidence: high
+  fields_a:
+  - apaas_tenant_code
+  fields_b: []
+  same_prefix: true
+- a: tenant_migarory_log
+  b: tenant_project
+  a_title: 租户项目迁移记录表
+  b_title: 租户项目配置
+  why: 租户项目迁移日志，业务应对齐项目/产品
+  confidence: medium
+  fields_a: []
+  fields_b:
+  - ref_tenant_project_platform_product
+  - ref_tenant_project_product_code
+  - ref_tenant_project_tenant_code
+  same_prefix: true
+- a: tenant_migarory_log
+  b: platform_product
+  a_title: 租户项目迁移记录表
+  b_title: 平台产品基础配置
+  why: 含 platform_product_code（业务码，非 UUID）
+  confidence: medium
+  fields_a:
+  - platform_product_code
+  fields_b: []
+  same_prefix: false
+- a: tenant_migarory_log
+  b: tenant_migarory_log_bak
+  a_title: 租户项目迁移记录表
+  b_title: 租户项目迁移记录表
+  why: 主表与备份同构
+  confidence: high
+  fields_a: []
+  fields_b: []
+  same_prefix: true
+- a: migratory_user_record
+  b: tenant_migarory_log
+  a_title: 迁移用户记录表
+  b_title: 租户项目迁移记录表
+  why: 迁移用户 vs 迁移日志，同迁移场景
+  confidence: medium
+  fields_a: []
+  fields_b: []
+  same_prefix: false
+- a: argeement_migratory_record
+  b: tenant_migarory_log
+  a_title: 协议迁移记录
+  b_title: 租户项目迁移记录表
+  why: 协议迁移 vs 租户迁移，同 migratory 场景（已在主连通分量的协议表）
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: false
+- a: wec_project_operation_rel
+  b: tenant_project
+  a_title: 微企链项目关联运营
+  b_title: 租户项目配置
+  why: 微企链项目关联运营：应对齐租户项目
+  confidence: high
+  fields_a:
+  - wec_project_id
+  fields_b:
+  - ref_tenant_project_platform_product
+  - ref_tenant_project_product_code
+  - ref_tenant_project_tenant_code
+  same_prefix: false
+- a: wec_project_cust_operation_rel
+  b: wec_project_operation_rel
+  a_title: 微企链项目企业关联运营
+  b_title: 微企链项目关联运营
+  why: 企业运营关联挂 wec_rel_id/项目
+  confidence: high
+  fields_a:
+  - wec_rel_id
+  fields_b: []
+  same_prefix: true
+- a: wec_project_cust_operation_rel
+  b: cust_company_info
+  a_title: 微企链项目企业关联运营
+  b_title: 客户信息主表
+  why: 含 company_id
+  confidence: high
+  fields_a:
+  - company_id
+  fields_b: []
+  same_prefix: false
+- a: wec_project_cust_operation_rel
+  b: tenant_project
+  a_title: 微企链项目企业关联运营
+  b_title: 租户项目配置
+  why: 含 project_id
+  confidence: high
+  fields_a:
+  - project_id
+  fields_b:
+  - ref_tenant_project_platform_product
+  - ref_tenant_project_product_code
+  - ref_tenant_project_tenant_code
+  same_prefix: false
+- a: wec_project_operation_rel
+  b: wechat_project_approval_apply
+  a_title: 微企链项目关联运营
+  b_title: 企业立项申请表
+  why: 含 wechat_audit_no，企微审批场景
+  confidence: medium
+  fields_a:
+  - wechat_audit_no
+  fields_b: []
+  same_prefix: false
+- a: project_file_info
+  b: tenant_project
+  a_title: 项目运营文件管理
+  b_title: 租户项目配置
+  why: 项目运营文件：project_id
+  confidence: high
+  fields_a:
+  - project_id
+  fields_b:
+  - ref_tenant_project_platform_product
+  - ref_tenant_project_product_code
+  - ref_tenant_project_tenant_code
+  same_prefix: false
+- a: funding_rule_front_cfg
+  b: funding_rule_info
+  a_title: 资方规则前端配置页面
+  b_title: 资方规则信息
+  why: 资方规则前端配置应对齐规则主表
+  confidence: high
+  fields_a:
+  - product_code
+  fields_b: []
+  same_prefix: true
+- a: funding_exception_resolution
+  b: funding_rule_info
+  a_title: 资金方异常解析及建议主表
+  b_title: 资方规则信息
+  why: 资金方异常解析 vs 规则；含 funding_party_code/product_code
+  confidence: medium
+  fields_a:
+  - funding_party_code
+  - product_code
+  fields_b: []
+  same_prefix: true
+- a: funding_exception_resolution
+  b: platform_product
+  a_title: 资金方异常解析及建议主表
+  b_title: 平台产品基础配置
+  why: 含 product_code
+  confidence: medium
+  fields_a:
+  - product_code
+  fields_b: []
+  same_prefix: false
+- a: funding_rule_front_cfg
+  b: platform_product
+  a_title: 资方规则前端配置页面
+  b_title: 平台产品基础配置
+  why: 含 product_code
+  confidence: medium
+  fields_a:
+  - product_code
+  fields_b: []
+  same_prefix: false
+- a: wechat_project_approval_apply
+  b: tenant_project_approval
+  a_title: 企业立项申请表
+  b_title: 租户项目审批表
+  why: 企微立项审批 vs 租户立项审批（sp_no 注释互指）
+  confidence: medium
+  fields_a: []
+  fields_b:
+  - ref_tenant_project_approval_tenant_project
+  - ref_tenant_project_approval_tenant_project_approval
+  - ref_tenant_project_approval_tenant_project_approval_flow_config
+  - sp_no
+  same_prefix: false
+- a: gpt_learn_poster_log
+  b: cust_company_info
+  a_title: 智能审核引流卡片埋点记录
+  b_title: 客户信息主表
+  why: 埋点含 company_id
+  confidence: medium
+  fields_a:
+  - company_id
+  fields_b: []
+  same_prefix: false
+- a: operation_user
+  b: tenant_setting_config_share
+  a_title: 运营中台人员数据
+  b_title: 共享租户配置
+  why: 运营人员 vs 共享租户里的 operator_* 字段场景
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: false
+- a: open_sso_channel
+  b: tenant_setting_config
+  a_title: 开放登录SSO渠道
+  b_title: 租户配置
+  why: SSO 渠道含 tenant_code
+  confidence: medium
+  fields_a:
+  - tenant_code
+  fields_b: []
+  same_prefix: false
+- a: open_sso_channel
+  b: org_manage
+  a_title: 开放登录SSO渠道
+  b_title: 机构管理
+  why: 含 org_code
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: false
+- a: cust_change_cfg
+  b: cust_change_record
+  a_title: 客户变更配置
+  b_title: 客户变更记录
+  why: 变更配置 vs 变更记录
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: true
+- a: cust_config_mapping
+  b: cust_company_info
+  a_title: 企业信息配置表
+  b_title: 客户信息主表
+  why: 企业信息配置映射
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: true
+- a: cust_access_secret
+  b: cust_company_info
+  a_title: 客户接入秘钥信息
+  b_title: 客户信息主表
+  why: 客户接入秘钥
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: true
+- a: cust_app_channel_config
+  b: cust_company_info
+  a_title: 客户应用渠道关系
+  b_title: 客户信息主表
+  why: 客户应用渠道
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: true
+- a: cust_message_send_policy
+  b: cust_company_info
+  a_title: 客户消息发送策略
+  b_title: 客户信息主表
+  why: 客户消息策略
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: true
+- a: cust_sftp
+  b: cust_company_info
+  a_title: 客戶sftp信息
+  b_title: 客户信息主表
+  why: 客户 SFTP
+  confidence: low
+  fields_a: []
+  fields_b: []
+  same_prefix: true
+- a: cust_setting_config
+  b: cust_company_info
+  a_title: 客户认证配置
+  b_title: 客户信息主表
+  why: 客户认证配置（多为全局；cust_id 空）
+  confidence: low
+  fields_a:
+  - cust_id
+  fields_b: []
+  same_prefix: true
+components:
+- size: 43
+  tables:
+  - argeement_migratory_record
+  - authorization_agreement
+  - ca_certification_info
+  - ca_fee_company
+  - ca_fee_order
+  - ca_fee_project_config
+  - cust_account_info
+  - cust_auth_application
+  - cust_build_record
+  - cust_certification_info
+  - cust_change_record
+  - cust_company_info
+  - cust_company_lifecycle_info
+  - cust_company_survey_state
+  - cust_company_survey_whitelist
+  - cust_customized_product
+  - cust_group_rel
+  - cust_head_company_info
+  - cust_interworking_product
+  - cust_invite_info
+  - cust_oper_change_record
+  - cust_person_info
+  - cust_project_code_record
+  - cust_project_pushcust
+  - cust_project_rel
+  - cust_role_info
+  - cust_shareholder_info
+  - cust_survey_answer
+  - cust_user_rel
+  - platform_product
+  - platform_product_client
+  - tenant_interworking_product
+  - tenant_interworking_project
+  - tenant_product
+  - tenant_project
+  - tenant_project_approval
+  - tenant_project_approval_business_info
+  - tenant_project_approval_flow
+  - tenant_project_approval_flow_comment
+  - tenant_project_approval_flow_credit
+  - tenant_project_approval_flow_file
+  - tenant_project_approval_flow_node
+  - tenant_setting_config
+- size: 2
+  tables:
+  - funding_rule_detail
+  - funding_rule_info
+- size: 2
+  tables:
+  - wechat_project_approval_apply
+  - wechat_project_approval_field_history

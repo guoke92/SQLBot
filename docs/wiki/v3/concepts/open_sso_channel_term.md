@@ -15,7 +15,7 @@ updated: '2026-09-21'
 contract_version: '0.1'
 related: [open_sso_channel]
 also_confused_with: [channel_code_term, channel_archive_longteng, default_push_project,
-  tenant_code_vs_db_tenant, app_channel_config_term]
+  tenant_code_vs_db_tenant, app_channel_config_term, channel_code_homonym_bundle]
 adjudication: boundary
 ---
 

@@ -1,0 +1,6112 @@
+schema_version: "1.5"
+extract_role: baseline
+repository: pplatform-web
+enums:
+- enum: CaFeeAgreementNextActionEnum
+  kind: enum
+  field: ca_fee_agreement_next_action
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeAgreementNextActionEnum.java
+  values:
+  - value: BOCOM_PAY_PAGE
+    java_name: BOCOM_PAY_PAGE
+    display: 进入交e保打款页
+    accessors:
+      name: 2
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeBizNodeEnum
+  kind: enum
+  field: ca_fee_biz_node
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeBizNodeEnum.java
+  values:
+  - value: FINANCE_APPLY
+    java_name: FINANCE_APPLY
+    display: 融资申请
+    accessors: {}
+    stored_as: same
+  - value: TRANSFER_SIGN
+    java_name: TRANSFER_SIGN
+    display: 转让签收
+    accessors: {}
+    stored_as: same
+  - value: RIGHTS_CONFIRM
+    java_name: RIGHTS_CONFIRM
+    display: 确权
+    accessors: {}
+    stored_as: same
+  - value: FACTORING_FINANCE_APPLY
+    java_name: FACTORING_FINANCE_APPLY
+    display: 融资申请
+    accessors: {}
+    stored_as: same
+  - value: FACTORING_RIGHTS_CONFIRM
+    java_name: FACTORING_RIGHTS_CONFIRM
+    display: 确权审核
+    accessors: {}
+    stored_as: same
+  - value: ORDER_FINANCING_APPLY
+    java_name: ORDER_FINANCING_APPLY
+    display: 融资申请
+    accessors: {}
+    stored_as: same
+  - value: ORDER_FINANCING_AUDIT
+    java_name: ORDER_FINANCING_AUDIT
+    display: 融资审核
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - biz_node
+  convention_mismatch: true
+- enum: CaFeeBlockCodeEnum
+  kind: enum
+  field: ca_fee_block_code
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeBlockCodeEnum.java
+  values:
+  - value: FEE_UNPAID
+    java_name: FEE_UNPAID
+    display: 服务费未缴纳
+    accessors: {}
+    stored_as: same
+  - value: FEE_EXPIRED
+    java_name: FEE_EXPIRED
+    display: 服务费已过期
+    accessors: {}
+    stored_as: same
+  - value: CA_INVALID
+    java_name: CA_INVALID
+    display: CA证书无效
+    accessors: {}
+    stored_as: same
+  - value: CA_AND_FEE
+    java_name: CA_AND_FEE
+    display: CA证书与服务费均不满足
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeCertStatusEnum
+  kind: enum
+  field: ca_fee_cert_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeCertStatusEnum.java
+  values:
+  - value: NORMAL
+    java_name: NORMAL
+    display: 有效
+    accessors:
+      name: 3
+    stored_as: same
+  - value: EXPIRED
+    java_name: EXPIRED
+    display: 已过期
+    accessors:
+      name: 2
+    stored_as: same
+  - value: CANCELLED
+    java_name: CANCELLED
+    display: 已注销
+    accessors:
+      name: 1
+    stored_as: same
+  - value: UNREGISTERED
+    java_name: UNREGISTERED
+    display: 未注册
+    accessors:
+      name: 4
+    stored_as: same
+  - value: UNKNOWN
+    java_name: UNKNOWN
+    display: 未注册
+    accessors:
+      name: 6
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeCompanyPayStatusEnum
+  kind: enum
+  field: ca_fee_company_pay_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeCompanyPayStatusEnum.java
+  values:
+  - value: PAID
+    java_name: PAID
+    display: 已缴费
+    accessors:
+      name: 10
+    stored_as: same
+  - value: UNPAID
+    java_name: UNPAID
+    display: 未缴费
+    accessors:
+      name: 4
+    stored_as: same
+  setter_fields:
+  - pay_status
+  convention_mismatch: true
+- enum: CaFeeDualCheckSceneEnum
+  kind: enum
+  field: ca_fee_dual_check_scene
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeDualCheckSceneEnum.java
+  values:
+  - value: GOTO_PRODUCT
+    java_name: GOTO_PRODUCT
+    display: 门户跳转业务产品
+    accessors: {}
+    stored_as: same
+  - value: SIGN
+    java_name: SIGN
+    display: 签章前校验
+    accessors: {}
+    stored_as: same
+  - value: PAY_ENTRY
+    java_name: PAY_ENTRY
+    display: 进入缴费页前
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeFeeStatusEnum
+  kind: enum
+  field: ca_fee_fee_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeFeeStatusEnum.java
+  values:
+  - value: PAID
+    java_name: PAID
+    display: 已缴费/在期内
+    accessors:
+      name: 3
+    stored_as: same
+  - value: UNPAID
+    java_name: UNPAID
+    display: 未缴费
+    accessors:
+      name: 4
+    stored_as: same
+  - value: EXPIRED
+    java_name: EXPIRED
+    display: 已过期
+    accessors:
+      name: 2
+    stored_as: same
+  - value: EXEMPT
+    java_name: EXEMPT
+    display: 豁免
+    accessors:
+      name: 7
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeInterceptSceneGroupEnum
+  kind: enum
+  field: ca_fee_intercept_scene_group
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeInterceptSceneGroupEnum.java
+  values:
+  - value: PORTAL
+    java_name: PORTAL
+    display: 产融门户平台
+    accessors:
+      getCode: 1
+    stored_as: same
+  - value: MULTI_LEVEL
+    java_name: MULTI_LEVEL
+    display: 多级流转产品
+    accessors: {}
+    stored_as: same
+  - value: FACTORING
+    java_name: FACTORING
+    display: 线上保理产品
+    accessors: {}
+    stored_as: same
+  - value: ORDER_FINANCING
+    java_name: ORDER_FINANCING
+    display: 订单融资产品
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeInvoiceStatusEnum
+  kind: enum
+  field: ca_fee_invoice_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeInvoiceStatusEnum.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: 开票中
+    accessors:
+      name: 2
+    stored_as: same
+  - value: ISSUED
+    java_name: ISSUED
+    display: 已开票
+    accessors:
+      name: 3
+    stored_as: same
+  - value: FAILED
+    java_name: FAILED
+    display: 开票失败
+    accessors:
+      name: 1
+    stored_as: same
+  - value: NONE
+    java_name: NONE
+    display: 无需开票
+    accessors:
+      name: 1
+    stored_as: same
+  setter_fields:
+  - invoice_status
+  convention_mismatch: true
+- enum: CaFeeOperateTypeEnum
+  kind: enum
+  field: ca_fee_operate_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeOperateTypeEnum.java
+  values:
+  - value: AGREEMENT_SIGN
+    java_name: AGREEMENT_SIGN
+    display: 签署收费协议
+    accessors: {}
+    stored_as: same
+  - value: PAY
+    java_name: PAY
+    display: 缴费成功
+    accessors: {}
+    stored_as: same
+  - value: CLOSE
+    java_name: CLOSE
+    display: 关闭订单
+    accessors: {}
+    stored_as: same
+  - value: ZERO_EXEMPT
+    java_name: ZERO_EXEMPT
+    display: "0元豁免入账"
+    accessors: {}
+    stored_as: same
+  - value: EDIT
+    java_name: EDIT
+    display: 台账编辑
+    accessors: {}
+    stored_as: same
+  - value: BATCH_DEFER
+    java_name: BATCH_DEFER
+    display: 批量延期支付
+    accessors: {}
+    stored_as: same
+  - value: BATCH_WHITELIST
+    java_name: BATCH_WHITELIST
+    display: 批量加白名单
+    accessors: {}
+    stored_as: same
+  - value: SPECIAL_CONFIG_CREATE
+    java_name: SPECIAL_CONFIG_CREATE
+    display: 特殊定价新增
+    accessors: {}
+    stored_as: same
+  - value: SPECIAL_CONFIG_SAVE
+    java_name: SPECIAL_CONFIG_SAVE
+    display: 特殊定价保存
+    accessors: {}
+    stored_as: same
+  - value: SPECIAL_CONFIG_IMPORT
+    java_name: SPECIAL_CONFIG_IMPORT
+    display: 批量导入覆盖
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeOrderStatusEnum
+  kind: enum
+  field: ca_fee_order_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeOrderStatusEnum.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: 未缴费
+    accessors:
+      name: 27
+    stored_as: same
+  - value: PAID
+    java_name: PAID
+    display: 已缴费
+    accessors:
+      name: 27
+    stored_as: same
+  - value: CLOSED
+    java_name: CLOSED
+    display: 已关闭
+    accessors:
+      name: 5
+    stored_as: same
+  - value: EXPIRED
+    java_name: EXPIRED
+    display: 已过期
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - order_status
+  convention_mismatch: true
+- enum: CaFeeOrderTypeEnum
+  kind: enum
+  field: ca_fee_order_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeOrderTypeEnum.java
+  values:
+  - value: FIRST
+    java_name: FIRST
+    display: 首次缴费
+    accessors:
+      name: 2
+    stored_as: same
+  - value: RENEW
+    java_name: RENEW
+    display: 即将到期续费
+    accessors:
+      name: 2
+    stored_as: same
+  - value: RENEW_EXPIRED
+    java_name: RENEW_EXPIRED
+    display: 已到期续费
+    accessors:
+      name: 1
+    stored_as: same
+  - value: STOCK
+    java_name: STOCK
+    display: 存量补录
+    accessors:
+      name: 1
+    stored_as: same
+  setter_fields:
+  - order_type
+  convention_mismatch: true
+- enum: CaFeePayMethodEnum
+  kind: enum
+  field: ca_fee_pay_method
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeePayMethodEnum.java
+  values:
+  - value: BOCOM
+    java_name: BOCOM
+    display: 交e保对公打款
+    accessors:
+      name: 7
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeePayQueryResultEnum
+  kind: enum
+  field: ca_fee_pay_query_result
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeePayQueryResultEnum.java
+  values:
+  - value: SUCCESS
+    java_name: SUCCESS
+    display: 缴费成功
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  - value: INSUFFICIENT_BALANCE
+    java_name: INSUFFICIENT_BALANCE
+    display: 您的账户余额不足，请完成充值后重试
+    accessors: {}
+    stored_as: same
+  - value: NOT_ARRIVED
+    java_name: NOT_ARRIVED
+    display: 暂未查询到您的打款记录，银行处理可能需要一些时间，请您稍后查询。
+    accessors: {}
+    stored_as: same
+  - value: QUERY_FAILED
+    java_name: QUERY_FAILED
+    display: 查询失败，请稍后重试
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeRedirectTypeEnum
+  kind: enum
+  field: ca_fee_redirect_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeRedirectTypeEnum.java
+  values:
+  - value: CA_FEE_PAY
+    java_name: CA_FEE_PAY
+    display: 跳转缴费
+    accessors:
+      name: 1
+    stored_as: same
+  - value: CA_RENEW
+    java_name: CA_RENEW
+    display: 跳转续费
+    accessors:
+      name: 1
+    stored_as: same
+  - value: CA_REGISTER
+    java_name: CA_REGISTER
+    display: 跳转CA认证
+    accessors: {}
+    stored_as: same
+  - value: NONE
+    java_name: NONE
+    display: 无需跳转
+    accessors:
+      name: 2
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeSpecialConfigTypeEnum
+  kind: enum
+  field: ca_fee_special_config_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeSpecialConfigTypeEnum.java
+  values:
+  - value: WHITELIST
+    java_name: WHITELIST
+    display: 白名单豁免
+    accessors:
+      name: 4
+    stored_as: same
+  - value: SPECIAL_PRICE
+    java_name: SPECIAL_PRICE
+    display: 定向减免
+    accessors:
+      name: 3
+    stored_as: same
+  - value: DEFER_PAY
+    java_name: DEFER_PAY
+    display: 延期支付
+    accessors:
+      name: 6
+    stored_as: same
+  setter_fields:
+  - config_type
+  convention_mismatch: true
+- enum: CaFeeTodoEnsureTriggerEnum
+  kind: enum
+  field: ca_fee_todo_ensure_trigger
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeTodoEnsureTriggerEnum.java
+  values:
+  - value: CA_AUTH_SUCCESS
+    java_name: CA_AUTH_SUCCESS
+    display: CA认证成功
+    accessors: {}
+    stored_as: same
+  - value: BUILD_APPROVED
+    java_name: BUILD_APPROVED
+    display: 建档审批通过
+    accessors: {}
+    stored_as: same
+  - value: PROJECT_RELATE
+    java_name: PROJECT_RELATE
+    display: 关联项目
+    accessors: {}
+    stored_as: same
+  - value: MANUAL
+    java_name: MANUAL
+    display: 手动触发
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields:
+  - trigger_source
+  convention_mismatch: true
+- enum: CaFeeTodoSceneEnum
+  kind: enum
+  field: ca_fee_todo_scene
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeTodoSceneEnum.java
+  values:
+  - value: NEW_PAY
+    java_name: NEW_PAY
+    display: 【待缴费/新缴费场景】
+    accessors: {}
+    stored_as: same
+  - value: ABOUT_TO_EXPIRE
+    java_name: ABOUT_TO_EXPIRE
+    display: 【即将到期场景】
+    accessors: {}
+    stored_as: same
+  - value: EXPIRED
+    java_name: EXPIRED
+    display: 【已到期场景】
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaCfcaUpgradeBizModuleEnum
+  kind: enum
+  field: ca_cfca_upgrade_biz_module
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cfca/enums/CaCfcaUpgradeBizModuleEnum.java
+  values:
+  - value: CFCA_CA_UPGRADE
+    java_name: CFCA_CA_UPGRADE
+    display: CFCA证书升级
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: AccountBelongEnum
+  kind: enum
+  field: account_belong
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/AccountBelongEnum.java
+  values:
+  - value: SELF
+    java_name: SELF
+    display: 企业自身
+    accessors: {}
+    stored_as: same
+  - value: THIRD
+    java_name: THIRD
+    display: 三方
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: AccountTypeEnum
+  kind: enum
+  field: account_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/AccountTypeEnum.java
+  values:
+  - value: SELF
+    java_name: SELF
+    display: 企业自身
+    accessors: {}
+    stored_as: same
+  - value: THIRD
+    java_name: THIRD
+    display: 三方
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - account_type
+  convention_mismatch: false
+- enum: AuthStatusEnum
+  kind: enum
+  field: auth_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/AuthStatusEnum.java
+  values:
+  - value: no_confirm
+    java_name: NO_CONFIRM
+    display: 未认证
+    accessors: {}
+    stored_as: dictKey
+  - value: confirm_applying
+    java_name: CONFIRM_APPLYING
+    display: 申请中
+    accessors: {}
+    stored_as: dictKey
+  - value: wait_confirm
+    java_name: WAIT_CONFIRM
+    display: 待确认
+    accessors: {}
+    stored_as: dictKey
+  - value: manual_confirmed
+    java_name: MANUAL_CONFIRMED
+    display: 手动认证成功
+    accessors: {}
+    stored_as: dictKey
+  - value: auto_confirmed
+    java_name: AUTO_CONFIRMED
+    display: 自动认证成功
+    accessors: {}
+    stored_as: dictKey
+  - value: confirmed
+    java_name: CONFIRMED
+    display: 已认证
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBankAccountTypeEnum
+  kind: enum
+  field: cust_bank_account_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/CustBankAccountTypeEnum.java
+  values:
+  - value: RECEIVED_ACCOUNT
+    java_name: RECEIVED_ACCOUNT
+    display: 收款账户
+    accessors: {}
+    stored_as: same
+  - value: ORDER_RETURN_ACCOUNT
+    java_name: ORDER_RETURN_ACCOUNT
+    display: 订单回款账户
+    accessors: {}
+    stored_as: same
+  - value: PAYMENT_ACCOUNT
+    java_name: PAYMENT_ACCOUNT
+    display: 付款账户
+    accessors: {}
+    stored_as: same
+  - value: INTEREST_PAYMENT_ACCOUNT
+    java_name: INTEREST_PAYMENT_ACCOUNT
+    display: 付息账户
+    accessors: {}
+    stored_as: same
+  - value: CORE_RETURN_ACCOUNT
+    java_name: CORE_RETURN_ACCOUNT
+    display: 核心企业回款账户
+    accessors: {}
+    stored_as: same
+  - value: SUPPLIER_RETURN_ACCOUNT
+    java_name: SUPPLIER_RETURN_ACCOUNT
+    display: 供应商回款账户
+    accessors: {}
+    stored_as: same
+  - value: RETURN_ACCOUNT
+    java_name: RETURN_ACCOUNT
+    display: 回款账户
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectAssetListModeEnum
+  kind: enum
+  field: project_asset_list_mode
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectAssetListModeEnum.java
+  values:
+  - value: STANDARD_LIST
+    java_name: STANDARD_LIST
+    display: 标准清单
+    accessors: {}
+    stored_as: same
+  - value: SIMPLE_LIST
+    java_name: SIMPLE_LIST
+    display: 简易清单
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectBizConfigPayerEnum
+  kind: enum
+  field: project_biz_config_payer
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectBizConfigPayerEnum.java
+  values:
+  - value: SUPPLIER
+    java_name: SUPPLIER
+    display: 供应商
+    accessors: {}
+    stored_as: same
+  - value: CORE
+    java_name: CORE
+    display: 核心企业
+    accessors: {}
+    stored_as: same
+  - value: APPLICANT
+    java_name: APPLICANT
+    display: 融资申请人
+    accessors: {}
+    stored_as: same
+  - value: FUNDER
+    java_name: FUNDER
+    display: 资金方
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectBusinessFlowModeEnum
+  kind: enum
+  field: project_business_flow_mode
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectBusinessFlowModeEnum.java
+  values:
+  - value: CONFIRM_RIGHT_FIRST
+    java_name: CONFIRM_RIGHT_FIRST
+    display: 先确权
+    accessors: {}
+    stored_as: same
+  - value: CONFIRM_RIGHT_AFTER
+    java_name: CONFIRM_RIGHT_AFTER
+    display: 后确权
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectRedemptionMethodEnum
+  kind: enum
+  field: project_redemption_method
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectRedemptionMethodEnum.java
+  values:
+  - value: ALIPAY_CLEARING
+    java_name: ALIPAY_CLEARING
+    display: 支付宝清分
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectServiceFeeCollectMethodEnum
+  kind: enum
+  field: project_service_fee_collect_method
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectServiceFeeCollectMethodEnum.java
+  values:
+  - value: ONLINE
+    java_name: ONLINE
+    display: 线上收取
+    accessors: {}
+    stored_as: same
+  - value: OFFLINE
+    java_name: OFFLINE
+    display: 线下收取
+    accessors: {}
+    stored_as: same
+  - value: BOCOM_PAY
+    java_name: BOCOM_PAY
+    display: 交e保
+    accessors: {}
+    stored_as: same
+  - value: FREE
+    java_name: FREE
+    display: 免费
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectServiceFeeCollectorEnum
+  kind: enum
+  field: project_service_fee_collector
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectServiceFeeCollectorEnum.java
+  values:
+  - value: PLATFORM
+    java_name: PLATFORM
+    display: 平台方
+    accessors: {}
+    stored_as: same
+  - value: OPERATOR
+    java_name: OPERATOR
+    display: 运营方
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectServiceFeeQuoteTypeEnum
+  kind: enum
+  field: project_service_fee_quote_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectServiceFeeQuoteTypeEnum.java
+  values:
+  - value: PLATFORM_SERVICE_RATE
+    java_name: PLATFORM_SERVICE_RATE
+    display: 平台服务费率
+    accessors: {}
+    stored_as: same
+  - value: TOTAL_RATE
+    java_name: TOTAL_RATE
+    display: 总费率
+    accessors: {}
+    stored_as: same
+  - value: FIXED
+    java_name: FIXED
+    display: 固定年化利率
+    accessors: {}
+    stored_as: same
+  - value: PAY_PER_VIEW
+    java_name: PAY_PER_VIEW
+    display: 非年化利率
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectSourceSystemEnum
+  kind: enum
+  field: project_source_system
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectSourceSystemEnum.java
+  values:
+  - value: ACFLOW
+    java_name: ACFLOW
+    display: 讯易链
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: RVSFACTOR_PC
+    java_name: RVSFACTOR_PC
+    display: 线上保理
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: ORDER
+    java_name: ORDER
+    display: 订单融资
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectZhongdengModeEnum
+  kind: enum
+  field: project_zhongdeng_mode
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectZhongdengModeEnum.java
+  values:
+  - value: BEFORE_REGISTER
+    java_name: BEFORE_REGISTER
+    display: 交易前中登登记
+    accessors: {}
+    stored_as: same
+  - value: AFTER_REGISTER
+    java_name: TRANSFER_REGISTER
+    display: 转让时中登查询、中登登记
+    accessors: {}
+    stored_as: dictKey
+  - value: FINANCE_REGISTER
+    java_name: FINANCE_REGISTER
+    display: 融资时中登查询、中登登记
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBuildStatusEnum
+  kind: enum
+  field: cust_build_status
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/CustBuildStatusEnum.java
+  values:
+  - value: INIT
+    java_name: INIT
+    display: 初始化
+    accessors:
+      getDictKey: 28
+    stored_as: same
+  - value: TO_BE_BUILD
+    java_name: TO_BE_BUILD
+    display: 未建档
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  - value: BUILDING
+    java_name: BUILDING
+    display: 建档中
+    accessors:
+      getDictKey: 6
+    stored_as: same
+  - value: BUILD_SUCCESS
+    java_name: BUILD_SUCCESS
+    display: 认证成功
+    accessors:
+      getDictKey: 87
+      getDictParam: 1
+      name: 5
+    stored_as: same
+  - value: BUILD_FAIL
+    java_name: BUILD_FAIL
+    display: 认证失败
+    accessors:
+      getDictKey: 27
+      name: 5
+    stored_as: same
+  - value: BUILD_BACK
+    java_name: BUILD_BACK
+    display: 退回
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: BUILD_ACTIVATE
+    java_name: BUILD_ACTIVATE
+    display: 待激活
+    accessors: {}
+    stored_as: same
+  - value: CUST_CONFIRM_AWAIT
+    java_name: CUST_CONFIRM_AWAIT
+    display: 待客户认证
+    accessors:
+      getDictKey: 20
+    stored_as: same
+  - value: CUST_AUDIT_AWAIT
+    java_name: CUST_AUDIT_AWAIT
+    display: 待审核
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: CUST_BUILDING
+    java_name: CUST_BUILDING
+    display: 审批中
+    accessors:
+      getDictKey: 13
+      getDictParam: 1
+    stored_as: same
+  - value: CUST_BUILD_SUCCESS
+    java_name: CUST_BUILD_SUCCESS
+    display: 审核通过
+    accessors:
+      getDictKey: 6
+    stored_as: same
+  - value: CUST_BUILD_FAIL
+    java_name: CUST_BUILD_FAIL
+    display: 审核拒绝
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: CUST_CHANGE
+    java_name: CUST_CHANGE
+    display: 变更
+    accessors:
+      getDictKey: 23
+      name: 2
+    stored_as: same
+  - value: AWAIT_CUST_CONFIRM
+    java_name: AWAIT_CUST_CONFIRM
+    display: 待客户确认
+    accessors:
+      getDictKey: 6
+    stored_as: same
+  setter_fields:
+  - check_status
+  - cust_build_status
+  - has_build_success
+  - progress
+  convention_mismatch: false
+- enum: CustPersonInfoSourceEnum
+  kind: enum
+  field: cust_person_info_source
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/CustPersonInfoSourceEnum.java
+  values:
+  - value: AMS
+    java_name: AMS
+    display: 管理员
+    accessors:
+      name: 8
+      getDictKey: 8
+    stored_as: same
+  - value: longteng
+    java_name: longteng
+    display: 龙腾
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields:
+  - source
+  convention_mismatch: true
+- enum: IDTypeEnum
+  kind: enum
+  field: id_type
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/IDTypeEnum.java
+  values:
+  - value: CRET_ID
+    java_name: CRET_ID
+    display: 二代居民身份证
+    accessors:
+      name: 9
+      getDictKey: 4
+    stored_as: same
+  - value: CERT_MAINLAND_PASS
+    java_name: CERT_MAINLAND_PASS
+    display: 港澳居民来往内地通行证
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: CERT_TAIWAN
+    java_name: CERT_TAIWAN
+    display: 台胞证
+    accessors: {}
+    stored_as: same
+  - value: CERT_GREEN_CARD
+    java_name: CERT_GREEN_CARD
+    display: 外国人永久居留证
+    accessors: {}
+    stored_as: same
+  - value: CERT_PASSPORT
+    java_name: CERT_PASSPORT
+    display: 护照
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: BUSI_LICENCE_NO
+    java_name: BUSI_LICENCE_NO
+    display: 营业执照号码
+    accessors: {}
+    stored_as: same
+  - value: CRET_ID_HK
+    java_name: CRET_ID_HK
+    display: 香港身份证
+    accessors: {}
+    stored_as: same
+  - value: CERT_HK_AND_MACAU_PASS
+    java_name: CERT_HK_AND_MACAU_PASS
+    display: 港澳通行证
+    accessors: {}
+    stored_as: same
+  - value: CERT_TAIWAN_PASS
+    java_name: CERT_TAIWAN_PASS
+    display: 台湾通行证
+    accessors: {}
+    stored_as: same
+  - value: CERT_RESIDENT_PERMIT
+    java_name: CERT_RESIDENT_PERMIT
+    display: 港澳台居民居住证
+    accessors: {}
+    stored_as: same
+  - value: SOCIAL_ORG_CERTIFICATE
+    java_name: SOCIAL_ORG_CERTIFICATE
+    display: 社会团体登记证书
+    accessors: {}
+    stored_as: same
+  - value: SOCIAL_UNIFIED_CODE
+    java_name: SOCIAL_UNIFIED_CODE
+    display: 企业统一社会信用代码
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_CERTIFICATE
+    java_name: LEGAL_CERTIFICATE
+    display: 事业单位法人证书
+    accessors: {}
+    stored_as: same
+  - value: CERT_OTHER
+    java_name: CERT_OTHER
+    display: 其他
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - certificate_type
+  - certification_type
+  - first_auth_certificate_type
+  - legal_certification_type
+  convention_mismatch: true
+- enum: PlatformOperatorEnum
+  kind: enum
+  field: platform_operator
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/PlatformOperatorEnum.java
+  values:
+  - value: TENANT
+    java_name: TENANT
+    display: 租户自身
+    accessors:
+      getDictKey: 3
+      getDisplayName: 2
+    stored_as: same
+  - value: PLATFORM
+    java_name: PLATFORM
+    display: 联易融
+    accessors:
+      getDictKey: 2
+      getDisplayName: 2
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: SignModeEnum
+  kind: enum
+  field: sign_mode
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/SignModeEnum.java
+  values:
+  - value: "01"
+    java_name: ON_LINE
+    display: 线上
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: "02"
+    java_name: OFF_LINE
+    display: 线下
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: "03"
+    java_name: NO_SIGN
+    display: 无需签署
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  setter_fields:
+  - sign_mode
+  convention_mismatch: false
+- enum: TimeUnitEnum
+  kind: enum
+  field: time_unit
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/TimeUnitEnum.java
+  values:
+  - value: year
+    java_name: YEAR
+    display: 年
+    accessors: {}
+    stored_as: dictKey
+  - value: month
+    java_name: MONTH
+    display: 月
+    accessors: {}
+    stored_as: dictKey
+  - value: day
+    java_name: DAY
+    display: 日
+    accessors: {}
+    stored_as: dictKey
+  - value: hour
+    java_name: HOUR
+    display: 时
+    accessors: {}
+    stored_as: dictKey
+  - value: minute
+    java_name: MINUTE
+    display: 分
+    accessors: {}
+    stored_as: dictKey
+  - value: second
+    java_name: SECOND
+    display: 秒
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: UserFreezeEnum
+  kind: enum
+  field: user_freeze
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/UserFreezeEnum.java
+  values:
+  - value: "Y"
+    java_name: FREEZE
+    display: 冻结状态标记
+    accessors:
+      getDictKey: 4
+    stored_as: dictKey
+  - value: "N"
+    java_name: UN_FROZEN
+    display: 非冻结状态标记
+    accessors:
+      getDictKey: 5
+    stored_as: dictKey
+  setter_fields:
+  - is_freeze
+  convention_mismatch: true
+- enum: UserTypeEnum
+  kind: enum
+  field: user_type
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/UserTypeEnum.java
+  values:
+  - value: accountAdmin
+    java_name: admin
+    display: 管理员
+    accessors:
+      getDictKey: 189
+    stored_as: dictKey
+  - value: accountNormal
+    java_name: operator
+    display: 经办人
+    accessors:
+      getDictKey: 52
+    stored_as: dictKey
+  - value: accountGuest
+    java_name: guest
+    display: 游客
+    accessors:
+      getDictKey: 35
+    stored_as: dictKey
+  setter_fields:
+  - role
+  - user_type
+  - user_type_enum
+  convention_mismatch: false
+- enum: LocalSysOpenModeEnum
+  kind: enum
+  field: local_sys_open_mode
+  path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/constant/LocalSysOpenModeEnum.java
+  values:
+  - value: TOP
+    java_name: TOP
+    display: 顶层打开（已废弃，龙腾不使用）
+    accessors: {}
+    stored_as: same
+  - value: EMBED
+    java_name: EMBED
+    display: iframe 嵌入
+    accessors:
+      getCode: 5
+    stored_as: same
+  setter_fields:
+  - open_mode
+  - open_mode_default
+  convention_mismatch: true
+- enum: CfcaBizIdentityVerifyMethodEnum
+  kind: enum
+  field: cfca_biz_identity_verify_method
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/enums/CfcaBizIdentityVerifyMethodEnum.java
+  values:
+  - value: POLICE_TWO
+    java_name: POLICE_TWO
+    display: 公安二要素
+    accessors:
+      getCode: 2
+    stored_as: same
+  - value: ENTERPRISE_THREE
+    java_name: ENTERPRISE_THREE
+    display: 企业三要素
+    accessors:
+      getCode: 2
+    stored_as: same
+  - value: ENTERPRISE_FOUR
+    java_name: ENTERPRISE_FOUR
+    display: 企业四要素
+    accessors:
+      getCode: 2
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CfcaIntentAuthTypeEnum
+  kind: enum
+  field: cfca_intent_auth_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/enums/CfcaIntentAuthTypeEnum.java
+  values:
+  - value: SMS_CODE
+    java_name: SMS_CODE
+    display: 短信验证码
+    accessors:
+      getCode: 2
+    stored_as: same
+  - value: H5_FACE
+    java_name: H5_FACE
+    display: H5刷脸
+    accessors:
+      getCode: 4
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: AsyncIoMenuEnum
+  kind: enum
+  field: async_io_menu
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/enums/AsyncIoMenuEnum.java
+  values:
+  - value: TENANT_PROJECT_CONFIG
+    java_name: TENANT_PROJECT_CONFIG
+    display: 项目运营配置
+    accessors: {}
+    stored_as: same
+  - value: WECHAT_PROJECT_APPROVAL
+    java_name: WECHAT_PROJECT_APPROVAL
+    display: 企微立项审批
+    accessors: {}
+    stored_as: same
+  - value: PROJECT_REPORT_STATISTICS
+    java_name: PROJECT_REPORT_STATISTICS
+    display: 项目立项统计
+    accessors: {}
+    stored_as: same
+  - value: PROJECT_ONLINE_APPROVAL
+    java_name: PROJECT_ONLINE_APPROVAL
+    display: 项目上线审批
+    accessors: {}
+    stored_as: same
+  - value: CUST_PROJECT_REL_BATCH
+    java_name: CUST_PROJECT_REL_BATCH
+    display: 企业批量关联项目
+    accessors: {}
+    stored_as: same
+  - value: CUST_INPUT_BATCH
+    java_name: CUST_INPUT_BATCH
+    display: 客户录入批量导入
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: AccountTypeEnum
+  kind: enum
+  field: account_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AccountTypeEnum.java
+  values:
+  - value: "1"
+    java_name: BANK
+    display: 银行
+    accessors:
+      getDictParam: 1
+      name: 2
+    stored_as: name
+  - value: "2"
+    java_name: THIRD_PARTY_PAYMENT_AGENCY
+    display: 第三方支付机构
+    accessors: {}
+    stored_as: dictKey
+  - value: "3"
+    java_name: INVOICING
+    display: 开票
+    accessors: {}
+    stored_as: dictKey
+  - value: received
+    java_name: RECEIVED
+    display: 收款
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: payment
+    java_name: PAYMENT
+    display: 付款
+    accessors: {}
+    stored_as: dictKey
+  setter_fields:
+  - account_type
+  convention_mismatch: false
+- enum: AlterModeEnum
+  kind: enum
+  field: alter_mode
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AlterModeEnum.java
+  values:
+  - value: "1"
+    java_name: PLAT_ALTER
+    display: 平台变更
+    accessors:
+      getDictKey: 9
+    stored_as: dictKey
+  - value: "2"
+    java_name: SELF_ALTER
+    display: 企业自行变更
+    accessors:
+      getDictKey: 10
+    stored_as: dictKey
+  setter_fields:
+  - alter_mode
+  convention_mismatch: false
+- enum: AssetSignUploaderEnum
+  kind: enum
+  field: asset_sign_uploader
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AssetSignUploaderEnum.java
+  values:
+  - value: core
+    java_name: CORE
+    display: 核心企业
+    accessors: {}
+    stored_as: dictKey
+  - value: supplier
+    java_name: SUPPLIER
+    display: 供应商
+    accessors: {}
+    stored_as: dictKey
+  - value: agw
+    java_name: AGW
+    display: 内管端
+    accessors: {}
+    stored_as: dictKey
+  - value: empty
+    java_name: EMPTY
+    display: 空
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: AuthTypeEnum
+  kind: enum
+  field: auth_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AuthTypeEnum.java
+  values:
+  - value: A
+    java_name: ADMIN_AUTH
+    display: 企业管理员授权
+    accessors:
+      getDictKey: 13
+    stored_as: dictKey
+  - value: L
+    java_name: LEGAL_AUTH
+    display: 法人代表人授权
+    accessors:
+      getDictKey: 12
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: BusiStatusEnum
+  kind: enum
+  field: busi_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/BusiStatusEnum.java
+  values:
+  - value: "01"
+    java_name: SURVIVAL
+    display: 存续
+    accessors: {}
+    stored_as: dictKey
+  - value: "02"
+    java_name: EMPLOYED
+    display: 在业
+    accessors: {}
+    stored_as: dictKey
+  - value: "03"
+    java_name: REVOKE
+    display: 吊销
+    accessors: {}
+    stored_as: dictKey
+  - value: "04"
+    java_name: SIGN_OUT
+    display: 注销
+    accessors: {}
+    stored_as: dictKey
+  - value: "05"
+    java_name: IMMIGRATION
+    display: 迁入
+    accessors: {}
+    stored_as: dictKey
+  - value: "06"
+    java_name: EMIGRATION
+    display: 迁出
+    accessors: {}
+    stored_as: dictKey
+  - value: "07"
+    java_name: CLOSE_DOWN
+    display: 停业
+    accessors: {}
+    stored_as: dictKey
+  - value: "08"
+    java_name: LIQUIDATION
+    display: 清算
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: BusinessLicenseEffectiveEnum
+  kind: enum
+  field: business_license_effective
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/BusinessLicenseEffectiveEnum.java
+  values:
+  - value: "0"
+    java_name: "YES"
+    display: 永久
+    accessors: {}
+    stored_as: dictKey
+  - value: "1"
+    java_name: "NO"
+    display: 有效期限
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: ConfirmationModeEnum
+  kind: enum
+  field: confirmation_mode
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/ConfirmationModeEnum.java
+  values:
+  - value: "00"
+    java_name: ON_LINE
+    display: 线上模式
+    accessors: {}
+    stored_as: dictKey
+  - value: "01"
+    java_name: OFF_LINE
+    display: 线下模式
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustAutoCheckTypeEnum
+  kind: enum
+  field: cust_auto_check_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustAutoCheckTypeEnum.java
+  values:
+  - value: info
+    java_name: INFO
+    display: 信息核查
+    accessors: {}
+    stored_as: dictKey
+  - value: media
+    java_name: MEDIA
+    display: 影像核查
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBuildModelEnum
+  kind: enum
+  field: cust_build_model
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustBuildModelEnum.java
+  values:
+  - value: auto_build
+    java_name: AUTO_BUILD
+    display: 自主建档
+    accessors: {}
+    stored_as: dictKey
+  - value: manual_build
+    java_name: MANUAL_BUILD
+    display: 非自主建档
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBuildStatusEnum
+  kind: enum
+  field: cust_build_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustBuildStatusEnum.java
+  values:
+  - value: INIT
+    java_name: INIT
+    display: 初始化
+    accessors:
+      getDictKey: 28
+    stored_as: same
+  - value: TO_BE_BUILD
+    java_name: TO_BE_BUILD
+    display: 未建档
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  - value: BUILDING
+    java_name: BUILDING
+    display: 建档中
+    accessors:
+      getDictKey: 6
+    stored_as: same
+  - value: BUILD_SUCCESS
+    java_name: BUILD_SUCCESS
+    display: 认证成功
+    accessors:
+      getDictKey: 87
+      getDictParam: 1
+      name: 5
+    stored_as: same
+  - value: BUILD_FAIL
+    java_name: BUILD_FAIL
+    display: 认证失败
+    accessors:
+      getDictKey: 27
+      name: 5
+    stored_as: same
+  - value: BUILD_BACK
+    java_name: BUILD_BACK
+    display: 退回
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: BUILD_ACTIVATE
+    java_name: BUILD_ACTIVATE
+    display: 待激活
+    accessors: {}
+    stored_as: same
+  - value: CUST_CONFIRM_AWAIT
+    java_name: CUST_CONFIRM_AWAIT
+    display: 待客户认证
+    accessors:
+      getDictKey: 20
+    stored_as: same
+  - value: CUST_AUDIT_AWAIT
+    java_name: CUST_AUDIT_AWAIT
+    display: 待审核
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: CUST_BUILDING
+    java_name: CUST_BUILDING
+    display: 审核中
+    accessors:
+      getDictKey: 13
+      getDictParam: 1
+    stored_as: same
+  - value: CUST_BUILD_SUCCESS
+    java_name: CUST_BUILD_SUCCESS
+    display: 审核通过
+    accessors:
+      getDictKey: 6
+    stored_as: same
+  - value: CUST_BUILD_FAIL
+    java_name: CUST_BUILD_FAIL
+    display: 审核拒绝
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: CUST_CHANGE
+    java_name: CUST_CHANGE
+    display: 变更
+    accessors:
+      getDictKey: 23
+      name: 2
+    stored_as: same
+  - value: AWAIT_CUST_CONFIRM
+    java_name: AWAIT_CUST_CONFIRM
+    display: 待客户确认
+    accessors:
+      getDictKey: 6
+    stored_as: same
+  setter_fields:
+  - check_status
+  - cust_build_status
+  - has_build_success
+  - progress
+  convention_mismatch: false
+- enum: CustCertificationEnum
+  kind: enum
+  field: cust_certification
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationEnum.java
+  values:
+  - value: "01"
+    java_name: COMPANY_FOURELEMENTS_CERTIFICATION
+    display: 企业四要素认证
+    accessors: {}
+    stored_as: dictKey
+  - value: "02"
+    java_name: LEGAL_THREEELEMENTS_CERTIFICATION
+    display: 法人三要素认证
+    accessors: {}
+    stored_as: dictKey
+  - value: "03"
+    java_name: COMPANY_FOURELEMENTS_LEGAL_THREEELEMENTS_CERTIFICATION
+    display: 企业四要素，法人三要素
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustCertificationResultTypeEnum
+  kind: enum
+  field: cust_certification_result_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationResultTypeEnum.java
+  values:
+  - value: TO_BE_VERIFIED
+    java_name: TO_BE_VERIFIED
+    display: 待核查
+    accessors:
+      getDictKey: 7
+      getDictParam: 1
+    stored_as: same
+  - value: AUTOMATIC_AUTHENTICATION_PASSED
+    java_name: AUTOMATIC_AUTHENTICATION_PASSED
+    display: 自动认证通过
+    accessors:
+      getDictKey: 15
+      getDictParam: 5
+      getDisplayName: 1
+    stored_as: same
+  - value: AUTOMATIC_AUTHENTICATION_FAILED
+    java_name: AUTOMATIC_AUTHENTICATION_FAILED
+    display: 自动认证不通过
+    accessors:
+      getDictParam: 4
+      getDictKey: 2
+    stored_as: same
+  - value: MANUAL_AUTHENTICATION_PASSED
+    java_name: MANUAL_AUTHENTICATION_PASSED
+    display: 人工认证通过
+    accessors:
+      getDictKey: 12
+      getDisplayName: 2
+      getDictParam: 1
+    stored_as: same
+  - value: MANUAL_AUTHENTICATION__FAILED
+    java_name: MANUAL_AUTHENTICATION__FAILED
+    display: 人工认证不通过
+    accessors: {}
+    stored_as: same
+  - value: NO_RECORD
+    java_name: NO_RECORD
+    display: 库无记录
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields:
+  - auto_check_msg
+  - auto_check_result
+  - auto_verify_status
+  - face_status
+  - phone_realname_status
+  convention_mismatch: true
+- enum: CustCertificationTypeEnum
+  kind: enum
+  field: cust_certification_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationTypeEnum.java
+  values:
+  - value: COMPANY_FOUR_ELEMENTS
+    java_name: COMPANY_FOUR_ELEMENTS
+    display: 企业工商（四要素）认证
+    accessors: {}
+    stored_as: same
+  - value: COMPANY_TWO_ELEMENTS
+    java_name: COMPANY_TWO_ELEMENTS
+    display: 企业工商（二要素）认证
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_THREE_ELEMENTS
+    java_name: LEGAL_THREE_ELEMENTS
+    display: 法人三要素认证
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_REAL_NAME
+    java_name: LEGAL_REAL_NAME
+    display: 法人实名认证
+    accessors: {}
+    stored_as: same
+  - value: FACE_VERIFY
+    java_name: FACE_VERIFY
+    display: 人脸识别认证
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: AUTH_THREE_ELEMENTS
+    java_name: AUTH_THREE_ELEMENTS
+    display: 客户管理员三要素认证
+    accessors: {}
+    stored_as: same
+  - value: AUTH_REAL_NAME
+    java_name: AUTH_REAL_NAME
+    display: 客户管理员实名认证
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_OCR
+    java_name: LEGAL_OCR
+    display: 法人身份证OCR比对
+    accessors:
+      getDictParam: 1
+    stored_as: same
+  - value: AUTH_OCR
+    java_name: AUTH_OCR
+    display: 客户管理员身份证OCR比对
+    accessors: {}
+    stored_as: same
+  - value: LICENSE_OCR
+    java_name: LICENSE_OCR
+    display: 营业执照OCR比对
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_MEDIA_OCR
+    java_name: LEGAL_MEDIA_OCR
+    display: 法人证件核查比对
+    accessors: {}
+    stored_as: same
+  - value: AUTH_MEDIA_OCR
+    java_name: AUTH_MEDIA_OCR
+    display: 客户管理员证件核查比对
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - certification_type
+  - check_type
+  convention_mismatch: true
+- enum: CustGroupEnum
+  kind: enum
+  field: cust_group
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustGroupEnum.java
+  values:
+  - value: "01"
+    java_name: WITHIN_GROUP
+    display: 集团内企业
+    accessors: {}
+    stored_as: dictKey
+  - value: "02"
+    java_name: OUTSIDE_GROUP
+    display: 集团外企业
+    accessors: {}
+    stored_as: dictKey
+  - value: "03"
+    java_name: ALL
+    display: 所有
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustGroupRelStatusEnum
+  kind: enum
+  field: cust_group_rel_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustGroupRelStatusEnum.java
+  values:
+  - value: INEFFECTIVE
+    java_name: INEFFECTIVE
+    display: 未生效
+    accessors:
+      getDictKey: 9
+    stored_as: same
+  - value: EFFECTIVE
+    java_name: EFFECTIVE
+    display: 已生效
+    accessors:
+      getDictKey: 5
+    stored_as: same
+  - value: REJECTED
+    java_name: REJECTED
+    display: 已拒绝
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields:
+  - status
+  convention_mismatch: true
+- enum: CustIndustryEnum
+  kind: enum
+  field: cust_industry
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustIndustryEnum.java
+  values:
+  - value: AHAAHF
+    java_name: AHAAHF
+    display: 农、林、牧、渔业
+    accessors: {}
+    stored_as: same
+  - value: MINING_INDUSTRY
+    java_name: MINING_INDUSTRY
+    display: 采矿业
+    accessors: {}
+    stored_as: same
+  - value: MANUFACTURING_INDUSTRY
+    java_name: MANUFACTURING_INDUSTRY
+    display: 制造业
+    accessors: {}
+    stored_as: same
+  - value: PSHGW
+    java_name: PSHGW
+    display: 电力、热力、燃气及水生产和供应业
+    accessors: {}
+    stored_as: same
+  - value: BUILDING_INDUSTRY
+    java_name: BUILDING_INDUSTRY
+    display: 建筑业
+    accessors: {}
+    stored_as: same
+  - value: WHOLESALES_RETAIL_TRADE
+    java_name: WHOLESALES_RETAIL_TRADE
+    display: 批发和零售业
+    accessors: {}
+    stored_as: same
+  - value: "TRANSPORTATION_WAREHOUSING_POSTAL "
+    java_name: TRANSPORTATION_WAREHOUSING_POSTAL
+    display: 交通运输、仓储和邮政业
+    accessors: {}
+    stored_as: dictKey
+  - value: HOTEL_CATERING_SECTORS
+    java_name: HOTEL_CATERING_SECTORS
+    display: 住宿和餐饮业
+    accessors: {}
+    stored_as: same
+  - value: ITSITS
+    java_name: ITSITS
+    display: 信息传输、软件和信息技术服务业
+    accessors: {}
+    stored_as: same
+  - value: FINANCIAL_INDUSTRY
+    java_name: FINANCIAL_INDUSTRY
+    display: 金融业
+    accessors: {}
+    stored_as: same
+  - value: REAL_ESTATE
+    java_name: REAL_ESTATE
+    display: 房地产业
+    accessors: {}
+    stored_as: same
+  - value: LEASING_AND_BUSINESS
+    java_name: LEASING_AND_BUSINESS
+    display: 租赁和商务服务业
+    accessors: {}
+    stored_as: same
+  - value: SRTS
+    java_name: SRTS
+    display: 科学研究和技术服务业
+    accessors: {}
+    stored_as: same
+  - value: WCEPFM
+    java_name: WCEPFM
+    display: 水利、环境和公共设施管理业
+    accessors: {}
+    stored_as: same
+  - value: RSROS
+    java_name: RSROS
+    display: 居民服务、修理和其他服务业
+    accessors: {}
+    stored_as: same
+  - value: EDUCATE
+    java_name: EDUCATE
+    display: 教育
+    accessors: {}
+    stored_as: same
+  - value: HEALTH_AND_SOCIAL_WORK
+    java_name: HEALTH_AND_SOCIAL_WORK
+    display: 卫生和社会工作
+    accessors: {}
+    stored_as: same
+  - value: CULTURE_SPORTS_AND_ENTERTAINMENT
+    java_name: CULTURE_SPORTS_AND_ENTERTAINMENT
+    display: 文化、体育和娱乐业
+    accessors: {}
+    stored_as: same
+  - value: PASSASO
+    java_name: PASSASO
+    display: 公共管理、社会保障和社会组织
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustOcrTypeEnum
+  kind: enum
+  field: cust_ocr_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustOcrTypeEnum.java
+  values:
+  - value: BIZ_LICENSE
+    java_name: BIZ_LICENSE
+    display: 营业执照
+    accessors: {}
+    stored_as: same
+  - value: ENTER_AUTH_LETTER
+    java_name: ENTER_AUTH_LETTER
+    display: 企业授权书
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_FRONT
+    java_name: LEGAL_FRONT
+    display: 法定代表人身份证人像面
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_BACK
+    java_name: LEGAL_BACK
+    display: 法定代表人身份证国徽面
+    accessors: {}
+    stored_as: same
+  - value: AUTH_FRONT
+    java_name: AUTH_FRONT
+    display: 被授权人身份证人像面
+    accessors: {}
+    stored_as: same
+  - value: AUTH_BACK
+    java_name: AUTH_BACK
+    display: 被授权人身份证国徽面
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustScaleEnum
+  kind: enum
+  field: cust_scale
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustScaleEnum.java
+  values:
+  - value: LARGE
+    java_name: LARGE
+    display: 大型企业
+    accessors: {}
+    stored_as: same
+  - value: MIDDLE
+    java_name: MIDDLE
+    display: 中型企业
+    accessors: {}
+    stored_as: same
+  - value: SMALL
+    java_name: SMALL
+    display: 小型企业
+    accessors: {}
+    stored_as: same
+  - value: MINIATURE
+    java_name: MINIATURE
+    display: 微型企业
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustSourceEnum
+  kind: enum
+  field: cust_source
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustSourceEnum.java
+  values:
+  - value: PLATFORM_PUSH
+    java_name: PLATFORM_PUSH
+    display: 运营中台推送
+    accessors:
+      getDictKey: 11
+    stored_as: same
+  - value: MIGRATORY
+    java_name: MIGRATORY
+    display: 存量迁移企业
+    accessors:
+      getDictKey: 6
+    stored_as: same
+  - value: PPLATFORM
+    java_name: PPLATFORM
+    display: 产融自建企业
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  setter_fields:
+  - cust_source
+  convention_mismatch: false
+- enum: CustStatusEnum
+  kind: enum
+  field: cust_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustStatusEnum.java
+  values:
+  - value: ADD
+    java_name: ADD
+    display: 新增
+    accessors:
+      getDictKey: 23
+    stored_as: same
+  - value: EFFECT
+    java_name: EFFECT
+    display: 生效
+    accessors:
+      getDictKey: 30
+    stored_as: same
+  - value: FAILURE
+    java_name: FAILURE
+    display: 失效
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: WRITEOFF
+    java_name: WRITEOFF
+    display: 注销
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  - value: FREEZE
+    java_name: FREEZE
+    display: 冻结
+    accessors: {}
+    stored_as: same
+  - value: CHANGE
+    java_name: CHANGE
+    display: 变更
+    accessors:
+      getDictKey: 39
+      name: 1
+    stored_as: same
+  setter_fields:
+  - cust_status
+  - status
+  - type_status
+  convention_mismatch: false
+- enum: CustTypeEnum
+  kind: enum
+  field: cust_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustTypeEnum.java
+  values:
+  - value: "1"
+    java_name: INDIVIDUALS
+    display: 个人客户
+    accessors:
+      getDictKey: 6
+    stored_as: dictKey
+  - value: "2"
+    java_name: ENTERPRISE
+    display: 企业客户
+    accessors:
+      getDictKey: 8
+    stored_as: dictKey
+  - value: "3"
+    java_name: OP_ENTERPRISE
+    display: 运营方企业客户
+    accessors: {}
+    stored_as: dictKey
+  - value: "4"
+    java_name: ENTERPRISEALL
+    display: 企业客户
+    accessors:
+      getDictKey: 2
+    stored_as: dictKey
+  setter_fields:
+  - cust_type
+  convention_mismatch: false
+- enum: DigitalCertificateModelEnum
+  kind: enum
+  field: digital_certificate_model
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/DigitalCertificateModelEnum.java
+  values:
+  - value: "00"
+    java_name: U_KEY
+    display: U-key
+    accessors: {}
+    stored_as: dictKey
+  - value: "01"
+    java_name: SCENE_MODE_CERTIFICATE
+    display: 场景模式证书
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: IndustryTypeEnum
+  kind: enum
+  field: industry_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/IndustryTypeEnum.java
+  values:
+  - value: A0000
+    java_name: A0000
+    display: 农、林、牧、渔业
+    accessors: {}
+    stored_as: same
+  - value: B0000
+    java_name: B0000
+    display: 采矿业
+    accessors: {}
+    stored_as: same
+  - value: C0000
+    java_name: C0000
+    display: 制造业
+    accessors: {}
+    stored_as: same
+  - value: C0000
+    java_name: D0000
+    display: 电力、热力、燃气及水生产和供应业
+    accessors: {}
+    stored_as: dictKey
+  - value: C0000
+    java_name: E0000
+    display: 建筑业
+    accessors: {}
+    stored_as: dictKey
+  - value: C0000
+    java_name: F0000
+    display: 批发和零售业
+    accessors: {}
+    stored_as: dictKey
+  - value: C0000
+    java_name: G0000
+    display: 交通运输、仓储和邮政业
+    accessors: {}
+    stored_as: dictKey
+  - value: H0000
+    java_name: H0000
+    display: 住宿和餐饮业
+    accessors: {}
+    stored_as: same
+  - value: I0000
+    java_name: I0000
+    display: 信息传输、软件和信息技术服务业
+    accessors: {}
+    stored_as: same
+  - value: J0000
+    java_name: J0000
+    display: 金融业
+    accessors: {}
+    stored_as: same
+  - value: K0000
+    java_name: K0000
+    display: 房地产业
+    accessors: {}
+    stored_as: same
+  - value: L0000
+    java_name: L0000
+    display: 租赁和商务服务业
+    accessors: {}
+    stored_as: same
+  - value: M0000
+    java_name: M0000
+    display: 科学研究和技术服务业
+    accessors: {}
+    stored_as: same
+  - value: N0000
+    java_name: N0000
+    display: 水利、环境和公共设施管理业
+    accessors: {}
+    stored_as: same
+  - value: O0000
+    java_name: O0000
+    display: 居民服务、修理和其他服务业
+    accessors: {}
+    stored_as: same
+  - value: P0000
+    java_name: P0000
+    display: 教育
+    accessors: {}
+    stored_as: same
+  - value: Q0000
+    java_name: Q0000
+    display: 卫生和社会工作
+    accessors: {}
+    stored_as: same
+  - value: R0000
+    java_name: R0000
+    display: 文化、体育和娱乐业
+    accessors: {}
+    stored_as: same
+  - value: S0000
+    java_name: S0000
+    display: 公共管理、社会保障和社会组织
+    accessors: {}
+    stored_as: same
+  - value: T0000
+    java_name: T0000
+    display: 国际组织
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: PaymentChannelEnum
+  kind: enum
+  field: payment_channel
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/PaymentChannelEnum.java
+  values:
+  - value: "00"
+    java_name: ON_LINE
+    display: 线上放款
+    accessors: {}
+    stored_as: dictKey
+  - value: "01"
+    java_name: OFF_LINE
+    display: 线下放款
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProductServiceEnum
+  kind: enum
+  field: product_service
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/ProductServiceEnum.java
+  values:
+  - value: ACFLOW
+    java_name: ACFLOW
+    display: 多级流转
+    accessors: {}
+    stored_as: same
+  - value: FACTOR
+    java_name: FACTOR
+    display: 保理
+    accessors: {}
+    stored_as: same
+  - value: ABS
+    java_name: ABS
+    display: ABS
+    accessors: {}
+    stored_as: same
+  - value: COMMON
+    java_name: COMMON
+    display: 公共
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: RealNameResultEnum
+  kind: enum
+  field: real_name_result
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RealNameResultEnum.java
+  values:
+  - value: INIT
+    java_name: INIT
+    display: 未认证
+    accessors: {}
+    stored_as: same
+  - value: VERIFIED_SUCCESS
+    java_name: VERIFIED_SUCCESS
+    display: 认证成功
+    accessors:
+      getDictKey: 5
+    stored_as: same
+  - value: VERIFIED_FAILED
+    java_name: VERIFIED_FAILED
+    display: 认证失败
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - real_name_result
+  convention_mismatch: false
+- enum: ReceivePaymentTypeEnum
+  kind: enum
+  field: receive_payment_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/ReceivePaymentTypeEnum.java
+  values:
+  - value: "1"
+    java_name: RECEIVE_PAYMENT
+    display: 收款
+    accessors: {}
+    stored_as: dictKey
+  - value: "2"
+    java_name: PAYMENT
+    display: 付款
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: RuleLayerEnum
+  kind: enum
+  field: rule_layer
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleLayerEnum.java
+  values:
+  - value: UNDERLYING
+    java_name: UNDERLYING
+    display: 底层规则
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: FINANCING
+    java_name: FINANCING
+    display: 融资规则
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: OTHER
+    java_name: OTHER
+    display: 其他规则
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: RuleStatusEnum
+  kind: enum
+  field: rule_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleStatusEnum.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: 待生效
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: ACTIVE
+    java_name: ACTIVE
+    display: 生效中
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  - value: INACTIVE
+    java_name: INACTIVE
+    display: 已失效
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields:
+  - rule_status
+  convention_mismatch: false
+- enum: StatusEnum
+  kind: enum
+  field: status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/StatusEnum.java
+  values:
+  - value: EFFECTIVE
+    java_name: EFFECTIVE
+    display: 有效
+    accessors: {}
+    stored_as: same
+  - value: INVALID
+    java_name: INVALID
+    display: 无效
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: UserCompanyStatusEnum
+  kind: enum
+  field: user_company_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/UserCompanyStatusEnum.java
+  values:
+  - value: UN_AUTH
+    java_name: UN_AUTH
+    display: 未认证
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: AUTHING
+    java_name: AUTHING
+    display: 认证中
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: AUTH_FAIL
+    java_name: AUTH_FAIL
+    display: 认证失败
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: AUTH_SUCCESS
+    java_name: AUTH_SUCCESS
+    display: 已认证
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  setter_fields:
+  - user_company_status
+  convention_mismatch: false
+- enum: WechatProductTypeEnum
+  kind: enum
+  field: wechat_product_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/WechatProductTypeEnum.java
+  values:
+  - value: "1"
+    java_name: VOUCHER_DIRECT
+    display: 凭证-直保
+    accessors: {}
+    stored_as: dictKey
+  - value: "2"
+    java_name: VOUCHER_REINSURANCE
+    display: 凭证-再保
+    accessors: {}
+    stored_as: dictKey
+  - value: "3"
+    java_name: VOUCHER_PLEDGE
+    display: 凭证-质押
+    accessors: {}
+    stored_as: dictKey
+  - value: "4"
+    java_name: ONLINE_FACTORING_DIRECT
+    display: 线上保理-直保
+    accessors: {}
+    stored_as: dictKey
+  - value: "5"
+    java_name: ONLINE_FACTORING_REINSURANCE
+    display: 线上保理-再保
+    accessors: {}
+    stored_as: dictKey
+  - value: "6"
+    java_name: ONLINE_FACTORING_PLEDGE
+    display: 线上保理-质押
+    accessors: {}
+    stored_as: dictKey
+  - value: "7"
+    java_name: CROSS_BORDER_FACTORING
+    display: 跨境保理
+    accessors: {}
+    stored_as: dictKey
+  - value: "8"
+    java_name: SUPPLY_CHAIN_NOTE
+    display: 供应链票据
+    accessors: {}
+    stored_as: dictKey
+  - value: "9"
+    java_name: DOMESTIC_LC
+    display: 国内信用证
+    accessors: {}
+    stored_as: dictKey
+  - value: "10"
+    java_name: ORDER_FINANCING
+    display: 订单融资
+    accessors: {}
+    stored_as: dictKey
+  - value: "11"
+    java_name: DEALER_FINANCING
+    display: 经销商融资
+    accessors: {}
+    stored_as: dictKey
+  - value: "12"
+    java_name: OTHER
+    display: 其他（具体在项目描述中说明）
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: PlatformClientViewFilterTypeEnum
+  kind: enum
+  field: platform_client_view_filter_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/PlatformClientViewFilterTypeEnum.java
+  values:
+  - value: default
+    java_name: BY_PRODUCT
+    display: 按产品展示
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: CompanyType
+    java_name: BY_COMPANY_TYPE
+    display: 按企业角色展示
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: PlatformProductTypeEnum
+  kind: enum
+  field: platform_product_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/PlatformProductTypeEnum.java
+  values:
+  - value: GENERAL
+    java_name: GENERAL
+    display: 通用产品
+    accessors:
+      getDictKey: 8
+    stored_as: same
+  - value: INTERWORKING
+    java_name: INTERWORKING
+    display: 互通产品
+    accessors:
+      getDictKey: 7
+    stored_as: same
+  - value: "2"
+    java_name: ALL
+    display: 全部产品
+    accessors: {}
+    stored_as: dictKey
+  setter_fields:
+  - product_type
+  convention_mismatch: true
+- enum: ProductAggrementCreationTypeEnum
+  kind: enum
+  field: product_aggrement_creation_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductAggrementCreationTypeEnum.java
+  values:
+  - value: "0"
+    java_name: SIGN_NEED_NOT
+    display: 无需签署
+    accessors: {}
+    stored_as: dictKey
+  - value: "1"
+    java_name: NEED_READ
+    display: 需阅读
+    accessors: {}
+    stored_as: dictKey
+  - value: "2"
+    java_name: SIGN_NEED
+    display: 需签署
+    accessors: {}
+    stored_as: dictKey
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProductOpenStatusEnum
+  kind: enum
+  field: product_open_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductOpenStatusEnum.java
+  values:
+  - value: "Y"
+    java_name: "Y"
+    display: 已开通
+    accessors:
+      getDictKey: 11
+    stored_as: same
+  - value: P
+    java_name: P
+    display: 开通中
+    accessors:
+      getDictKey: 3
+    stored_as: same
+  - value: "N"
+    java_name: "N"
+    display: 未开通
+    accessors:
+      getDictKey: 4
+    stored_as: same
+  setter_fields:
+  - open_status
+  convention_mismatch: true
+- enum: ProductScopeEnum
+  kind: enum
+  field: product_scope
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductScopeEnum.java
+  values:
+  - value: ALL
+    java_name: ALL
+    display: 全部
+    accessors: {}
+    stored_as: same
+  - value: SOME
+    java_name: SOME
+    display: 特定范围
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProductStatusEnum
+  kind: enum
+  field: product_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductStatusEnum.java
+  values:
+  - value: "0"
+    java_name: TO_BE_EFFECTIVE
+    display: 待生效
+    accessors: {}
+    stored_as: dictKey
+  - value: "1"
+    java_name: EFFECTIVE
+    display: 已生效
+    accessors:
+      getDictKey: 3
+    stored_as: dictKey
+  setter_fields:
+  - product_status
+  convention_mismatch: false
+- enum: ProjectApprovalFlowCodeEnum
+  kind: enum
+  field: project_approval_flow_code
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalFlowCodeEnum.java
+  values:
+  - value: NO_ONLINE
+    java_name: NO_ONLINE
+    display: 无需上线审批
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: STANDARD
+    java_name: STANDARD
+    display: 标准项目流程
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: REGULAR
+    java_name: REGULAR
+    display: 常规项目流程
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectApprovalMediaCatgEnum
+  kind: enum
+  field: project_approval_media_catg
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalMediaCatgEnum.java
+  values:
+  - value: FBP_PROJECT_CONFIG
+    java_name: PROJECT_CONFIG
+    display: 项目配置文件
+    accessors:
+      getDictKey: 2
+    stored_as: dictKey
+  - value: FBP_AGREEMENT
+    java_name: AGREEMENT
+    display: 合作协议/额度佐证文件
+    accessors:
+      getDictKey: 3
+      getDisplayName: 2
+    stored_as: dictKey
+  - value: FBP_ONLINE_APPROVAL
+    java_name: ONLINE_APPROVAL
+    display: 项目上线审批文件
+    accessors: {}
+    stored_as: dictKey
+  - value: FBP_OA_PROJECT
+    java_name: OA_PROJECT
+    display: 项目配置表
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: FBP_OA_LEGAL_TEXT
+    java_name: OA_LEGAL_TEXT
+    display: 法律文本/文本清单
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: FBP_OA_BUSI_PRICE
+    java_name: OA_BUSI_PRICE
+    display: 商务批复报价
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: FBP_OA_WHITE
+    java_name: OA_WHITE
+    display: 白名单/批复截图
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: FBP_OA_LOAN
+    java_name: OA_LOAN
+    display: 自有资金放款模式要素
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: FBP_OA_COMMENT_FILE
+    java_name: OA_COMMENT_FILE
+    display: 审批备注追加文件
+    accessors:
+      getDictKey: 2
+      getDisplayName: 1
+    stored_as: dictKey
+  - value: FBP_OA_ATTACHMENT
+    java_name: FBP_OA_ATTACHMENT
+    display: 审批附件
+    accessors:
+      getDictKey: 1
+      getDisplayName: 1
+    stored_as: same
+  setter_fields:
+  - catg_id
+  - catg_name
+  convention_mismatch: true
+- enum: ProjectApprovalNodeCodeEnum
+  kind: enum
+  field: project_approval_node_code
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeCodeEnum.java
+  values:
+  - value: PROJECT_CONFIG
+    java_name: PROJECT_CONFIG
+    display: 方案配置
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  - value: PROJECT_MANAGER
+    java_name: PROJECT_MANAGER
+    display: 方案经理
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  - value: LEGAL_PROCESS
+    java_name: LEGAL_PROCESS
+    display: 法务经办
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: LEGAL_REVIEW
+    java_name: LEGAL_REVIEW
+    display: 法务复核
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: BUSINESS_MANAGER
+    java_name: BUSINESS_MANAGER
+    display: 业务经理审批
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: OPERATION
+    java_name: OPERATION
+    display: 运营审批
+    accessors: {}
+    stored_as: same
+  - value: OTHER
+    java_name: OTHER
+    display: 其他
+    accessors: {}
+    stored_as: same
+  - value: SUPPLEMENT_AGREEMENT
+    java_name: SUPPLEMENT_AGREEMENT
+    display: 补充协议
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - node_code
+  convention_mismatch: true
+- enum: ProjectApprovalNodeStatusEnum
+  kind: enum
+  field: project_approval_node_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeStatusEnum.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: 待审批
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: APPROVING
+    java_name: APPROVING
+    display: 审批中
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: APPROVED
+    java_name: APPROVED
+    display: 已通过
+    accessors: {}
+    stored_as: same
+  - value: REJECTED
+    java_name: REJECTED
+    display: 已拒绝
+    accessors: {}
+    stored_as: same
+  setter_fields:
+  - node_status
+  convention_mismatch: true
+- enum: ProjectApprovalOperateTypeEnum
+  kind: enum
+  field: project_approval_operate_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalOperateTypeEnum.java
+  values:
+  - value: pass
+    java_name: PASS
+    display: 同意
+    accessors:
+      getDictKey: 3
+    stored_as: dictKey
+  - value: reject
+    java_name: REJECT
+    display: 驳回
+    accessors:
+      getDictKey: 2
+    stored_as: dictKey
+  - value: back
+    java_name: BACK
+    display: 退回
+    accessors:
+      getDictKey: 2
+    stored_as: dictKey
+  - value: delegate
+    java_name: DELEGATE
+    display: 转审
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  - value: revoke
+    java_name: REVOKE
+    display: 撤销
+    accessors:
+      getDictKey: 1
+    stored_as: dictKey
+  setter_fields:
+  - operate_type
+  convention_mismatch: true
+- enum: ProjectApprovalProjectTypeEnum
+  kind: enum
+  field: project_approval_project_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalProjectTypeEnum.java
+  values:
+  - value: STANDARD
+    java_name: STANDARD
+    display: 标准项目
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: REGULAR
+    java_name: REGULAR
+    display: 常规项目
+    accessors:
+      getDictKey: 2
+    stored_as: same
+  setter_fields:
+  - project_type_name
+  convention_mismatch: true
+- enum: ProjectApprovalTypeEnum
+  kind: enum
+  field: project_approval_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalTypeEnum.java
+  values:
+  - value: ONLINE_APPROVAL
+    java_name: ONLINE_APPROVAL
+    display: 项目上线审批
+    accessors:
+      getDisplayName: 6
+      getDictKey: 7
+    stored_as: same
+  - value: BACK_AGREEMENT
+    java_name: BACK_AGREEMENT
+    display: 后补合作协议
+    accessors:
+      getDisplayName: 4
+      getDictKey: 4
+    stored_as: same
+  setter_fields:
+  - approval_type
+  convention_mismatch: true
+- enum: ProjectApprovalWorkflowStatusEnum
+  kind: enum
+  field: project_approval_workflow_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalWorkflowStatusEnum.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: 待发起
+    accessors:
+      getDictKey: 5
+    stored_as: same
+  - value: RUNNING
+    java_name: RUNNING
+    display: 审批中
+    accessors:
+      getDictKey: 8
+    stored_as: same
+  - value: FINISHED
+    java_name: FINISHED
+    display: 审批通过
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: TERMINATED
+    java_name: TERMINATED
+    display: 审批拒绝
+    accessors:
+      getDictKey: 1
+    stored_as: same
+  - value: REVOKED
+    java_name: REVOKED
+    display: 审批撤销
+    accessors:
+      getDictKey: 4
+    stored_as: same
+  setter_fields:
+  - wf_status
+  convention_mismatch: true
+- enum: ProjectStatusEnum
+  kind: enum
+  field: project_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java
+  values:
+  - value: "0"
+    java_name: TO_BE_EFFECTIVE
+    display: 待生效
+    accessors:
+      getDictKey: 2
+    stored_as: dictKey
+  - value: "1"
+    java_name: EFFECTIVE
+    display: 已生效
+    accessors:
+      getDictKey: 17
+    stored_as: dictKey
+  - value: "2"
+    java_name: INVLIAD
+    display: 已失效
+    accessors:
+      getDictKey: 5
+    stored_as: dictKey
+  setter_fields:
+  - project_status
+  convention_mismatch: false
+- enum: SyncOperationOperatorTypeEnum
+  kind: enum
+  field: sync_operation_operator_type
+  path: lowcode-pplatform-customer-provider/src/main/java/com/lls/lowcode/pplatform/cust/provider/cust/enums/SyncOperationOperatorTypeEnum.java
+  values:
+  - value: INSERT
+    java_name: INSERT
+    display: 新增
+    accessors: {}
+    stored_as: same
+  - value: UPDATE
+    java_name: UPDATE
+    display: 修改
+    accessors: {}
+    stored_as: same
+  - value: DELETE
+    java_name: DELETE
+    display: 删除
+    accessors: {}
+    stored_as: same
+  - value: FREEZE
+    java_name: FREEZE
+    display: 冻结
+    accessors: {}
+    stored_as: same
+  - value: THAW
+    java_name: THAW
+    display: 解冻
+    accessors: {}
+    stored_as: same
+  setter_fields: []
+  convention_mismatch: false
+constant_enums:
+- enum: OpenApiCallbackConstants
+  kind: class
+  field: open_api_callback
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/callback/OpenApiCallbackConstants.java
+  values:
+  - value: CR_PLATFROM
+    java_name: PRODUCT_CODE
+    display: 产品编码，和 api-platform 平台上的产品编码一致。
+    accessors: {}
+    stored_as: dictKey
+  - value: OPERATOR
+    java_name: EVENT_OPERATOR
+    display: LT-05 产融推送供应商经办人。
+    accessors: {}
+    stored_as: dictKey
+  - value: ARCHIVE
+    java_name: EVENT_ARCHIVE
+    display: LT-06 建档 / 激活结果同步。
+    accessors: {}
+    stored_as: dictKey
+  - value: CHANGE
+    java_name: EVENT_CHANGE
+    display: 直推变更结果出站。
+    accessors: {}
+    stored_as: dictKey
+  - value: SIGN
+    java_name: EVENT_SIGN
+    display: 签署拦截出站。
+    accessors: {}
+    stored_as: dictKey
+- enum: AgreementDocConstant
+  kind: class
+  field: agreement_doc
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/constants/AgreementDocConstant.java
+  values:
+  - value: ProductProtocolStorage
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_STORAGE
+    display: 存货易融
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolVoucher
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_VOUCHER
+    display: 票据易融
+    accessors: {}
+    stored_as: dictKey
+  - value: CustPersonLicense
+    java_name: DATA_SOURCE_CUST_PERSON_LICENSE
+    display: 授权书
+    accessors: {}
+    stored_as: dictKey
+  - value: BS_Auth
+    java_name: DATA_SOURCE_BS_AUTH
+    display: 上上签协议
+    accessors: {}
+    stored_as: dictKey
+  - value: CFCA_Auth
+    java_name: DATA_SOURCE_CFCA_AUTH
+    display: cfca协议
+    accessors: {}
+    stored_as: dictKey
+  - value: UserProtocol
+    java_name: DATA_SOURCE_USER_PROTOCOL
+    display: 用户协议
+    accessors: {}
+    stored_as: dictKey
+  - value: AcflowUserProtocol
+    java_name: ACFLOW_DATA_SOURCE_USER_PROTOCOL
+    display: 用户协议
+    accessors: {}
+    stored_as: dictKey
+  - value: PrivacyPolicy
+    java_name: DATA_SOURCE_PRIVACY_POLICY
+    display: 隐私协议
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolAcflow
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_ACFLOW
+    display: 产品协议融易单
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolAms
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_AMS
+    display: 产品协议ams
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolBeecredit
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_BEECREDIT
+    display: 平台产品协议-国内信用证
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolOrder
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_ORDER
+    display: 平台产品协议-订单融资
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolRvsfactor_PC
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_RVSFACTOR_PC
+    display: 平台产品协议-线上保理
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolDealer
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_DEALER
+    display: 平台产品协议-经销商
+    accessors: {}
+    stored_as: dictKey
+  - value: AR_EVOUCHER_COMMIT_LETTER
+    java_name: AR_EVOUCHER_COMMIT_LETTER
+    display: 《应收账款电子凭证业务承诺函》
+    accessors: {}
+    stored_as: same
+  - value: AR_EVOUCHER_REPORT_DISCLOSE_AUTH
+    java_name: AR_EVOUCHER_REPORT_DISCLOSE_AUTH
+    display: 《应收账款电子凭证业务信息报送和披露授权书》
+    accessors: {}
+    stored_as: same
+  - value: ELEC_DEBT_FACTOR_SERVICE_AGR
+    java_name: ELEC_DEBT_FACTOR_SERVICE_AGR
+    display: 《电子债权凭证/保理产品及服务协议》
+    accessors: {}
+    stored_as: same
+  - value: EVOUCHER_FACTOR_ITEM_CONFIRM
+    java_name: EVOUCHER_FACTOR_ITEM_CONFIRM
+    display: 《凭证项目要素确认表》
+    accessors: {}
+    stored_as: same
+- enum: PlatformConstant
+  kind: interface
+  field: platform
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/constant/PlatformConstant.java
+  values:
+  - value: "75bd8802dd474f15b72b0fddb26b6fb7"
+    java_name: PLATFORM_LOWCODE_PROJECT_CODE
+    display: "75bd8802dd474f15b72b0fddb26b6fb7"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "999999999"
+    java_name: PLATFORM_COMPANY_ID
+    display: "999999999"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: pplatform
+    java_name: PPLATFORM_SYSTEM
+    display: pplatform
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: APASS_TENABT_CODE
+    java_name: RPC_TENANT_KEY
+    display: APASS_TENABT_CODE
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: scpr-pplatform-pc
+    java_name: BASE_SYS_CHANEL
+    display: scpr-pplatform-pc
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CustLicense
+    java_name: DATA_SOURCE_CUST_LICENSE
+    display: CustLicense
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CustPersonLicense
+    java_name: DATA_SOURCE_CUST_PERSON_LICENSE
+    display: CustPersonLicense
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: BS_Auth
+    java_name: DATA_SOURCE_BS_AUTH
+    display: BS_Auth
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CFCA_Auth
+    java_name: DATA_SOURCE_CFCA_AUTH
+    display: CFCA_Auth
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CaUpgradeAuth
+    java_name: DATA_SOURCE_CA_UPGRADE_AUTH
+    display: CA 升级（重新开立 CA）授权书 —— 企业名称变更场景使用，模板 {@code DT_202605191387}。
+    accessors: {}
+    stored_as: dictKey
+  - value: OfflineElectronicAuth
+    java_name: DATA_SOURCE_OFFLINE_ELECTRONIC_AUTH
+    display: '线下授权书电子签约版 —— 与 {@link #DATA_SOURCE_CUST_LICENSE} 内容相同，独立 serviceKey，'
+    accessors: {}
+    stored_as: dictKey
+  - value: CaFeeAgreement
+    java_name: DATA_SOURCE_CA_FEE_AGREEMENT
+    display: CA 服务费收费协议
+    accessors: {}
+    stored_as: dictKey
+  - value: ProjectApprovalExport
+    java_name: DATA_SOURCE_PROJECT_APPROVAL_EXPORT
+    display: 项目上线审批完结导出 PDF（lls-doc，无签章）
+    accessors: {}
+    stored_as: dictKey
+  - value: UserProtocol
+    java_name: DATA_SOURCE_USER_PROTOCOL
+    display: String DATA_SOURCE_CUST_GROUP_LICENSE = "Cust_Group_License";
+    accessors: {}
+    stored_as: dictKey
+  - value: PrivacyPolicy
+    java_name: DATA_SOURCE_PRIVACY_POLICY
+    display: PrivacyPolicy
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolAcflow
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_ACFLOW
+    display: ProductProtocolAcflow
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolAms
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_AMS
+    display: ProductProtocolAms
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolBeecredit
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_BEECREDIT
+    display: ProductProtocolBeecredit
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolDealer
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_DEALER
+    display: ProductProtocolDealer
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolOrder
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_ORDER
+    display: ProductProtocolOrder
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolRvsfactor_PC
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_RVSFACTOR_PC
+    display: ProductProtocolRvsfactor_PC
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolStorage
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_STORAGE
+    display: ProductProtocolStorage
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolVoucher
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_VOUCHER
+    display: ProductProtocolVoucher
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolDraft
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_DRAFT
+    display: ProductProtocolDraft
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocolDraftQa
+    java_name: DATA_SOURCE_PRODUCT_PROTOCOL_DRAFT_QA
+    display: ProductProtocolDraftQa
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ClearingBocomDebtor
+    java_name: DATA_SOURCE_CLEARING_BOCOM_DEBTOR
+    display: 共同债务人合同文件源
+    accessors: {}
+    stored_as: dictKey
+  - value: operUserLicense
+    java_name: DATA_SOURCE_OPER_LICENSE
+    display: 管理员子账号授权书
+    accessors: {}
+    stored_as: dictKey
+- enum: CompantExtConstants
+  kind: class
+  field: compant_ext
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/constant/cust/CompantExtConstants.java
+  values:
+  - value: interestRate
+    java_name: INTEREST_RATE
+    display: interestRate
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: buildStype
+    java_name: BUILD_STYPE
+    display: buildStype
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: archiveSerialNo
+    java_name: ARCHIVE_SERIAL_NO
+    display: 渠道建档流水号，激活页提交时回调本地化使用
+    accessors: {}
+    stored_as: dictKey
+  - value: archiveChannel
+    java_name: ARCHIVE_CHANNEL
+    display: 渠道建档 channel，如 longteng
+    accessors: {}
+    stored_as: dictKey
+- enum: CustUpdateItemCodeConstants
+  kind: interface
+  field: cust_update_item_code
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/constant/cust/CustUpdateItemCodeConstants.java
+  values:
+  - value: UN0001
+    java_name: UN0001
+    display: 企业信息变更 （企业名称、营业执照有效期、 注册地址、营业执照上的企业信息变更等）*
+    accessors: {}
+    stored_as: same
+  - value: UN0002
+    java_name: UN0002
+    display: 法定代表人变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0003
+    java_name: UN0003
+    display: 法定代表人手机号码变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0004
+    java_name: UN0004
+    display: 法定代表人证件有效期变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0005
+    java_name: UN0005
+    display: 总公司法定代表人变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0006
+    java_name: UN0006
+    display: 总公司法定代表人手机号变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0007
+    java_name: UN0007
+    display: 总公司法定代表人证件有效期变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0008
+    java_name: UN0008
+    display: 企业授权书*
+    accessors: {}
+    stored_as: same
+  - value: UN0009
+    java_name: UN0009
+    display: 增加企业角色*
+    accessors: {}
+    stored_as: same
+  - value: UN0010
+    java_name: UN0010
+    display: 重新建档*
+    accessors: {}
+    stored_as: same
+  - value: UN0011
+    java_name: UN0011
+    display: 总公司企业信息变更 （企业名称、营业执照有 效期、注册地址、营业执照上的企业信息变更等）*
+    accessors: {}
+    stored_as: same
+  - value: UN0012
+    java_name: UN0012
+    display: 企业管理员变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0013
+    java_name: UN0013
+    display: 企业管理员手机号变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0014
+    java_name: UN0014
+    display: 企业管理员证件有效期变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0015
+    java_name: UN0015
+    display: 企业管理员邮箱期变更*
+    accessors: {}
+    stored_as: same
+  - value: UN0016
+    java_name: UN0016
+    display: 总公司变分公司*
+    accessors: {}
+    stored_as: same
+- enum: IdentifyTypeConstant
+  kind: interface
+  field: identify_type
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/constant/cust/IdentifyTypeConstant.java
+  values:
+  - value: INVITE
+    java_name: INVITE
+    display: 邀请认证-客户录入
+    accessors: {}
+    stored_as: same
+  - value: INVITE_AGW
+    java_name: INVITE_AGW
+    display: 邀请认证-内管录入
+    accessors: {}
+    stored_as: same
+  - value: SIMPLE
+    java_name: SIMPLE
+    display: 简易认证
+    accessors: {}
+    stored_as: same
+  - value: SELF
+    java_name: SELF
+    display: 自主认证
+    accessors: {}
+    stored_as: same
+- enum: LocalSysOpenEntryChannel
+  kind: class
+  field: local_sys_open_entry_channel
+  path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/constant/LocalSysOpenEntryChannel.java
+  values:
+  - value: LOCAL
+    java_name: LOCAL
+    display: 龙腾本地化 {@code /open/v1/product/getJumpLink}
+    accessors: {}
+    stored_as: same
+  - value: STANDARD
+    java_name: STANDARD
+    display: 通用标准 {@code /open/v1/standard/product/getJumpLink}
+    accessors: {}
+    stored_as: same
+- enum: LocalSysOpenErrorCodes
+  kind: class
+  field: local_sys_open_error_codes
+  path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/constant/LocalSysOpenErrorCodes.java
+  values:
+  - value: OPEN_CHANNEL_NOT_MAPPED
+    java_name: OPEN_CHANNEL_NOT_MAPPED
+    display: OPEN_CHANNEL_NOT_MAPPED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_SYS_TYPE_MISMATCH
+    java_name: OPEN_SYS_TYPE_MISMATCH
+    display: OPEN_SYS_TYPE_MISMATCH
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_USER_NOT_FOUND
+    java_name: OPEN_USER_NOT_FOUND
+    display: OPEN_USER_NOT_FOUND
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_COMPANY_NOT_BOUND
+    java_name: OPEN_COMPANY_NOT_BOUND
+    display: OPEN_COMPANY_NOT_BOUND
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_COMPANY_TYPE_REQUIRED
+    java_name: OPEN_COMPANY_TYPE_REQUIRED
+    display: OPEN_COMPANY_TYPE_REQUIRED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_REDIRECT_DENIED
+    java_name: OPEN_REDIRECT_DENIED
+    display: OPEN_REDIRECT_DENIED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_SSO_AUTH_FAILED
+    java_name: OPEN_SSO_AUTH_FAILED
+    display: OPEN_SSO_AUTH_FAILED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_PROJECT_NOT_FOUND
+    java_name: OPEN_PROJECT_NOT_FOUND
+    display: OPEN_PROJECT_NOT_FOUND
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_PROJECT_NOT_BOUND
+    java_name: OPEN_PROJECT_NOT_BOUND
+    display: OPEN_PROJECT_NOT_BOUND
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_PRODUCT_NOT_OPENED
+    java_name: OPEN_PRODUCT_NOT_OPENED
+    display: OPEN_PRODUCT_NOT_OPENED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_BIZ_URL_MISSING
+    java_name: OPEN_BIZ_URL_MISSING
+    display: OPEN_BIZ_URL_MISSING
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_ENTRY_TOKEN_INVALID
+    java_name: OPEN_ENTRY_TOKEN_INVALID
+    display: OPEN_ENTRY_TOKEN_INVALID
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_AUTH_CODE_REQUIRED
+    java_name: OPEN_AUTH_CODE_REQUIRED
+    display: OPEN_AUTH_CODE_REQUIRED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: OPEN_AUTH_CODE_INVALID
+    java_name: OPEN_AUTH_CODE_INVALID
+    display: OPEN_AUTH_CODE_INVALID
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+- enum: OpenSsoSyncStatus
+  kind: class
+  field: open_sso_sync_status
+  path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/constant/OpenSsoSyncStatus.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: PENDING
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: SYNCED
+    java_name: SYNCED
+    display: SYNCED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: FAILED
+    java_name: FAILED
+    display: FAILED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+- enum: UserRoleConstant
+  kind: class
+  field: user_role
+  path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/constant/UserRoleConstant.java
+  values:
+  - value: 产融客户端游客
+    java_name: ROLE_NAME_VISITOR
+    display: 产融客户端游客名称
+    accessors: {}
+    stored_as: dictKey
+  - value: accountGuest
+    java_name: ROLE_CODE_VISITOR
+    display: 产融客户端游客用户角色标识
+    accessors: {}
+    stored_as: dictKey
+  - value: ACCOUNT_PRODUCT
+    java_name: ACCOUNT_PRODUCT
+    display: 产融客户端标识
+    accessors: {}
+    stored_as: same
+  - value: accountNormal
+    java_name: ROLE_CODE_NORMAL
+    display: 产融客户端普通用户角色标识
+    accessors: {}
+    stored_as: dictKey
+- enum: WechatContactConstants
+  kind: class
+  field: wechat_contact
+  path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/constant/WechatContactConstants.java
+  values:
+  - value: "30"
+    java_name: CACHE_TTL_MINUTES
+    display: 缓存 TTL：30 分钟
+    accessors: {}
+    stored_as: dictKey
+  - value: "32"
+    java_name: KEYWORD_MAX_LENGTH
+    display: 关键词最大长度
+    accessors: {}
+    stored_as: dictKey
+  - value: "1"
+    java_name: WX_USER_ENABLE_ACTIVE
+    display: 已激活用户 enable 标识（与 SysWxUserDO 约定一致）
+    accessors: {}
+    stored_as: dictKey
+- enum: CfcaReportPackageConstants
+  kind: class
+  field: cfca_report_package
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/constants/CfcaReportPackageConstants.java
+  values:
+  - value: INSERT
+    java_name: OP_TYPE_INSERT
+    display: INSERT
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: COMPANY
+    java_name: CUST_TYPE_COMPANY
+    display: COMPANY
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "1"
+    java_name: VERIFY_RESULT_PASS
+    display: "1"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: SFZ
+    java_name: ID_TYPE_SFZ
+    display: SFZ
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ENTERPRISE_THREE
+    java_name: VERIFY_METHOD_ENTERPRISE_THREE
+    display: ENTERPRISE_THREE
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: POLICE_TWO
+    java_name: VERIFY_METHOD_POLICE_TWO
+    display: POLICE_TWO
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: FACE
+    java_name: VERIFY_METHOD_FACE
+    display: FACE
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "5"
+    java_name: SUBJECT_TYPE_ENTERPRISE
+    display: "5"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "3"
+    java_name: SUBJECT_TYPE_OPERATOR
+    display: "3"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "2"
+    java_name: SUBJECT_TYPE_FACE
+    display: "2"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "80"
+    java_name: DEFAULT_STOCK_FACE_SIMILARITY
+    display: "80"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "1"
+    java_name: DEFAULT_BODY_CHECK_RESULT
+    display: "1"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+- enum: ChannelArchiveConstants
+  kind: class
+  field: channel_archive
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/channel/archive/constant/ChannelArchiveConstants.java
+  values:
+  - value: alipayAnt
+    java_name: CHANNEL_ALIPAY_ANT
+    display: alipayAnt
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: longteng
+    java_name: CHANNEL_LONGTENG
+    display: 龙腾渠道，须与 cust_access_secret.channel 一致
+    accessors: {}
+    stored_as: dictKey
+  - value: "7"
+    java_name: RESULT_TTL_SECONDS
+    display: 幂等结果缓存 7 天
+    accessors: {}
+    stored_as: dictKey
+  - value: 建档处理中，请勿重复提交
+    java_name: MSG_PROCESSING
+    display: 建档处理中，请勿重复提交
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 受理成功
+    java_name: MSG_ACCEPTED
+    display: 受理成功
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 企业已建档
+    java_name: MSG_COMPANY_EXISTS
+    display: 企业已建档
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: privilege
+    java_name: OPERATOR_EXT_PRIVILEGE
+    display: 经办人 {@code cust_person_info.ext_data} / 外推 ext 中的权限字段，与 OpenAPI privilege
+      对齐
+    accessors: {}
+    stored_as: dictKey
+- enum: ExternalCallbackConstants
+  kind: class
+  field: external_callback
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/callback/ext/ExternalCallbackConstants.java
+  values:
+  - value: DEFAULT
+    java_name: CHANNEL_DEFAULT
+    display: DEFAULT
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: hscc
+    java_name: CHANNEL_HSCC
+    display: hscc
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: INIT_COMPLETED
+    java_name: ARCHIVE_INIT_COMPLETED
+    display: INIT_COMPLETED
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: INIT_FAILED
+    java_name: ARCHIVE_INIT_FAILED
+    display: INIT_FAILED
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CHECK_PASS
+    java_name: ARCHIVE_CHECK_PASS
+    display: CHECK_PASS
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CHECK_REJECT
+    java_name: ARCHIVE_CHECK_REJECT
+    display: CHECK_REJECT
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CHANGE_SUBMITTED
+    java_name: CHANGE_SUBMITTED
+    display: CHANGE_SUBMITTED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: CHANGE_CONFIRM_REQUIRED
+    java_name: CHANGE_CONFIRM_REQUIRED
+    display: CHANGE_CONFIRM_REQUIRED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: CHANGE_PASS
+    java_name: CHANGE_PASS
+    display: CHANGE_PASS
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: CHANGE_REJECT
+    java_name: CHANGE_REJECT
+    display: CHANGE_REJECT
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: SIGN_BLOCKED
+    java_name: SIGN_BLOCKED
+    display: SIGN_BLOCKED
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: CERT_NAME_MISMATCH
+    java_name: SIGN_FAIL_CODE_CERT_NAME_MISMATCH
+    display: CERT_NAME_MISMATCH
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 企业名称与SaaS不一致，请先变更企业名称后再签署
+    java_name: SIGN_FAIL_DESC_CERT_NAME_MISMATCH
+    display: 企业名称与SaaS不一致，请先变更企业名称后再签署
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: OPERATOR_SUCCESS
+    java_name: OPERATOR_SUCCESS
+    display: OPERATOR_SUCCESS
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+- enum: CustApplyConstant
+  kind: class
+  field: cust_apply
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustApplyConstant.java
+  values:
+  - value: AGW_BUILD
+    java_name: AGW_BUILD
+    display: custBuildType--开户方式
+    accessors: {}
+    stored_as: same
+  - value: PC_BUILD
+    java_name: PC_BUILD
+    display: PC_BUILD
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: CUST_BUILD
+    java_name: CUST_BUILD
+    display: applyType--流程类型
+    accessors: {}
+    stored_as: same
+  - value: CUST_ACTIVE_CHANGE
+    java_name: CUST_ACTIVE_CHANGE
+    display: CUST_ACTIVE_CHANGE
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: CUST_CHANGE
+    java_name: CUST_CHANGE
+    display: CUST_CHANGE
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: AGW
+    java_name: CLIENT_TYPE_AGW
+    display: clientType
+    accessors: {}
+    stored_as: dictKey
+  - value: OTHER
+    java_name: CLIENT_TYPE_OTHER
+    display: OTHER
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+- enum: CustBuildStatusConstant
+  kind: class
+  field: cust_build_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustBuildStatusConstant.java
+  values:
+  - value: INIT
+    java_name: INIT
+    display: 初始化
+    accessors: {}
+    stored_as: same
+  - value: CUST_CONFIRM_AWAIT
+    java_name: CUST_CONFIRM_AWAIT
+    display: 待客户确认
+    accessors: {}
+    stored_as: same
+  - value: CUST_BUILDING
+    java_name: CUST_BUILDING
+    display: 审批中
+    accessors: {}
+    stored_as: same
+  - value: BUILD_BACK
+    java_name: BUILD_BACK
+    display: 退回
+    accessors: {}
+    stored_as: same
+  - value: BUILD_FAIL
+    java_name: BUILD_FAIL
+    display: 认证失败
+    accessors: {}
+    stored_as: same
+  - value: BUILD_SUCCESS
+    java_name: BUILD_SUCCESS
+    display: 认证成功
+    accessors: {}
+    stored_as: same
+  - value: BUILD_ACTIVATE
+    java_name: BUILD_ACTIVATE
+    display: 待激活
+    accessors: {}
+    stored_as: same
+- enum: CustBuildTypeConstant
+  kind: class
+  field: cust_build_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustBuildTypeConstant.java
+  values:
+  - value: PC_BUILD
+    java_name: PC_BUILD
+    display: PC_BUILD
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: AGW_BUILD
+    java_name: AGW_BUILD
+    display: AGW_BUILD
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+- enum: CustCertificationTypeConstant
+  kind: class
+  field: cust_certification_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustCertificationTypeConstant.java
+  values:
+  - value: COMPANY_FOUR_ELEMENTS
+    java_name: COMPANY_FOUR_ELEMENTS
+    display: 企业工商（四要素）认证
+    accessors: {}
+    stored_as: same
+  - value: COMPANY_TWO_ELEMENTS
+    java_name: COMPANY_TWO_ELEMENTS
+    display: 企业工商（二要素）认证
+    accessors: {}
+    stored_as: same
+  - value: COMPANY_TWO_ELEMENTS
+    java_name: LEGAL_THREE_ELEMENTS
+    display: 法人三要素认证
+    accessors: {}
+    stored_as: dictKey
+  - value: LEGAL_REAL_NAME
+    java_name: LEGAL_REAL_NAME
+    display: 法人实名认证
+    accessors: {}
+    stored_as: same
+  - value: FACE_VERIFY
+    java_name: FACE_VERIFY
+    display: 人脸识别认证
+    accessors: {}
+    stored_as: same
+  - value: AUTH_THREE_ELEMENTS
+    java_name: AUTH_THREE_ELEMENTS
+    display: 客户管理员三要素认证
+    accessors: {}
+    stored_as: same
+  - value: AUTH_REAL_NAME
+    java_name: AUTH_REAL_NAME
+    display: 客户管理员实名认证
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_OCR
+    java_name: LEGAL_OCR
+    display: 法人身份证OCR比对
+    accessors: {}
+    stored_as: same
+  - value: AUTH_OCR
+    java_name: AUTH_OCR
+    display: 客户管理员身份证OCR比对
+    accessors: {}
+    stored_as: same
+  - value: LICENSE_OCR
+    java_name: LICENSE_OCR
+    display: 营业执照OCR比对
+    accessors: {}
+    stored_as: same
+  - value: LEGAL_MEDIA_OCR
+    java_name: LEGAL_MEDIA_OCR
+    display: 法人证件核查比对
+    accessors: {}
+    stored_as: same
+  - value: AUTH_MEDIA_OCR
+    java_name: AUTH_MEDIA_OCR
+    display: 客户管理员证件核查比对
+    accessors: {}
+    stored_as: same
+- enum: CustDataTypeConstant
+  kind: class
+  field: cust_data_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustDataTypeConstant.java
+  values:
+  - value: "1"
+    java_name: DATA_TYPE_MAIN
+    display: 主数据
+    accessors: {}
+    stored_as: dictKey
+  - value: "0"
+    java_name: DATA_TYPE_APPLY
+    display: 流程数据
+    accessors: {}
+    stored_as: dictKey
+  - value: "2"
+    java_name: DATA_TYPE_RECORD
+    display: 编辑过程
+    accessors: {}
+    stored_as: dictKey
+- enum: CustMediaCodeConstant
+  kind: class
+  field: cust_media_code
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustMediaCodeConstant.java
+  values:
+  - value: MA001
+    java_name: SYS_CODE
+    display: MA001
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: MA001
+    java_name: MA001
+    display: MA001
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: MA002
+    java_name: MA002
+    display: MA002
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: MA003
+    java_name: MA003
+    display: MA003
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: MA004
+    java_name: MA004
+    display: MA004
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: MA005
+    java_name: MA005
+    display: MA005
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: MA006
+    java_name: MA006
+    display: MA006
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: CUST001A
+    java_name: CUST001A
+    display: CUST001A
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0001
+    java_name: A0001
+    display: A0001
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0002
+    java_name: A0002
+    display: A0002
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0003
+    java_name: A0003
+    display: A0003
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0004
+    java_name: A0004
+    display: A0004
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0005
+    java_name: A0005
+    display: A0005
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0006
+    java_name: A0006
+    display: A0006
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0007
+    java_name: A0007
+    display: A0007
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0008
+    java_name: A0008
+    display: A0008
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0009
+    java_name: A0009
+    display: A0009
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0010
+    java_name: A0010
+    display: A0010
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0011
+    java_name: A0011
+    display: A0011
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0012
+    java_name: A0012
+    display: A0012
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0013
+    java_name: A0013
+    display: A0013
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0014
+    java_name: A0014
+    display: A0014
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0015
+    java_name: A0015
+    display: A0015
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0016
+    java_name: A0016
+    display: A0016
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0017
+    java_name: A0017
+    display: A0017
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0018
+    java_name: A0018
+    display: A0018
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0019
+    java_name: A0019
+    display: A0019
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0023
+    java_name: A0023
+    display: A0023
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0024
+    java_name: A0024
+    display: A0024
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0025
+    java_name: A0025
+    display: A0025
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0026
+    java_name: A0026
+    display: A0026
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0027
+    java_name: A0027
+    display: A0027
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: A0049
+    java_name: A0049
+    display: CA 升级授权书
+    accessors: {}
+    stored_as: same
+- enum: CustPersonStatusConstant
+  kind: class
+  field: cust_person_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustPersonStatusConstant.java
+  values:
+  - value: ADD
+    java_name: ADD
+    display: 未激活
+    accessors: {}
+    stored_as: same
+  - value: EFFECT
+    java_name: EFFECT
+    display: 已激活
+    accessors: {}
+    stored_as: same
+  - value: WRITEOFF
+    java_name: WRITEOFF
+    display: 注销
+    accessors: {}
+    stored_as: same
+  - value: FREEZE
+    java_name: FREEZE
+    display: 冻结
+    accessors: {}
+    stored_as: same
+- enum: CustRoleStatusConstant
+  kind: class
+  field: cust_role_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustRoleStatusConstant.java
+  values:
+  - value: ADD
+    java_name: ADD
+    display: 未激活
+    accessors: {}
+    stored_as: same
+  - value: EFFECT
+    java_name: EFFECT
+    display: 已激活
+    accessors: {}
+    stored_as: same
+  - value: WRITEOFF
+    java_name: WRITEOFF
+    display: 注销
+    accessors: {}
+    stored_as: same
+  - value: FREEZE
+    java_name: FREEZE
+    display: 冻结
+    accessors: {}
+    stored_as: same
+- enum: CustStatusConstant
+  kind: class
+  field: cust_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustStatusConstant.java
+  values:
+  - value: ADD
+    java_name: ADD
+    display: 未生效
+    accessors: {}
+    stored_as: same
+  - value: EFFECT
+    java_name: EFFECT
+    display: 已生效
+    accessors: {}
+    stored_as: same
+  - value: FREEZE
+    java_name: FREEZE
+    display: 冻结
+    accessors: {}
+    stored_as: same
+  - value: WRITEOFF
+    java_name: WRITEOFF
+    display: 已注销
+    accessors: {}
+    stored_as: same
+- enum: CustStatusOperatorConstant
+  kind: class
+  field: cust_status_operator
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustStatusOperatorConstant.java
+  values:
+  - value: freeze
+    java_name: FREEZE
+    display: freeze
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: unfreeze
+    java_name: UNFREEZE
+    display: unfreeze
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: disable
+    java_name: DISABLE
+    display: disable
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: enable
+    java_name: ENABLE
+    display: enable
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+- enum: ClientTypeConstants
+  kind: class
+  field: client_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/constants/ClientTypeConstants.java
+  values:
+  - value: AGW
+    java_name: AGW
+    display: AGW
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: ACCOUNT_PRODUCT
+    java_name: ACCOUNT_PRODUCT
+    display: ACCOUNT_PRODUCT
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+- enum: CompensationRetryStatus
+  kind: class
+  field: compensation_retry_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/constants/CompensationRetryStatus.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: 待重试
+    accessors: {}
+    stored_as: same
+  - value: RETRYING
+    java_name: RETRYING
+    display: 重试中
+    accessors: {}
+    stored_as: same
+  - value: SUCCESS
+    java_name: SUCCESS
+    display: 重试成功
+    accessors: {}
+    stored_as: same
+  - value: FAILED
+    java_name: FAILED
+    display: 重试失败（达到最大重试次数）
+    accessors: {}
+    stored_as: same
+- enum: ElectronicAuthSignStatus
+  kind: class
+  field: electronic_auth_sign_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/constants/ElectronicAuthSignStatus.java
+  values:
+  - value: PENDING
+    java_name: PENDING
+    display: 待签署：CA 未开通或尚未触发签署。
+    accessors: {}
+    stored_as: same
+  - value: SIGNED
+    java_name: SIGNED
+    display: 已签署：签章 + A0050 影像上传均已完成。
+    accessors: {}
+    stored_as: same
+  - value: UPLOAD_FAILED
+    java_name: UPLOAD_FAILED
+    display: 影像上传失败：签章成功但 A0050 上传未完成，可仅重试上传。
+    accessors: {}
+    stored_as: same
+  - value: FAILED
+    java_name: FAILED
+    display: 签署失败：签章中台返回失败或业务校验未通过。
+    accessors: {}
+    stored_as: same
+  - value: VOIDED
+    java_name: VOIDED
+    display: 作废：直推在途变更被新流水覆盖，补偿任务不拾取。
+    accessors: {}
+    stored_as: same
+- enum: SelftTenantCodeConstants
+  kind: class
+  field: selft_tenant_code
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/constants/SelftTenantCodeConstants.java
+  values:
+  - value: beehive-scf.lianyirong.com.cn
+    java_name: DEV_TENANT_CODE
+    display: beehive-scf.lianyirong.com.cn
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive-scf.qhhrly.cn
+    java_name: QA_TENANT_CODE
+    display: beehive-scf.qhhrly.cn
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive-scf.hrlyit.com
+    java_name: UAT_TENANT_CODE
+    display: beehive-scf.hrlyit.com
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: xyc.llschain.com
+    java_name: PRD_TENANT_CODE
+    display: xyc.llschain.com
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+- enum: CaFeeConstants
+  kind: class
+  field: ca_fee
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/constant/CaFeeConstants.java
+  values:
+  - value: "Y"
+    java_name: FLAG_Y
+    display: "Y"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "N"
+    java_name: FLAG_N
+    display: "N"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "Y"
+    java_name: ENABLE_Y
+    display: "Y"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: V1.0
+    java_name: DEFAULT_AGREEMENT_VERSION
+    display: V1.0
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: '[]'
+    java_name: EMPTY_BLOCK_SCENE_JSON
+    display: 空拦截场景列表：不对未缴费企业做任何场景化拦截。
+    accessors: {}
+    stored_as: dictKey
+  - value: '[\'
+    java_name: LEGACY_FULL_BLOCK_SCENE_JSON
+    display: 存量已开收费项目迁移默认：四场景全选，保持 MVP 全量拦截。
+    accessors: {}
+    stored_as: dictKey
+  - value: PROJECT_DISABLED
+    java_name: EXEMPT_PROJECT_DISABLED
+    display: evaluate 豁免/无需缴费原因
+    accessors: {}
+    stored_as: dictKey
+  - value: WHITELIST
+    java_name: EXEMPT_WHITELIST
+    display: WHITELIST
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: DEFER_PAY
+    java_name: EXEMPT_DEFER_PAY
+    display: DEFER_PAY
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ALREADY_PAID
+    java_name: EXEMPT_ALREADY_PAID
+    display: ALREADY_PAID
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: NON_CHARGEABLE_PROJECT_ROLE
+    java_name: EXEMPT_NON_CHARGEABLE_PROJECT_ROLE
+    display: 项目关联无供应商/核企/项目公司角色，门户校验直接放行
+    accessors: {}
+    stored_as: dictKey
+  - value: 异常PENDING订单清理：已有有效缴费或豁免配置
+    java_name: CLOSE_REASON_PENDING_CLEANUP
+    display: 异常 PENDING 订单清理关单原因（定时任务 caFeePendingOrderCleanupJob）
+    accessors: {}
+    stored_as: dictKey
+  - value: /caFee/pay?orderNo=
+    java_name: PAY_PAGE_PATH
+    display: /caFee/pay?orderNo=
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: /caFee/pay/result?orderNo=
+    java_name: PAY_RESULT_PATH
+    display: /caFee/pay/result?orderNo=
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: /caFee/record
+    java_name: RECORD_LIST_PATH
+    display: /caFee/record
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: /cust-web/caFee/record/voucher/download?orderNo=
+    java_name: VOUCHER_DOWNLOAD_PATH
+    display: /cust-web/caFee/record/voucher/download?orderNo=
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: /ca/pre4Step
+    java_name: CA_REGISTER_PATH
+    display: /ca/pre4Step
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "30"
+    java_name: BOCOM_NOT_ARRIVED_RETRY_SECONDS
+    display: 交e保未到账时前端重试间隔（秒，§6.7）
+    accessors: {}
+    stored_as: dictKey
+  - value: CA服务费-%s-%s
+    java_name: BOCOM_BSN_SUMRY_TEMPLATE
+    display: CA服务费-%s-%s
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "00"
+    java_name: BOCOM_TXN_STS_SUCCESS
+    display: 交e保划扣 txnSts：成功
+    accessors: {}
+    stored_as: dictKey
+  - value: "01"
+    java_name: BOCOM_TXN_STS_FAILED
+    display: 交e保划扣 txnSts：银行明确失败，保留流水且禁止再次划扣
+    accessors: {}
+    stored_as: dictKey
+  - value: "02"
+    java_name: BOCOM_TXN_STS_PENDING_QUERY
+    display: "02"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 发票开具中，开具完成后可前往缴费记录下载
+    java_name: INVOICE_PENDING_TIPS
+    display: 缴费成功页发票提示（§6.8）
+    accessors: {}
+    stored_as: dictKey
+  - value: companyId
+    java_name: CTX_COMPANY_ID
+    display: 消息模板上下文：企业 ID
+    accessors: {}
+    stored_as: dictKey
+  - value: custName
+    java_name: CTX_CUST_NAME
+    display: 消息模板上下文：企业名称（与消息中心 {custName} 对齐）
+    accessors: {}
+    stored_as: dictKey
+  - value: orderNo
+    java_name: CTX_ORDER_NO
+    display: 消息模板上下文：订单号
+    accessors: {}
+    stored_as: dictKey
+  - value: certificationNo
+    java_name: CTX_CERTIFICATION_NO
+    display: 消息模板上下文：统码
+    accessors: {}
+    stored_as: dictKey
+  - value: serviceEndDate
+    java_name: CTX_SERVICE_END_DATE
+    display: 消息模板上下文：服务期截止日 yyyy-MM-dd
+    accessors: {}
+    stored_as: dictKey
+  - value: todoDetailScene
+    java_name: CTX_TODO_DETAIL_SCENE
+    display: 消息模板上下文：待办场景码 NEW_PAY/ABOUT_TO_EXPIRE/EXPIRED
+    accessors: {}
+    stored_as: dictKey
+  - value: todoDetailMessage
+    java_name: CTX_TODO_DETAIL_MESSAGE
+    display: 消息模板上下文：待办详情完整文案（§3.1.1.2）
+    accessors: {}
+    stored_as: dictKey
+  - value: sceneLabel
+    java_name: CTX_SCENE_LABEL
+    display: 消息模板上下文：场景标识，如【即将到期场景】
+    accessors: {}
+    stored_as: dictKey
+  - value: 【待缴费/新缴费场景】
+    java_name: SCENE_LABEL_NEW_PAY
+    display: 需求 §3.1.1.2 场景标识（与消息模板 subject 对齐）
+    accessors: {}
+    stored_as: dictKey
+  - value: 【即将到期场景】
+    java_name: SCENE_LABEL_ABOUT_TO_EXPIRE
+    display: 【即将到期场景】
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 【已到期场景】
+    java_name: SCENE_LABEL_EXPIRED
+    display: 【已到期场景】
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 您尚未缴纳 CA 服务费，请完成缴费后再办理业务
+    java_name: MSG_FEE_UNPAID
+    display: 您尚未缴纳 CA 服务费，请完成缴费后再办理业务
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 您的 CA 服务费已到期，请完成缴费后再办理业务
+    java_name: MSG_FEE_EXPIRED
+    display: 您的 CA 服务费已到期，请完成缴费后再办理业务
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 您的 CA 证书无效或已过期，请先完成 CA 认证/续期
+    java_name: MSG_CA_INVALID
+    display: 您的 CA 证书无效或已过期，请先完成 CA 认证/续期
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 请先完成 CA 认证及服务费缴纳后再办理业务
+    java_name: MSG_CA_AND_FEE_PORTAL
+    display: 请先完成 CA 认证及服务费缴纳后再办理业务
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CA 服务费待缴纳，请先完成缴费
+    java_name: MSG_BIZ_FEE_UNPAID
+    display: CA 服务费待缴纳，请先完成缴费
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CA 服务费待缴纳，请先完成缴费
+    java_name: MSG_BIZ_FEE_EXPIRED
+    display: CA 服务费待缴纳，请先完成缴费
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CA 证书无效或已过期，请先完成 CA 认证/续期
+    java_name: MSG_BIZ_CA_INVALID
+    display: CA 证书无效或已过期，请先完成 CA 认证/续期
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CA 证书与服务费均不满足，请先完成 CA 认证及缴费
+    java_name: MSG_BIZ_CA_AND_FEE
+    display: CA 证书与服务费均不满足，请先完成 CA 认证及缴费
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 您的CA服务费已到期，请完成缴费后再办理业务。
+    java_name: MSG_PORTAL_FEE_EXPIRED
+    display: 门户 portalCheck：needPay=Y & needOpenCa=N & feeStatus=EXPIRED
+    accessors: {}
+    stored_as: dictKey
+  - value: 您的CA证书服务费未缴纳，请先完成CA认证。
+    java_name: MSG_PORTAL_FEE_AND_CA_AUTH
+    display: 门户 portalCheck：needPay=Y & needOpenCa=Y
+    accessors: {}
+    stored_as: dictKey
+  - value: 您的CA服务费未缴纳，请完成缴费后再办理业务。
+    java_name: MSG_PORTAL_FEE_UNPAID
+    display: 门户 portalCheck：needPay=Y & needOpenCa=N & feeStatus=UNPAID
+    accessors: {}
+    stored_as: dictKey
+  - value: 业务功能暂不可用
+    java_name: BLOCK_TITLE_UNAVAILABLE
+    display: 拦截弹窗标题（需求 §5.4）
+    accessors: {}
+    stored_as: dictKey
+  - value: PAY
+    java_name: BLOCK_ACTION_PAY
+    display: 拦截按钮类型：管理员「去缴纳」
+    accessors: {}
+    stored_as: dictKey
+  - value: CONFIRM
+    java_name: BLOCK_ACTION_CONFIRM
+    display: 拦截按钮类型：经办人「确认」
+    accessors: {}
+    stored_as: dictKey
+  - value: 去缴纳
+    java_name: BLOCK_ACTION_LABEL_PAY
+    display: 去缴纳
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 确认
+    java_name: BLOCK_ACTION_LABEL_CONFIRM
+    display: 确认
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 当前您的企业CA电子签章服务费尚未缴纳，请先完成电子签章服务费缴纳。
+    java_name: MSG_BLOCK_ADMIN
+    display: 管理员拦截主文案（需求 §5.4）
+    accessors: {}
+    stored_as: dictKey
+  - value: 当前您的企业CA电子签章服务费尚未缴纳，请先联系企业管理员%s完成电子签章服务费缴纳。
+    java_name: MSG_BLOCK_OPERATOR_TEMPLATE
+    display: 经办人拦截主文案模板，%s=管理员姓名
+    accessors: {}
+    stored_as: dictKey
+  - value: 当前您的企业CA电子签章服务费尚未缴纳，请先联系企业管理员完成电子签章服务费缴纳。
+    java_name: MSG_BLOCK_OPERATOR_WITHOUT_NAME
+    display: 经办人拦截主文案（未能解析管理员姓名时的降级）
+    accessors: {}
+    stored_as: dictKey
+  - value: "7"
+    java_name: RENEW_REMIND_DAYS
+    display: 续费提醒天数阈值（§5.2 ABOUT_TO_EXPIRE）
+    accessors: {}
+    stored_as: dictKey
+  - value: 服务周期自缴费成功日起算 12 个月
+    java_name: SERVICE_PERIOD_DESC
+    display: 服务周期自缴费成功日起算 12 个月
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+- enum: CustProductActiveConstant
+  kind: interface
+  field: cust_product_active
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/constants/CustProductActiveConstant.java
+  values:
+  - value: NOT_OPENED
+    java_name: NOT_OPENED
+    display: 未开通
+    accessors: {}
+    stored_as: same
+  - value: OPENING
+    java_name: OPENING
+    display: 开通中：带客户确认 forams
+    accessors: {}
+    stored_as: same
+  - value: OPENED
+    java_name: OPENED
+    display: 已开通
+    accessors: {}
+    stored_as: same
+- enum: InviteAttachmentTypeConstants
+  kind: class
+  field: invite_attachment_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/constants/InviteAttachmentTypeConstants.java
+  values:
+  - value: INVITE_OPERATION_MANUAL
+    java_name: FILE_TYPE_OPERATION_MANUAL
+    display: 邀请信息-操作手册(pdf)，必填，1个≤20M
+    accessors: {}
+    stored_as: dictKey
+  - value: INVITE_BUILD_GUIDE_IMAGE
+    java_name: FILE_TYPE_BUILD_GUIDE_IMAGE
+    display: 邀请信息-建档操作指引图，必填，1个≤20M
+    accessors: {}
+    stored_as: dictKey
+  - value: INVITE_MINIPROGRAM_QRCODE
+    java_name: FILE_TYPE_MINIPROGRAM_QRCODE
+    display: 邀请信息-小程序二维码，非必填，1个≤20M
+    accessors: {}
+    stored_as: dictKey
+  - value: INVITE_OFFICIAL_ACCOUNT_QRCODE
+    java_name: FILE_TYPE_OFFICIAL_ACCOUNT_QRCODE
+    display: 邀请信息-公众号二维码，非必填，1个≤20M
+    accessors: {}
+    stored_as: dictKey
+- enum: PlatformProductClientFieldConstant
+  kind: interface
+  field: platform_product_client_field
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/constants/PlatformProductClientFieldConstant.java
+  values:
+  - value: productCode
+    java_name: FIELD_PRODUCT_CODE
+    display: productCode
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: extConfig
+    java_name: FIELD_EXT_CONFIG
+    display: extConfig
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: clientConfig
+    java_name: FIELD_CLIENT_CONFIG
+    display: clientConfig
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: pages
+    java_name: FIELD_PAGES
+    display: pages
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+- enum: ProductAgrrementConstant
+  kind: interface
+  field: product_agrrement
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/constants/ProductAgrrementConstant.java
+  values:
+  - value: cust_company_info
+    java_name: TPL_AGGREMENT_BUSINESS_TYPE_PLATFORM_PRODUCT
+    display: 企业关联协议类型
+    accessors: {}
+    stored_as: dictKey
+  - value: ProductProtocol
+    java_name: TPL_PRODUCT_DATASOUCE_PREFIX
+    display: ProductProtocol
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: CFCA电子签章协议
+    java_name: TPL_AGGREMENT_SERVICE_CFCA_TITLE
+    display: CFCA电子签章协议
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: 上上签电子签章协议
+    java_name: TPL_AGGREMENT_SERVICE_BS_TITLE
+    display: 上上签电子签章协议
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: cfcaAggrement
+    java_name: TPL_AGGREMENT_CFCA_KEY
+    display: 数字证书协议
+    accessors: {}
+    stored_as: dictKey
+  - value: productAggrement
+    java_name: TPL_AGGREMENT_PRODUCT_KEY
+    display: 数字证书协议
+    accessors: {}
+    stored_as: dictKey
+  - value: PLATFORM
+    java_name: PLATFORM_PRODUCT_TYPE
+    display: 平台产品类型，授权认证时使用
+    accessors: {}
+    stored_as: dictKey
+  - value: afterSignContract
+    java_name: PLATFORM_AUTH_EVENT_SIGN_SUCCESSED
+    display: 平台产品协议签署
+    accessors: {}
+    stored_as: dictKey
+  - value: afterConfirmReadContract
+    java_name: PLATFORM_AUTH_EVENT_CONFIRM_READ
+    display: 平台产品协议阅读
+    accessors: {}
+    stored_as: dictKey
+  - value: needNot
+    java_name: PLATFORM_AUTH_EVENT_SIGN_NONE
+    display: 无产品协议不需要签署
+    accessors: {}
+    stored_as: dictKey
+- enum: ProjectApprovalConstant
+  kind: class
+  field: project_approval
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/constants/ProjectApprovalConstant.java
+  values:
+  - value: Flow-bb694d5de9274678b0f57f48168b7ca8
+    java_name: PROC_DEF_KEY_BACK_AGREEMENT
+    display: 后补合作协议流程定义 Key
+    accessors: {}
+    stored_as: dictKey
+  - value: RushSignTask-1780126784088
+    java_name: WF_ELE_ID_TASK_AGREEMENT
+    display: 后补合作协议审批节点 elementKey
+    accessors: {}
+    stored_as: dictKey
+  - value: BackAgreementProcessStartListener
+    java_name: DUBBO_VERSION_BACK_AGREEMENT_START_HANDLER
+    display: 后补合作协议工作流启动监听器 Dubbo version
+    accessors: {}
+    stored_as: dictKey
+  - value: BackAgreementProcessFinishListener
+    java_name: DUBBO_VERSION_BACK_AGREEMENT_FINISH_HANDLER
+    display: 后补合作协议审批完成监听器 Dubbo version
+    accessors: {}
+    stored_as: dictKey
+  - value: _BACK-AGREEMENT_
+    java_name: BACK_AGREEMENT_BUSINESS_ID_PREFIX
+    display: 后补合作协议业务ID前缀
+    accessors: {}
+    stored_as: dictKey
+  - value: RushSignTask-
+    java_name: TASK_KEY_PREFIX
+    display: 任务Key前缀
+    accessors: {}
+    stored_as: dictKey
+  - value: default
+    java_name: CLIENT_DEFAULT
+    display: 默认客户端
+    accessors: {}
+    stored_as: dictKey
+  - value: ext1
+    java_name: EXT1_APPROVAL_TYPE
+    display: 审批类型
+    accessors: {}
+    stored_as: dictKey
+  - value: ext2
+    java_name: EXT2_PROJECT_NAME
+    display: 项目名称
+    accessors: {}
+    stored_as: dictKey
+  - value: ext3
+    java_name: EXT3_PROJECT_CONFIG_VERSION
+    display: 项目配置版本
+    accessors: {}
+    stored_as: dictKey
+  - value: ext4
+    java_name: EXT4_APPROVAL_SP_NO
+    display: 立项审批编号
+    accessors: {}
+    stored_as: dictKey
+  - value: ext5
+    java_name: EXT5_PRODUCT_NAME
+    display: 产品名称
+    accessors: {}
+    stored_as: dictKey
+  - value: ext6
+    java_name: EXT6_DB_TENANT_CODE
+    display: 租户名称
+    accessors: {}
+    stored_as: dictKey
+  - value: ext7
+    java_name: EXT7_SOLUTION_MANAGER
+    display: 方案经理
+    accessors: {}
+    stored_as: dictKey
+  - value: ext8
+    java_name: EXT8_IS_LOW_RISK
+    display: 是否低风险
+    accessors: {}
+    stored_as: dictKey
+  - value: ext9
+    java_name: EXT9_APPROVAL_NO
+    display: 审批编号
+    accessors: {}
+    stored_as: dictKey
+  - value: ext10
+    java_name: EXT10_USER_NAME
+    display: 发起人名称
+    accessors: {}
+    stored_as: dictKey
+  - value: 审批类型
+    java_name: EXT1_NAME_APPROVAL_TYPE
+    display: 审批类型
+    accessors: {}
+    stored_as: dictKey
+  - value: 项目名称
+    java_name: EXT2_NAME_PROJECT_NAME
+    display: 项目名称
+    accessors: {}
+    stored_as: dictKey
+  - value: 项目配置版本
+    java_name: EXT3_NAME_PROJECT_CONFIG_VERSION
+    display: 项目配置版本
+    accessors: {}
+    stored_as: dictKey
+  - value: 立项审批编号
+    java_name: EXT4_NAME_APPROVAL_SP_NO
+    display: 立项审批编号
+    accessors: {}
+    stored_as: dictKey
+  - value: 产品名称
+    java_name: EXT5_NAME_PRODUCT_NAME
+    display: 产品名称
+    accessors: {}
+    stored_as: dictKey
+  - value: 租户名称
+    java_name: EXT6_NAME_DB_TENANT_CODE
+    display: 租户名称
+    accessors: {}
+    stored_as: dictKey
+  - value: 方案经理
+    java_name: EXT7_NAME_SOLUTION_MANAGER
+    display: 方案经理
+    accessors: {}
+    stored_as: dictKey
+  - value: 是否低风险
+    java_name: EXT8_NAME_IS_LOW_RISK
+    display: 是否低风险
+    accessors: {}
+    stored_as: dictKey
+  - value: 审批编号
+    java_name: EXT9_NAME_APPROVAL_NO
+    display: 审批编号
+    accessors: {}
+    stored_as: dictKey
+  - value: 发起人名称
+    java_name: EXT10_NAME_USER_NAME
+    display: 发起人名称
+    accessors: {}
+    stored_as: dictKey
+  - value: "1"
+    java_name: TASK_NOTICE_TYPE_1
+    display: 任务通知类型:1-待抢通知 2-待办通知 3-流程结束通知 4-任务办理完成 5-子流程结束回到主流程 6-终止流程通知 7-离开父流程去到子流程
+      8-流程到达节点
+    accessors: {}
+    stored_as: dictKey
+  - value: "2"
+    java_name: TASK_NOTICE_TYPE_2
+    display: "2"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "3"
+    java_name: TASK_NOTICE_TYPE_3
+    display: "3"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "4"
+    java_name: TASK_NOTICE_TYPE_4
+    display: "4"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "5"
+    java_name: TASK_NOTICE_TYPE_5
+    display: "5"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "6"
+    java_name: TASK_NOTICE_TYPE_6
+    display: "6"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "7"
+    java_name: TASK_NOTICE_TYPE_7
+    display: "7"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "8"
+    java_name: TASK_NOTICE_TYPE_8
+    display: "8"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: OPT_SYSTEM
+    java_name: MEDIA_SYS_CODE
+    display: 影像树 sysCode
+    accessors: {}
+    stored_as: dictKey
+  - value: MA003
+    java_name: MEDIA_MODEL_CODE
+    display: MA003
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: MA004
+    java_name: MEDIA_MODEL_CODE_OPERATE
+    display: 影像树 modelCode：审批流程操作（办理附件 / 授信佐证，MA004）
+    accessors: {}
+    stored_as: dictKey
+  - value: FBP_OA_CREDIT
+    java_name: MEDIA_CATG_OA_CREDIT
+    display: MA004 授信额度佐证文件 catgId
+    accessors: {}
+    stored_as: dictKey
+  - value: 授信额度佐证文件
+    java_name: MEDIA_CATG_OA_CREDIT_NAME
+    display: MA004 授信额度佐证文件展示名
+    accessors: {}
+    stored_as: dictKey
+  - value: 已在下沉评估清单
+    java_name: WHITELIST_RESULT_MATCHED
+    display: 下沉评估清单命中文案（与 Dubbo 返回一致）
+    accessors: {}
+    stored_as: dictKey
+  - value: 暂未在下沉评估清单
+    java_name: WHITELIST_RESULT_NOT_MATCHED
+    display: 下沉评估清单未命中文案（与 Dubbo 返回一致）
+    accessors: {}
+    stored_as: dictKey
+- enum: CommonConstant
+  kind: class
+  field: common
+  path: lowcode-pplatform-openapi/lowcode-pplatform-openapi-non-standard-tianma/src/main/java/com/lls/lowcode/pplatform/openapi/tianma/constants/CommonConstant.java
+  values:
+  - value: "true"
+    java_name: "TRUE"
+    display: "true"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "false"
+    java_name: "FALSE"
+    display: "false"
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: '-'
+    java_name: SEPARA_HORIZON_LINE
+    display: '-'
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: /
+    java_name: SEPARA_LEFT_SLASH
+    display: /
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: "."
+    java_name: SEPARA_FILE_EXTENSION
+    display: "."
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ','
+    java_name: SEPARA_COMMA
+    display: ','
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: \\|
+    java_name: SEPARA_VERTICAL_LINE
+    display: \\|
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: success
+    java_name: SUCCESS
+    display: success
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_link_beehive
+    java_name: WEC_LINK_BEEHIVE_EXCHANGE
+    display: 微企链和讯易链交互*************
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive_to_wec.company.archive
+    java_name: BEEHIVE_TO_WEC_ROUTING_KEY_COMPANY_ARCHIVE
+    display: beehive_to_wec.company.archive
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive_to_wec.asset.issue
+    java_name: BEEHIVE_TO_WEC_ROUTING_KEY_ASSET_ISSUE
+    display: beehive_to_wec.asset.issue
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive_to_wec.trade.cash_apply
+    java_name: BEEHIVE_TO_WEC_ROUTING_KEY_TRADE_CASH_APPLY
+    display: beehive_to_wec.trade.cash_apply
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive_to_wec.asset.uploaded.media
+    java_name: BEEHIVE_TO_WEC_ROUTING_KEY_ASSET_UPLOADED_MEDIA
+    display: beehive_to_wec.asset.uploaded.media
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive_to_wec.asset.abolish
+    java_name: BEEHIVE_TO_WEC_ROUTING_KEY_ASSET_ABOLISH
+    display: beehive_to_wec.asset.abolish
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: beehive_to_wec.pre.asset
+    java_name: BEEHIVE_TO_WEC_ROUTING_KEY_PRE_ASSET
+    display: beehive_to_wec.pre.asset
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.
+    java_name: WEC_TO_BEEHIVE_PREFIX
+    display: wec_to_beehive.
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.test
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_TEST
+    display: wec_to_beehive.test
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.test
+    java_name: WEC_TO_BEEHIVE_QUEUE_TEST
+    display: wec_to_beehive.test
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec.to.beehive.routing.key.asset.import.succ
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_ASSET_IMPORT_SUCC
+    display: wec.to.beehive.routing.key.asset.import.succ
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.import.success
+    java_name: WEC_TO_BEEHIVE_QUEUE_IMPORT_SUCCESS
+    display: wec_to_beehive.queue.import.success
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.complete.company.archive
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_COMPLETE_COMPANY_ARCHIVE
+    display: wec_to_beehive.complete.company.archive
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.complete.company.archive
+    java_name: WEC_TO_BEEHIVE_QUEUE_COMPLETE_COMPANY_ARCHIVE
+    display: wec_to_beehive.queue.complete.company.archive
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.update.company.archive.status
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_UPDATE_COMPANY_ARCHIVE_STATUS
+    display: wec_to_beehive.update.company.archive.status
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.update.company.archive.status
+    java_name: WEC_TO_BEEHIVE_QUEUE_UPDATE_COMPANY_ARCHIVE_STATUS
+    display: wec_to_beehive.queue.update.company.archive.status
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.complete.company.archive.by.it
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_COMPLETE_COMPANY_ARCHIVE_BY_IT
+    display: wec_to_beehive.complete.company.archive.by.it
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.complete.company.archive.by.it
+    java_name: WEC_TO_BEEHIVE_QUEUE_COMPLETE_COMPANY_ARCHIVE_BY_IT
+    display: wec_to_beehive.queue.complete.company.archive.by.it
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.platform.company.audit.pass.notice
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_PLATFORM_COMPANY_AUDIT_PASS_NOTICE
+    display: wec_to_beehive.platform.company.audit.pass.notice
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.platform.company.audit.pass.notice
+    java_name: WEC_TO_BEEHIVE_QUEUE_PLATFORM_COMPANY_AUDIT_PASS_NOTICE
+    display: wec_to_beehive.platform.company.audit.pass.notice
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.change.company.name
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_CHANGE_COMPANY_NAME
+    display: 修改企业名称
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.change.company.name
+    java_name: WEC_TO_BEEHIVE_QUEUE_CHANGE_COMPANY_NAME
+    display: wec_to_beehive.queue.change.company.name
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.sync.param.activity.info
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_SYNC_PARAM_ACTIVITY_INFO
+    display: 同步活动信息
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.sync.param.activity.info
+    java_name: WEC_TO_BEEHIVE_QUEUE_SYNC_PARAM_ACTIVITY_INFO
+    display: wec_to_beehive.queue.sync.param.activity.info
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.sync.project.model
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_SYNC_PROJECT_MODEL
+    display: 同步讯易链项目模型
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.sync.project.model
+    java_name: WEC_TO_BEEHIVE_QUEUE_SYNC_PROJECT_MODEL
+    display: wec_to_beehive.queue.sync.project.model
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.sync.notice.model
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_SYNC_NOTICE_MODEL
+    display: 同步讯易链通知公告模型
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.sync.notice.model
+    java_name: WEC_TO_BEEHIVE_QUEUE_SYNC_NOTICE_MODEL
+    display: wec_to_beehive.queue.sync.notice.model
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.init.project.model.check.menu
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_INIT_PROJECT_MODEL_CHECK_MENU
+    display: 初始化讯易链项目模型菜单
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.init.project.model.check.menu
+    java_name: WEC_TO_BEEHIVE_QUEUE_INIT_PROJECT_MODEL_CHECK_MENU
+    display: wec_to_beehive.queue.init.project.model.check.menu
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.init.project.model.mail.template
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_INIT_PROJECT_MODEL_MAIL_TEMPLATE
+    display: 初始化讯易链项目模型邮件
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.init.project.model.mail.template
+    java_name: WEC_TO_BEEHIVE_QUEUE_INIT_PROJECT_MODEL_MAIL_TEMPLATE
+    display: wec_to_beehive.queue.init.project.model.mail.template
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.init.project.model.sms.template
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_INIT_PROJECT_MODEL_SMS_TEMPLATE
+    display: wec_to_beehive.init.project.model.sms.template
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.init.project.model.sms.template
+    java_name: WEC_TO_BEEHIVE_QUEUE_INIT_PROJECT_MODEL_SMS_TEMPLATE
+    display: wec_to_beehive.queue.init.project.model.sms.template
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.sync.tsProjectBiddingSaveOrUpdate
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_SYNC_TS_PROJECT_BIDDING_SAVE_OR_UPDATE
+    display: 同步讯易链新增或修改竞价项目报价信息路由键
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.sync.tsProjectBiddingDelete
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_SYNC_TS_PROJECT_BIDDING_DELETE
+    display: 同步讯易链删除竞价项目报价信息路由键
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.sync.tsProjectBiddingSaveOrUpdate
+    java_name: WEC_TO_BEEHIVE_QUEUE_SYNC_TS_PROJECT_BIDDING_SAVE_OR_UPDATE
+    display: 同步讯易链新增或修改竞价项目报价信息队列
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.sync.tsProjectBiddingDelete
+    java_name: WEC_TO_BEEHIVE_QUEUE_SYNC_TS_PROJECT_BIDDING_DELETE
+    display: 同步讯易链删除竞价项目报价信息队列
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.trigger.bee.insight.login
+    java_name: WEC_TO_BEEHIVE_ROUTING_KEY_TRIGGER_BEE_INSIGHT_LOGIN
+    display: 触发蜂景洞察平台登录
+    accessors: {}
+    stored_as: dictKey
+  - value: wec_to_beehive.queue.trigger.bee.insight.login
+    java_name: WEC_TO_BEEHIVE_QUEUE_TRIGGER_BEE_INSIGHT_LOGIN
+    display: 触发蜂景洞察平台登录
+    accessors: {}
+    stored_as: dictKey
+  - value: "900"
+    java_name: ERROR_CODE_WARNING
+    display: "900 -- 正常错误提示码，请自行指定提示信息。BaseException专用，抛出该异常后台拦截后不打印错误堆栈信息，减少异常告警."
+    accessors: {}
+    stored_as: dictKey
+  - value: LP
+    java_name: PERSON_SIGNID_PREFIX
+    display: 个人签署前缀
+    accessors: {}
+    stored_as: dictKey
+- enum: ProjectMarkConstant
+  kind: class
+  field: project_mark
+  path: lowcode-pplatform-openapi/lowcode-pplatform-openapi-non-standard-tianma/src/main/java/com/lls/lowcode/pplatform/openapi/tianma/constants/ProjectMarkConstant.java
+  values:
+  - value: wukuangxintuo
+    java_name: WUKUANGXINTUO
+    display: wukuangxintuo
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: aiyangniu
+    java_name: AIYANGNIU
+    display: aiyangniu
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: app
+    java_name: APP
+    display: app
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: cdrcb
+    java_name: CDRCB
+    display: cdrcb
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: msfl
+    java_name: MSFL
+    display: msfl
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: msflcml
+    java_name: MSFLCML
+    display: msflcml
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: YINHEKEJI
+    java_name: YINHEKEJI
+    display: YINHEKEJI
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: JYYL
+    java_name: JYYL
+    display: JYYL
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: trinasolar
+    java_name: TRINASOLAR
+    display: trinasolar
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: MSFLPCR
+    java_name: MSFLPCR
+    display: MSFLPCR
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: msflmac
+    java_name: MSFLMAC
+    display: msflmac
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: SHCJ
+    java_name: SHCJ
+    display: SHCJ
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: trinapower
+    java_name: TRINAPOWER
+    display: trinapower
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: SDRISCF
+    java_name: SDRISCF
+    display: SDRISCF
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: HBCI
+    java_name: HBCI
+    display: HBCI
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: HBLT
+    java_name: HBLT
+    display: HBLT
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: NAURA
+    java_name: NAURA
+    display: NAURA
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: HXFL
+    java_name: HXFL
+    display: HXFL
+    unlabeled: true
+    accessors: {}
+    stored_as: same
+  - value: szbank
+    java_name: SZBANK
+    display: szbank
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: zlskscf
+    java_name: ZLSKSCF
+    display: zlskscf
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: ynjt
+    java_name: YNJT
+    display: ynjt
+    unlabeled: true
+    accessors: {}
+    stored_as: dictKey
+  - value: hscc
+    java_name: HSCC
+    display: 娃哈哈-宏胜云链
+    accessors: {}
+    stored_as: dictKey
+  - value: SEL
+    java_name: SEL
+    display: 顺e链
+    accessors: {}
+    stored_as: same
+  - value: LKBL
+    java_name: LKBL
+    display: 山东健康信链
+    accessors: {}
+    stored_as: same
+  - value: sdhsg
+    java_name: SDHSG
+    display: 山东高速-速链云
+    accessors: {}
+    stored_as: dictKey
+bindings:
+  account_type:
+  - AccountTypeEnum
+  agreement_signed:
+  - CaFeeConstants
+  agreement_version:
+  - CaFeeConstants
+  alter_mode:
+  - AlterModeEnum
+  apply_type:
+  - CustApplyConstant
+  approval_type:
+  - ProjectApprovalTypeEnum
+  attachment:
+  - PlatformConstant
+  auto_check_msg:
+  - CustCertificationResultTypeEnum
+  auto_check_result:
+  - CustCertificationResultTypeEnum
+  auto_verify_status:
+  - CustCertificationResultTypeEnum
+  biz_node:
+  - CaFeeBizNodeEnum
+  catg_id:
+  - ProjectApprovalMediaCatgEnum
+  catg_name:
+  - ProjectApprovalMediaCatgEnum
+  certificate_type:
+  - IDTypeEnum
+  certification_type: &id001
+  - CustCertificationTypeConstant
+  - CustCertificationTypeEnum
+  - IDTypeEnum
+  charge_enabled:
+  - CaFeeConstants
+  check_status:
+  - CustBuildStatusEnum
+  check_type:
+  - CustCertificationTypeEnum
+  client:
+  - ProjectApprovalConstant
+  client_type:
+  - ClientTypeConstants
+  config_type:
+  - CaFeeSpecialConfigTypeEnum
+  cust_build_status: &id002
+  - CustBuildStatusConstant
+  - CustBuildStatusEnum
+  cust_build_type:
+  - CustBuildTypeConstant
+  cust_source:
+  - CustSourceEnum
+  cust_status: &id003
+  - CustStatusConstant
+  - CustStatusEnum
+  cust_type:
+  - CustTypeEnum
+  data_type:
+  - CustDataTypeConstant
+  enable:
+  - CaFeeConstants
+  ext_name:
+  - ProjectApprovalConstant
+  face_status:
+  - CustCertificationResultTypeEnum
+  fee_locked:
+  - CaFeeConstants
+  first_auth_certificate_type:
+  - IDTypeEnum
+  for_time_min:
+  - WechatContactConstants
+  has_build_success:
+  - CustBuildStatusEnum
+  identify_style:
+  - IdentifyTypeConstant
+  invoice_status:
+  - CaFeeInvoiceStatusEnum
+  is_freeze:
+  - UserFreezeEnum
+  legal_certification_type:
+  - IDTypeEnum
+  node_code:
+  - ProjectApprovalNodeCodeEnum
+  node_status:
+  - ProjectApprovalNodeStatusEnum
+  open_mode:
+  - LocalSysOpenModeEnum
+  open_mode_default:
+  - LocalSysOpenModeEnum
+  open_status: &id004
+  - CustProductActiveConstant
+  - ProductOpenStatusEnum
+  operate_type:
+  - ProjectApprovalOperateTypeEnum
+  order_status:
+  - CaFeeOrderStatusEnum
+  order_type:
+  - CaFeeOrderTypeEnum
+  pay_channel:
+  - CaFeeConstants
+  pay_status:
+  - CaFeeCompanyPayStatusEnum
+  phone_realname_status:
+  - CustCertificationResultTypeEnum
+  procdef_key:
+  - ProjectApprovalConstant
+  product_status:
+  - ProductStatusEnum
+  product_type:
+  - PlatformProductTypeEnum
+  progress:
+  - CustBuildStatusEnum
+  project_status:
+  - ProjectStatusEnum
+  project_type_name:
+  - ProjectApprovalProjectTypeEnum
+  real_name_result:
+  - RealNameResultEnum
+  renew_remind_sent:
+  - CaFeeConstants
+  result:
+  - ProjectApprovalConstant
+  role:
+  - UserTypeEnum
+  rule_status:
+  - RuleStatusEnum
+  service_end:
+  - CaFeeConstants
+  service_key: &id005
+  - PlatformConstant
+  - ProductAgrrementConstant
+  sign_mode:
+  - SignModeEnum
+  source: &id006
+  - CustPersonInfoSourceEnum
+  - PlatformConstant
+  special_config_flag:
+  - CaFeeConstants
+  status: &id007
+  - CustGroupRelStatusEnum
+  - CustPersonStatusConstant
+  - CustRoleStatusConstant
+  - CustStatusEnum
+  system:
+  - PlatformConstant
+  system_code:
+  - PlatformConstant
+  task_notice_type:
+  - ProjectApprovalConstant
+  trigger_source:
+  - CaFeeTodoEnsureTriggerEnum
+  type_status:
+  - CustStatusEnum
+  update_status:
+  - CustStatusConstant
+  user_company_status:
+  - UserCompanyStatusEnum
+  user_type:
+  - UserTypeEnum
+  user_type_enum:
+  - UserTypeEnum
+  wf_status:
+  - ProjectApprovalWorkflowStatusEnum
+table_bindings:
+  argeement_migratory_record.enable:
+  - enum: EnableEnum
+    do: ArgeementMigratoryRecordDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/AgreementMigratoryService.java
+    line: 494
+  argeement_migratory_record.status:
+  - enum: BooleanEnum
+    do: ArgeementMigratoryRecordDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/AgreementMigratoryService.java
+    line: 282
+  async_io_task.status:
+  - enum: AsyncIoTaskStatusEnum
+    do: AsyncIoTaskDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java
+    line: 84
+  authorization_agreement.authed_status:
+  - enum: BooleanEnum
+    do: AuthorizationAgreementDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustAuthAgreementDomainService.java
+    line: 251
+  authorization_agreement.creation_type:
+  - enum: AuthAgreementCreationTypeEnum
+    do: AuthorizationAgreementDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustAuthAgreementDomainService.java
+    line: 430
+  ca_fee_company.enable:
+  - enum: CaFeeConstants
+    do: CaFeeCompanyDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 603
+  ca_fee_company.fee_locked:
+  - enum: CaFeeConstants
+    do: CaFeeCompanyDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 604
+  ca_fee_company.pay_status:
+  - enum: CaFeeCompanyPayStatusEnum
+    do: CaFeeCompanyDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 608
+  ca_fee_company.renew_remind_sent:
+  - enum: CaFeeConstants
+    do: CaFeeCompanyDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 606
+  ca_fee_company.special_config_flag:
+  - enum: CaFeeConstants
+    do: CaFeeCompanyDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 605
+  ca_fee_order.agreement_signed:
+  - enum: CaFeeConstants
+    do: CaFeeOrderDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 424
+  ca_fee_order.enable:
+  - enum: CaFeeConstants
+    do: CaFeeOrderDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 667
+  ca_fee_order.invoice_status:
+  - enum: CaFeeInvoiceStatusEnum
+    do: CaFeeOrderDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cafee/CaFeeInvoiceApplication.java
+    line: 49
+  ca_fee_order.order_status:
+  - enum: CaFeeOrderStatusEnum
+    do: CaFeeOrderDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+    line: 361
+  ca_fee_project_config.agreement_version:
+  - enum: CaFeeConstants
+    do: CaFeeProjectConfigDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeProjectConfigService.java
+    line: 463
+  ca_fee_project_config.charge_enabled:
+  - enum: CaFeeConstants
+    do: CaFeeProjectConfigDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeProjectConfigService.java
+    line: 459
+  ca_fee_project_config.enable:
+  - enum: CaFeeConstants
+    do: CaFeeProjectConfigDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeProjectConfigService.java
+    line: 465
+  ca_fee_project_config.pay_channel:
+  - enum: CaFeeConstants
+    do: CaFeeProjectConfigDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeProjectConfigService.java
+    line: 462
+  ca_fee_special_config.enable:
+  - enum: CaFeeConstants
+    do: CaFeeSpecialConfigDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeSpecialCompanyService.java
+    line: 96
+  client_api_sync_error.enable:
+  - enum: EnableEnum
+    do: ClientApiSyncErrorDO
+    path: lowcode-pplatform-client-core/src/main/java/com/lls/lowcode/pplatform/client/core/service/service/AbstractQueueThread.java
+    line: 478
+  cust_account_info.account_type:
+  - enum: AccountTypeEnum
+    do: CustAccountInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustPersonController.java
+    line: 309
+  cust_account_info.enable:
+  - enum: EnableEnum
+    do: CustAccountInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 621
+  cust_auth_application.enable:
+  - enum: BooleanEnum
+    do: CustAuthApplicationDO
+    path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/UserFacade.java
+    line: 197
+  cust_auth_application.open_status:
+  - enum: CustProductActiveConstant
+    do: CustAuthApplicationDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/SubmitCustInfoEnhanceService.java
+    line: 148
+  cust_certification_info.auto_verify_status:
+  - enum: CustCertificationResultTypeEnum
+    do: CustCertificationInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustCompanyInfoController.java
+    line: 980
+  cust_certification_info.certification_type:
+  - enum: CustCertificationTypeConstant
+    do: CustCertificationInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/face/impl/MiniFaceServiceImpl.java
+    line: 169
+  - enum: CustCertificationTypeEnum
+    do: CustCertificationInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java
+    line: 936
+  cust_certification_info.enable:
+  - enum: BooleanEnum
+    do: CustCertificationInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java
+    line: 858
+  cust_change_record.enable:
+  - enum: EnableEnum
+    do: CustChangeRecordDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/ChangeRecordService.java
+    line: 71
+  cust_change_record.msg_send:
+  - enum: EnableEnum
+    do: CustChangeRecordDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/ChangeRecordService.java
+    line: 53
+  cust_company_info.auth_aggrement_supplement_flag:
+  - enum: BooleanEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustAuthAgreementDomainService.java
+    line: 566
+  cust_company_info.ca_register_status:
+  - enum: EnableEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 838
+  cust_company_info.check_status:
+  - enum: OperApiConstants
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 7473
+  cust_company_info.cust_build_status:
+  - enum: CustBuildStatusConstant
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ApplyCompanyInfoApplication.java
+    line: 157
+  - enum: CustBuildStatusEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 2117
+  cust_company_info.cust_build_type:
+  - enum: CustBuildTypeConstant
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 1438
+  cust_company_info.cust_source:
+  - enum: CustSourceEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/callback/cust/CustSyncEventProcessor.java
+    line: 3064
+  cust_company_info.cust_status:
+  - enum: CustStatusConstant
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 812
+  - enum: CustStatusEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 7377
+  cust_company_info.data_type:
+  - enum: CustDataTypeConstant
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ApplyCompanyInfoApplication.java
+    line: 109
+  cust_company_info.enable:
+  - enum: EnableEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 829
+  cust_company_info.head_company:
+  - enum: BooleanEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 3395
+  - enum: EnableEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 836
+  cust_company_info.identify_style:
+  - enum: IdentifyTypeConstant
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 834
+  cust_company_info.legal_realname_status:
+  - enum: BooleanEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/callback/cust/CustSyncEventProcessor.java
+    line: 1180
+  cust_company_info.need_register_ca:
+  - enum: BooleanEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 3394
+  - enum: EnableEnum
+    do: CustCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 837
+  cust_company_lifecycle_info.enable:
+  - enum: EnableEnum
+    do: CustCompanyLifecycleInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 7199
+  cust_company_lifecycle_info.type:
+  - enum: CompanyCycleTypeEnum
+    do: CustCompanyLifecycleInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 7207
+  cust_customized_product.enable:
+  - enum: BooleanEnum
+    do: CustCustomizedProductDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/custproduct/CustGeneralProductApplication.java
+    line: 579
+  cust_group_rel.status:
+  - enum: CustGroupRelStatusEnum
+    do: CustGroupRelDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java
+    line: 160
+  cust_head_company_info.enable:
+  - enum: BooleanEnum
+    do: CustHeadCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/CaCertificationHeadCompanySupport.java
+    line: 63
+  - enum: EnableEnum
+    do: CustHeadCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormOperateAppliaction.java
+    line: 922
+  cust_head_company_info.legal_certification_type:
+  - enum: IDTypeEnum
+    do: CustHeadCompanyInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/CaCertificationHeadCompanySupport.java
+    line: 76
+  cust_interworking_product.open_status:
+  - enum: CustProductActiveConstant
+    do: CustInterworkingProductDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustInterworkingProductDomainService.java
+    line: 132
+  cust_invite_info.progress:
+  - enum: CustBuildStatusEnum
+    do: CustInviteInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustCompanyIfoEnchanceService.java
+    line: 1549
+  cust_person_info.certification_type:
+  - enum: IDTypeEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/migratory/appliaction/PlatFormMigratoryApplication.java
+    line: 1406
+  cust_person_info.company_type:
+  - enum: CustCompanyTypeEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 6883
+  cust_person_info.cust_build_status:
+  - enum: CustBuildStatusConstant
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 664
+  - enum: CustBuildStatusEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 2362
+  cust_person_info.enable:
+  - enum: BooleanEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 2555
+  - enum: EnableEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 648
+  cust_person_info.face_status:
+  - enum: CustCertificationResultTypeEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/callback/cust/CustSyncEventProcessor.java
+    line: 2583
+  cust_person_info.phone_realname_status:
+  - enum: CustCertificationResultTypeEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustPersonApplication.java
+    line: 481
+  cust_person_info.real_name_result:
+  - enum: RealNameResultEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 5056
+  cust_person_info.skip_auth_flag:
+  - enum: EnableEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustPersonController.java
+    line: 661
+  cust_person_info.source:
+  - enum: CustPersonInfoSourceEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 3603
+  cust_person_info.status:
+  - enum: CustPersonStatusConstant
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 663
+  - enum: CustStatusEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 2583
+  cust_person_info.user_type:
+  - enum: UserTypeEnum
+    do: CustPersonInfoDO
+    path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/UserFacade.java
+    line: 751
+  cust_project_rel.enable:
+  - enum: BooleanEnum
+    do: CustProjectRelDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/channel/change/support/ChannelChangeDirectAddRoleService.java
+    line: 190
+  - enum: EnableEnum
+    do: CustProjectRelDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 712
+  cust_project_rel.show_flag:
+  - enum: BooleanEnum
+    do: CustProjectRelDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 1473
+  cust_role_info.enable:
+  - enum: BooleanEnum
+    do: CustRoleInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 6582
+  - enum: EnableEnum
+    do: CustRoleInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 733
+  cust_role_info.status:
+  - enum: CustRoleStatusConstant
+    do: CustRoleInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+    line: 734
+  - enum: CustStatusEnum
+    do: CustRoleInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+    line: 1392
+  cust_user_rel.type_status:
+  - enum: CustStatusEnum
+    do: CustUserRelDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/SubmitCustInfoEnhanceService.java
+    line: 177
+  funding_rule_info.rule_status:
+  - enum: RuleStatusEnum
+    do: FundingRuleInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+    line: 301
+  open_sso_channel.open_mode_default:
+  - enum: LocalSysOpenModeEnum
+    do: OpenSsoChannelDO
+    path: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/opensso/OpenSsoChannelService.java
+    line: 217
+  platform_product.product_status:
+  - enum: ProductStatusEnum
+    do: PlatformProductDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/model/product/PlatformProduct.java
+    line: 100
+  short_link.is_forever:
+  - enum: BooleanEnum
+    do: ShortLinkDO
+    path: lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/shortlink/ShortLinkAppication.java
+    line: 54
+  tenant_interworking_product.open_status:
+  - enum: ProductOpenStatusEnum
+    do: TenantInterworkingProductDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantInterworkingProductDomainService.java
+    line: 178
+  tenant_migarory_log.status:
+  - enum: BooleanEnum
+    do: TenantMigaroryLogDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/TenantMigaroryLogDaoImpl.java
+    line: 87
+  tenant_product.open_status:
+  - enum: ProductOpenStatusEnum
+    do: TenantProductDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java
+    line: 334
+  tenant_project.project_status:
+  - enum: ProjectStatusEnum
+    do: TenantProjectDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 858
+  tenant_project.source:
+  - enum: PlatformConstant
+    do: TenantProjectDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantProjectDomainService.java
+    line: 159
+  tenant_project_approval.enable:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 429
+  tenant_project_approval.is_latest:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 430
+  tenant_project_approval.wf_status:
+  - enum: ProjectApprovalWorkflowStatusEnum
+    do: TenantProjectApprovalDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 434
+  tenant_project_approval_business_info.enable:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalBusinessInfoDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 1577
+  tenant_project_approval_flow.enable:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalFlowDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 1211
+  tenant_project_approval_flow.node_status:
+  - enum: ProjectApprovalNodeStatusEnum
+    do: TenantProjectApprovalFlowDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 1210
+  tenant_project_approval_flow_comment.enable:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalFlowCommentDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 1732
+  tenant_project_approval_flow_credit.enable:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalFlowCreditDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java
+    line: 635
+  tenant_project_approval_flow_file.catg_id:
+  - enum: ProjectApprovalMediaCatgEnum
+    do: TenantProjectApprovalFlowFileDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 1746
+  tenant_project_approval_flow_file.catg_name:
+  - enum: ProjectApprovalMediaCatgEnum
+    do: TenantProjectApprovalFlowFileDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 1747
+  tenant_project_approval_flow_file.enable:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalFlowFileDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 1755
+  tenant_project_approval_flow_node.approval_type:
+  - enum: ProjectApprovalTypeEnum
+    do: TenantProjectApprovalFlowNodeDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 992
+  tenant_project_approval_flow_node.enable:
+  - enum: BooleanEnum
+    do: TenantProjectApprovalFlowNodeDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 998
+  tenant_project_approval_flow_node.operate_type:
+  - enum: ProjectApprovalOperateTypeEnum
+    do: TenantProjectApprovalFlowNodeDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+    line: 991
+  tenant_setting_config.act_procinst_status:
+  - enum: BooleanEnum
+    do: TenantSettingConfigDO
+    path: lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java
+    line: 223
+  tenant_setting_config.pushing_status:
+  - enum: BooleanEnum
+    do: TenantSettingConfigDO
+    path: lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java
+    line: 224
+  tenant_setting_config.source:
+  - enum: PlatformConstant
+    do: TenantSettingConfigDO
+    path: lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java
+    line: 421
+  tenant_setting_config.status:
+  - enum: BooleanEnum
+    do: TenantSettingConfigDO
+    path: lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java
+    line: 108
+  wechat_project_approval_apply.enable:
+  - enum: BooleanEnum
+    do: WechatProjectApprovalApplyDO
+    path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ProjectStatisticsDevImportApplication.java
+    line: 350
+ambiguous_fields:
+  certification_type: *id001
+  cust_build_status: *id002
+  cust_status: *id003
+  open_status: *id004
+  service_key: *id005
+  source: *id006
+  status: *id007

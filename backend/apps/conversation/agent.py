@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, SystemMessage
 
+from apps.ai_model.runtime import normalize_message_parts
 from apps.chat.steps.observability import sanitize_audit_value
 from apps.chat.tools.metadata import get_tool_title_key
 from apps.conversation.messages import (
@@ -84,9 +85,7 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
             calls = []
             text = text.strip()
         safe_calls = sanitize_audit_value(calls)
-        rc = getattr(response, "additional_kwargs", {}).get(
-            "reasoning_content"
-        ) or getattr(response, "reasoning_content", "")
+        rc = normalize_message_parts(response).reasoning
         thought_text = str(rc or (text if calls else "") or "")
         if thought_span is not None:
             if thought_text:

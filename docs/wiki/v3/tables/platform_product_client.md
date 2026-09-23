@@ -4,15 +4,22 @@ title: 平台产品端口配置
 page_key: platform_product_client
 belong: tables
 status: draft
-anchors: [platform_product_client]
-sources: ['database_schema:lowcode_pplatform.platform_product_client']
+anchors:
+- platform_product_client
+sources:
+- database_schema:lowcode_pplatform.platform_product_client
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [platform_product, platform_product_client__platform_product_id, platform_product_client__client_type,
-  platform_product_client__status, platform_product_client__multiple_type, platform_product_client__wx_flag,
-  platform_product_client__link_type]
+databases:
+- lowcode_pplatform
+related:
+- platform_product
+- platform_product_client__client_type
+- platform_product_client__status
+- platform_product_client__multiple_type
+- platform_product_client__wx_flag
+- platform_product_client__link_type
 ---
 
 # 平台产品端口配置
@@ -26,9 +33,12 @@ table: platform_product_client
 database: lowcode_pplatform
 desc: 平台产品端口配置
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 平台产品客户端入口
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -43,34 +53,55 @@ fields:
 - name: platform_product_id
   type: number
   desc: 平台产品id
-  dict: ['6', '3', '2', '4', '5', '7', '8', '10']
 - name: url
   type: string
   desc: 产品url
 - name: client_type
   type: string
   desc: 客户端类型方式
-  dict: [AMS, ORDER, RVSFACTOR_PC, BEECREDIT, ACFLOW, DEALER]
+  dict:
+  - AMS
+  - ORDER
+  - RVSFACTOR_PC
+  - BEECREDIT
+  - ACFLOW
+  - DEALER
 - name: status
   type: string
   desc: 启用状态
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [是, 否]
 - name: multiple_type
   type: string
   desc: 过滤类型
-  dict: [default, FINANCE, SUPPLIER, CORE, DEALER, PLATFORM_OPERATOR_COMPANY, CORE_BRANCH,
-    CORE_MANAGER, CORE_SUB, PROJECT_COMPANY]
+  dict:
+  - default
+  - FINANCE
+  - SUPPLIER
+  - CORE
+  - DEALER
+  - PLATFORM_OPERATOR_COMPANY
+  - CORE_BRANCH
+  - CORE_MANAGER
+  - CORE_SUB
+  - PROJECT_COMPANY
 - name: ext_config
   type: string
   desc: 其他配置信息
 - name: wx_flag
   type: string
   desc: 是否小程序
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label: [否, 是]
 - name: link_type
   type: string
   desc: 链接类型(iframe/redirect/forward)
-  dict: [iframe]
+  dict:
+  - iframe
 - name: enable
   type: string
   desc: enable
@@ -129,10 +160,10 @@ type: EQUI_JOIN
 left: platform_product.id
 right: platform_product_client.platform_product_id
 cardinality: one_to_many
-trust: proposed
+trust: confirmed
 authenticity: likely
-evidence: database_schema:lowcode_pplatform.platform_product_client.platform_product_id;database_profile:lowcode_pplatform.platform_product_client.platform_product_id
-source: name
+evidence: code_path:PlatformProductClientDO.java:50
+source: l1_code
 join_role: identity
 priority: primary
 name_evidence:
@@ -147,8 +178,8 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
+authenticity_note: 平台产品客户端配置挂 platform_product_id。
 ```
-
 ## 页面链接
 
 ### 关联表
@@ -157,7 +188,6 @@ overlap:
 
 ### 字典
 
-- [[dicts/platform_product_client__platform_product_id]]（`platform_product_client.platform_product_id`）
 - [[dicts/platform_product_client__client_type]]（`platform_product_client.client_type`）
 - [[dicts/platform_product_client__status]]（`platform_product_client.status`）
 - [[dicts/platform_product_client__multiple_type]]（`platform_product_client.multiple_type`）

@@ -13,6 +13,7 @@ import {
   type ChatStreamEvent,
   type UseChatStreamOptions,
 } from '@/hooks/useChatStream'
+import { useReasoningEffortStore } from '@/stores/reasoningEffort'
 
 type ConversationTurnHandlers = {
   onAttemptStart?: (record: ChatRecord) => void
@@ -23,7 +24,7 @@ type ConversationTurnHandlers = {
 }
 
 const prepareRecordForNewAttempt = (record: ChatRecord) => {
-  record.error = null
+  record.error = undefined
   record.finish = false
   record.finish_time = undefined
   record.active_interrupt = undefined
@@ -234,6 +235,7 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
         regenerate_record_id: options.regenerate ? record.id : undefined,
         route_hint: record.turn_kind,
         reference_record_ids: record.reference_record_ids,
+        reasoning_effort: useReasoningEffortStore().requestEffort,
       })
       const snapshot = ((created as any)?.data || created) as ConversationRunSnapshot
       // A run may start emitting before POST /runs returns.  Subscribe from zero

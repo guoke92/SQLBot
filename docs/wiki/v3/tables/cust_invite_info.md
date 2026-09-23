@@ -4,15 +4,20 @@ title: 客户邀请信息
 page_key: cust_invite_info
 belong: tables
 status: draft
-anchors: [cust_invite_info]
-sources: ['database_schema:lowcode_pplatform.cust_invite_info']
+anchors:
+- cust_invite_info
+sources:
+- database_schema:lowcode_pplatform.cust_invite_info
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_invite_info__progress, cust_invite_info__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_invite_info__enable
+- cust_invite_info__progress
 ---
-
 # 客户邀请信息
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -24,9 +29,14 @@ table: cust_invite_info
 database: lowcode_pplatform
 desc: 客户邀请信息
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name, contact_name, channel_code]
+name_anchors:
+- code
+- name
+- contact_name
+- channel_code
 fields:
 - name: id
   type: number
@@ -42,8 +52,8 @@ fields:
   type: string
   desc: 进度
   dict: [INIT, CUST_CONFIRM_AWAIT, BUILD_SUCCESS, CUST_BUILDING, CUST_CHANGE, BUILD_FAIL,
-    AWAIT_CUST_CONFIRM, BUILDING]
-  label: [初始化, 待客户认证, 认证成功, 审核中, 变更, 认证失败, 待客户确认, 建档中]
+    AWAIT_CUST_CONFIRM]
+  label: [初始化, 待客户认证, 认证成功, 审核中, 变更, 认证失败, 待客户确认]
 - name: invite_time
   type: temporal
   desc: 邀请时间
@@ -65,7 +75,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -138,6 +153,12 @@ authenticity_note: 邀请方企业主键。progress 回写按被邀请企业 nam
 ### 关联表
 
 - [[tables/cust_company_info]]
+
+### 概念
+
+- [[concepts/channel_code_homonym_bundle]]
+- [[concepts/channel_code_term]]
+- [[concepts/invite_progress_copy]]
 
 ### 字典
 

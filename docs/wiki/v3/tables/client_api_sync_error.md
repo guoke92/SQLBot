@@ -4,13 +4,18 @@ title: 客户端接口同步失败记录
 page_key: client_api_sync_error
 belong: tables
 status: draft
-anchors: [client_api_sync_error]
-sources: ['database_schema:lowcode_pplatform.client_api_sync_error', 'code_path:StartupSyncRetry.java:119']
+anchors:
+- client_api_sync_error
+sources:
+- database_schema:lowcode_pplatform.client_api_sync_error
+- code_path:StartupSyncRetry.java:119
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [client_api_sync_error__enable, client_api_sync_error__retry_num]
+databases:
+- lowcode_pplatform
+related:
+- client_api_sync_error__enable
 ---
 
 # 客户端接口同步失败记录
@@ -24,9 +29,13 @@ table: client_api_sync_error
 database: lowcode_pplatform
 desc: 客户端接口同步失败记录
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 客户端同步失败
-name_anchors: [code, name, service_class_name]
+name_anchors:
+- code
+- name
+- service_class_name
 fields:
 - name: id
   type: number
@@ -47,7 +56,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [N]
+  dict:
+  - N
+  - Y
+  label: [停用, 启用]
 - name: remark
   type: string
   desc: remark
@@ -95,7 +107,6 @@ fields:
 - name: retry_num
   type: number
   desc: 重试次数
-  dict: ['3']
 default_filter:
   predicate: client_api_sync_error.enable = 'Y'
   trust: confirmed
@@ -107,4 +118,3 @@ default_filter:
 ### 字典
 
 - [[dicts/client_api_sync_error__enable]]（`client_api_sync_error.enable`）
-- [[dicts/client_api_sync_error__retry_num]]（`client_api_sync_error.retry_num`）

@@ -6,15 +6,15 @@ belong: dicts
 status: draft
 anchors: [tenant_project_approval_business_info.asset_list_mode]
 sources: ['database_profile:tenant_project_approval_business_info.asset_list_mode']
-created: '2026-09-21'
-updated: '2026-09-21'
+created: '2026-09-23'
+updated: '2026-09-23'
 contract_version: '0.1'
 related: [tenant_project_approval_business_info]
 ---
 
 # tenant_project_approval_business_info.asset_list_mode
 
-L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。 初审 hold：证据不足，保留待人工确认。
+L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。
 物理列 `tenant_project_approval_business_info.asset_list_mode`，表页 [[tables/tenant_project_approval_business_info]]。
 
 ## 取值
@@ -25,6 +25,5 @@ fields: [tenant_project_approval_business_info.asset_list_mode]
 values:
   STANDARD_LIST: {trust: proposed}
   SIMPLE_LIST: {trust: proposed}
-triage: hold
-needs_review: true
+triage: keep
 ```

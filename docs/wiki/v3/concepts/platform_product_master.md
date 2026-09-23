@@ -13,7 +13,7 @@ created: '2026-09-21'
 updated: '2026-09-21'
 contract_version: '0.1'
 related: [platform_product]
-also_confused_with: [open_tenant_product_term, product_cate_term]
+also_confused_with: [open_tenant_product_term, product_cate_term, platform_product_code_term]
 adjudication: boundary
 ---
 

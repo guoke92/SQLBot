@@ -4,14 +4,18 @@ title: 调研答案表
 page_key: cust_survey_answer
 belong: tables
 status: draft
-anchors: [cust_survey_answer]
-sources: ['database_schema:lowcode_pplatform.cust_survey_answer']
+anchors:
+- cust_survey_answer
+sources:
+- database_schema:lowcode_pplatform.cust_survey_answer
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_survey_answer__question_no, cust_survey_answer__survey_code,
-  cust_survey_answer__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_survey_answer__enable
 ---
 
 # 调研答案表
@@ -25,9 +29,13 @@ table: cust_survey_answer
 database: lowcode_pplatform
 desc: 调研答案表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企业调研答题（一企一调研幂等）
-name_anchors: [survey_code, code, name]
+name_anchors:
+- survey_code
+- code
+- name
 fields:
 - name: id
   type: number
@@ -42,7 +50,6 @@ fields:
 - name: question_no
   type: number
   desc: 题号（1~N）
-  dict: ['5', '3', '6', '1', '4', '2']
 - name: answer_value
   type: string
   desc: 选项明文，多选每个选项单独一行
@@ -55,7 +62,8 @@ fields:
 - name: survey_code
   type: string
   desc: 问卷code
-  dict: [XYL_2024_Q1]
+  dict:
+  - XYL_2024_Q1
 - name: code
   type: string
   desc: 编码
@@ -65,7 +73,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -151,6 +162,5 @@ authenticity_note: 调研答案按登录企业主键。
 
 ### 字典
 
-- [[dicts/cust_survey_answer__question_no]]（`cust_survey_answer.question_no`）
 - [[dicts/cust_survey_answer__survey_code]]（`cust_survey_answer.survey_code`）
 - [[dicts/cust_survey_answer__enable]]（`cust_survey_answer.enable`）

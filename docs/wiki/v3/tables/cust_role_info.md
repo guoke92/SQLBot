@@ -4,16 +4,23 @@ title: 客户产品角色关联表
 page_key: cust_role_info
 belong: tables
 status: draft
-anchors: [cust_role_info]
-sources: ['database_schema:lowcode_pplatform.cust_role_info', 'code_path:CustCompanyQueryMapper.xml:82']
+anchors:
+- cust_role_info
+sources:
+- database_schema:lowcode_pplatform.cust_role_info
+- code_path:CustCompanyQueryMapper.xml:82
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_auth_application, cust_company_info, cust_role_info__enable, cust_role_info__status,
-  cust_role_info__role_type]
+databases:
+- lowcode_pplatform
+related:
+- cust_auth_application
+- cust_company_info
+- cust_role_info__enable
+- cust_role_info__status
+- cust_role_info__role_type
 ---
-
 # 客户产品角色关联表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +32,12 @@ table: cust_role_info
 database: lowcode_pplatform
 desc: 客户产品角色关联表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -42,7 +52,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -90,8 +103,16 @@ fields:
 - name: status
   type: string
   desc: 状态
-  dict: [ADD, EFFECT, WRITEOFF, FREEZE]
-  label: [未激活, 已激活, 注销, 冻结]
+  dict:
+  - ADD
+  - EFFECT
+  - WRITEOFF
+  - FREEZE
+  label:
+  - 未激活
+  - 已激活
+  - 注销
+  - 冻结
 - name: platform_cust_id
   type: number
   desc: 关联平台企业ID
@@ -104,13 +125,37 @@ fields:
 - name: role_type
   type: string
   desc: 角色类型
-  dict: [SUPPLIER, CORE, FINANCE, PROJECT_COMPANY, CORPORATION_COMPANY, PLATFORM_OPERATOR_COMPANY,
-    DEALER, CORE_MANAGER, FACTOR_COMPANY, '"SUPPLIER"', '"CORE"', CORE_ADMIN, CORE_SUB,
-    CORE_FUNCTIONAL_DEPARTMENT, CORE_BRANCH, PLATFORM_COMPANY]
-  label: {SUPPLIER: 供应商, CORE: 核心企业, FINANCE: 金融机构, PROJECT_COMPANY: 项目公司, CORPORATION_COMPANY: 集团公司,
-    PLATFORM_OPERATOR_COMPANY: 平台运营方, DEALER: 经销商, CORE_MANAGER: 核心企业管理机构, FACTOR_COMPANY: 保理买卖方,
-    CORE_SUB: 核心企业子公司, CORE_FUNCTIONAL_DEPARTMENT: 核心企业职能部门, CORE_BRANCH: 核心企业分公司,
-    PLATFORM_COMPANY: 平台方}
+  dict:
+  - SUPPLIER
+  - CORE
+  - FINANCE
+  - PROJECT_COMPANY
+  - CORPORATION_COMPANY
+  - PLATFORM_OPERATOR_COMPANY
+  - DEALER
+  - CORE_MANAGER
+  - FACTOR_COMPANY
+  - '"SUPPLIER"'
+  - '"CORE"'
+  - CORE_ADMIN
+  - CORE_SUB
+  - CORE_FUNCTIONAL_DEPARTMENT
+  - CORE_BRANCH
+  - PLATFORM_COMPANY
+  label:
+    SUPPLIER: 供应商
+    CORE: 核心企业
+    FINANCE: 金融机构
+    PROJECT_COMPANY: 项目公司
+    CORPORATION_COMPANY: 集团公司
+    PLATFORM_OPERATOR_COMPANY: 平台运营方
+    DEALER: 经销商
+    CORE_MANAGER: 核心企业管理机构
+    FACTOR_COMPANY: 保理买卖方
+    CORE_SUB: 核心企业子公司
+    CORE_FUNCTIONAL_DEPARTMENT: 核心企业职能部门
+    CORE_BRANCH: 核心企业分公司
+    PLATFORM_COMPANY: 平台方
 - name: main_data_id
   type: number
   desc: 主数据id
@@ -137,64 +182,18 @@ join_role: identity
 priority: primary
 authenticity_note: listEffectCompanyByCustType 以 code 连接角色表。
 ```
-
-### disputed — 与已确认边冲突
-
 ```ground:relation
 type: EQUI_JOIN
-left: cust_company_info.id
-right: cust_role_info.ref_cust_company_info
-cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_role_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_role_info.ref_cust_company_info
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: exact_table
-  stem: cust_company_info
-  comment: 客户类型
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 200
-  miss: 200
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: cust_company_info.code, right: cust_role_info.ref_cust_company_info,
-  trust: confirmed}
-- {source: name, left: cust_company_info.id, right: cust_role_info.ref_cust_company_info,
-  trust: proposed}
-```
-
-### unknown — 待复核
-
-```ground:relation
-type: EQUI_JOIN
-left: cust_auth_application.id
+left: cust_auth_application.code
 right: cust_role_info.ref_cust_auth_application
 cardinality: one_to_many
 trust: proposed
 authenticity: unknown
-evidence: database_schema:lowcode_pplatform.cust_role_info.ref_cust_auth_application;database_profile:lowcode_pplatform.cust_role_info.ref_cust_auth_application
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: exact_table
-  stem: cust_auth_application
-  comment: 应用客户角色
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 1
-  miss: 1
-  deepened: false
-  query_ok: true
-  authenticity: unknown
+evidence: full_sweep:code_ref UAT empty child
+source: full_sweep
+join_role: business_code
+priority: secondary
+authenticity_note: code:ref-convention
 ```
 
 ## 页面链接
@@ -203,6 +202,10 @@ overlap:
 
 - [[tables/cust_auth_application]]
 - [[tables/cust_company_info]]
+
+### 概念
+
+- [[concepts/core_company]]
 
 ### 字典
 

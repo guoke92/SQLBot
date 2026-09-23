@@ -1058,7 +1058,7 @@ def test_catalog_probe_sql_is_blocked() -> None:
     assert "information_schema" in blocked["error"]
 
 
-def test_execute_sql_blocked_when_wiki_schema_missing() -> None:
+def test_execute_sql_does_not_gate_on_wiki_schema_ready() -> None:
     from apps.chat.agent_knowledge import AgentKnowledgePlane
     from apps.chat.tools.execute_sql import execute_sql_sandbox
     from apps.conversation.runtime_context import (
@@ -1067,18 +1067,20 @@ def test_execute_sql_blocked_when_wiki_schema_missing() -> None:
         worker_scope,
     )
 
-    run_id = "wiki-schema-missing"
+    run_id = "wiki-schema-ready-not-gate"
     attach_runtime(run_id, knowledge_plane=AgentKnowledgePlane().to_dump())
     llm = SimpleNamespace()
     try:
         with worker_scope(run_id, "tok"):
-            blocked = execute_sql_sandbox(
+            result = execute_sql_sandbox(
                 llm, "SELECT * FROM cust_company_info LIMIT 1"
             )
     finally:
         detach_runtime(run_id)
-    assert blocked["ok"] is False
-    assert blocked["failure"]["retryable"] is False
+    assert result["ok"] is False
+    err = result.get("error") or ""
+    assert "Wiki did not provide" not in err
+    assert "Datasource or protocol" in err
 
 
 def test_prompt_schema_gap_block_when_wiki_has_no_schema() -> None:

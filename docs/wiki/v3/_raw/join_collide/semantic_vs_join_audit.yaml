@@ -1,0 +1,416 @@
+generated_at: '2026-09-22T10:28:11.014968+00:00'
+policy: Same-name / shared business semantic ≠ EQUI_JOIN. Hub A.x → B.x and A.x →
+  C.x OK; B↔C not required. Cross-scenario same field (e.g. channel_code 项目码 vs SSO渠道)
+  never joined.
+kept_strong:
+- left: cust_company_info.certification_no
+  right: ca_cfca_upgrade_report.certification_no
+  host: ca_cfca_upgrade_report
+- left: cust_company_info.certification_no
+  right: ca_fee_order.certification_no
+  host: ca_fee_order
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+removed_from_wiki:
+- left: authorization_agreement.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: tenant_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: tenant_project.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: cust_auth_application.platform_product_code
+  host: cust_auth_application
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: cust_app_channel_config.code
+  right: cust_company_info.channel_code
+  host: cust_company_info
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:channel_code → cust_app_channel_config.code
+  note: channel_code → cust_app_channel_config.code
+- left: tenant_interworking_product.id
+  right: cust_interworking_product.product_id
+  host: cust_interworking_product
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: 'live_validate:fk_like;collide_refine:pattern: product_id → tenant_interworking_product.id'
+  note: 'pattern: product_id → tenant_interworking_product.id'
+- left: tenant_product.id
+  right: cust_project_rel.product_id
+  host: cust_project_rel
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: 'live_validate:fk_like;collide_refine:pattern: product_id → tenant_product.id'
+  note: 'pattern: product_id → tenant_product.id'
+- left: funding_exception_resolution.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: platform_product.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: platform_product_cust_role.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: tenant_project_approval_business_info.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: funding_exception_resolution.product_code
+  right: funding_rule_front_cfg.product_code
+  host: funding_rule_front_cfg
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: cust_company_info.id
+  right: gpt_learn_poster_log.company_id
+  host: gpt_learn_poster_log
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: 'live_validate:fk_like;collide_refine:pattern: company_id → cust_company_info.id'
+  note: 'pattern: company_id → cust_company_info.id'
+- left: cust_app_channel_config.code
+  right: open_sso_channel.channel_code
+  host: open_sso_channel
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:channel_code → cust_app_channel_config.code
+  note: channel_code → cust_app_channel_config.code
+- left: cust_company_info.channel_code
+  right: open_sso_channel.channel_code
+  host: open_sso_channel
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `channel_code`
+  note: same-name `channel_code`
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  host: tenant_interworking_project
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu.product_code
+  host: tenant_product_menu
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `platform_product_code`
+  note: same-name `platform_product_code`
+- left: wechat_project_approval_apply.sp_no
+  right: tenant_project_approval.sp_no
+  host: tenant_project_approval
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: 'live_validate:fk_like;collide_refine:promoted: tenant_project_approval.sp_no
+    ⊆ wechat_project_approval_apply.sp_no'
+  note: 'promoted: tenant_project_approval.sp_no ⊆ wechat_project_approval_apply.sp_no'
+- left: platform_product.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: platform_product_cust_role.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: funding_exception_resolution.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: funding_rule_info.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `product_code`
+  note: same-name `product_code`
+- left: tenant_project_approval_flow_config.node_code
+  right: tenant_project_approval_flow_node.node_code
+  host: tenant_project_approval_flow_node
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:fk_like;collide_refine:same-name `node_code`
+  note: same-name `node_code`
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  host: wechat_project_approval_field_history
+  verdict: ''
+  reason: semantic_only_or_unconfirmed
+  evidence: live_validate:shared_domain;collide_refine:same-name `sp_no`
+  note: same-name `sp_no`
+semantic_groups:
+- field: platform_product_code
+  meaning: 平台产品业务码（如 ACFLOW）；各场景表冗余拷贝，不是表间 FK
+  code: 'authorization_agreement.trace: 未见对 platform_product.product_code 的 SQL EQUI_JOIN；agreement_migratory:
+    CSV notIn 不是 JOIN'
+  tables:
+  - platform_product.product_code
+  - authorization_agreement.platform_product_code
+  - cust_auth_application.platform_product_code
+  - tenant_product.platform_product_code
+  - tenant_project.platform_product_code
+  - argeement_migratory_record.platform_product_code
+  - tenant_migarory_log.platform_product_code
+  - cust_interworking_product.platform_product_code
+  - tenant_interworking_product.platform_product_code
+  - tenant_interworking_project.platform_product_code
+  action: drop_cross_table_equi_joins
+- field: product_code
+  meaning: 产品业务码；资方规则/菜单/审批业务信息/角色等多场景共用语义
+  code: platform_product_cust_role.product_code 与平台产品是内存 contains，不是 SQL EQUI_JOIN；funding_rule
+    真 FK 是 rule_info_id
+  hub_hint: 若需强关联优先 platform_product.product_code → 各子场景（仍要代码证实）；子场景之间不互链
+  action: drop_satellite_clique
+- field: channel_code
+  meaning: 同名异义：项目码 vs OpenAPI/SSO 渠道 vs 企业建档渠道
+  code: tenant_concepts.channel_code_term ≠ open_sso_channel_term ≠ cust_company_info.channel_code；open_sso↔company
+    为对齐非 FK
+  action: never_equi_join_across_meanings
+- field: certification_no
+  meaning: 企业/CA 统码；hub→各 CA 附属表可以强关联，附属表之间不互链
+  keep_hub:
+  - cust_company_info.certification_no → ca_fee_company / ca_fee_order / ca_cfca_upgrade_report
+  - ca_fee_company.certification_no → ca_fee_order
+  drop: ca_fee_order ↔ ca_fee_special_config ↔ ca_cfca 等同名互链（值域阶段不同）
+  action: hub_satellites_only
+- field: sp_no
+  meaning: 企微审批单号 vs 项目上线审批 — 不同场景不要互代
+  code: 'remaining calibers: 企微在 wechat_project_approval_apply；项目上线在 tenant_project_approval。字段历史用
+    apply_id'
+  action: drop_cross_scenario
+- field: node_code
+  meaning: 审批流程节点码；config/flow/node 各表同语义，真关联走 ref_* code
+  action: semantic_only_unless_ref
+review_disposition:
+- pair: tenant_project.channel_code ↔ cust_project_*
+  decision: reject
+  why: 项目码拷贝/录入，同名异义或附属拷贝，非 FK
+- pair: cust_invite/project_rel channel_code clique
+  decision: reject
+  why: 场景拷贝，语义同一即可
+- pair: certification_no child↔child
+  decision: reject
+  why: 只保留 hub→satellite
+- pair: cust_company_info.certification_no → ca_fee_special_config
+  decision: review_hold
+  why: 'code trace: special_config 未见 lambdaQuery；不自动写入'
+- pair: tenant_project.id → project_file_info / wec_*
+  decision: reject
+  why: 'code: 未证实 / 不当 EQUI_JOIN'
+- pair: platform_product.id → cust_project_rel.product_id
+  decision: reject
+  why: product_id 语义指向 tenant_product，且 code 无此边
+- pair: funding/menu/approval product_code clique
+  decision: reject
+  why: 同业务语义团，子场景不互链
+- pair: gpt_learn_poster_log.company_id
+  decision: reject
+  why: 'code gap: 无对端等值 JOIN'
+- pair: cust_interworking_product.product_id / cust_project_rel.product_id
+  decision: reject
+  why: relations_dicts 未确认；互通真边多为 code/ref
+- pair: apply.sp_no ↔ tenant_project_approval.sp_no
+  decision: reject
+  why: 不同审批场景，勿互代
+removed_reextract_policy:
+- left: tenant_project.id
+  right: ca_fee_special_config.project_id
+  host: ca_fee_special_config
+  source: reextract_joins
+  note: CA 特殊配置项目
+- left: ca_fee_company.certification_no
+  right: ca_fee_special_config.certification_no
+  host: ca_fee_special_config
+  source: reextract_joins
+  note: CA 特殊配置证书号
+- left: platform_product.product_code
+  right: platform_product_cust_role.product_code
+  host: platform_product_cust_role
+  source: reextract_joins
+  note: 平台产品业务码（非 UUID code）
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  host: tenant_interworking_product
+  source: reextract_joins
+  note: 企业互通产品业务码
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  host: tenant_interworking_project
+  source: reextract_joins
+  note: 互通产品/项目业务产品码
+- left: tenant_product.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  source: reextract_joins
+  note: 租户产品/项目业务产品码
+- left: tenant_project_approval_flow.node_code
+  right: tenant_project_approval_flow_config.node_code
+  host: tenant_project_approval_flow_config
+  source: reextract_joins
+  note: 流程预设节点码
+- left: tenant_project_approval_flow.node_code
+  right: tenant_project_approval_flow_node.node_code
+  host: tenant_project_approval_flow_node
+  source: reextract_joins
+  note: 流程实例节点码
+- left: wechat_project_approval_apply.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  host: wechat_project_approval_field_history
+  source: reextract_joins
+  note: 企微审批单号

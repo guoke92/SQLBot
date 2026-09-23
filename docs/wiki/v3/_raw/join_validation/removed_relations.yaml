@@ -1,0 +1,2031 @@
+generated_at: '2026-09-22T08:06:43.933903+00:00'
+policy: Removed EQUI_JOIN fences whose live validation verdict was impossible or false_friend
+  (empty/negligible value overlap). Includes id→ref_* superseded by confirmed code→ref_*
+  on the same right column.
+count: 53
+files_touched:
+- argeement_migratory_record.md
+- authorization_agreement.md
+- ca_fee_order.md
+- cust_account_info.md
+- cust_auth_application.md
+- cust_certification_info.md
+- cust_company_info.md
+- cust_head_company_info.md
+- cust_interworking_product.md
+- cust_person_info.md
+- cust_project_rel.md
+- cust_role_info.md
+- cust_shareholder_info.md
+- platform_product.md
+- platform_product_cust_role.md
+- tenant_interworking_product.md
+- tenant_interworking_project.md
+- tenant_migarory_log.md
+- tenant_migarory_log_bak.md
+- tenant_product.md
+- tenant_product_menu.md
+- tenant_product_menu_res.md
+- tenant_project.md
+- tenant_project_approval.md
+- tenant_project_approval_business_info.md
+- tenant_project_approval_flow.md
+- tenant_project_approval_flow_config.md
+- cust_auth_application_config.md
+- cust_build_record.md
+- cust_company_lifecycle_info.md
+- cust_customized_product.md
+- cust_oper_change_record.md
+- cust_setting_config.md
+- platform_product_client.md
+- tenant_project_approval_flow_comment.md
+- tenant_project_approval_flow_credit.md
+- tenant_project_approval_flow_file.md
+edges:
+- left: platform_product.code
+  right: argeement_migratory_record.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: argeement_migratory_record
+  removed_from: docs/wiki/v3/tables/argeement_migratory_record.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: argeement_migratory_record.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.argeement_migratory_record.platform_product_code;database_profile:lowcode_pplatform.argeement_migratory_record.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: platform_product\n  comment: 产品编码\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 2\n  miss: 2\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unknown\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - ACFLOW
+    - ORDER
+    - RVSFACTOR_PC
+    - STORAGE
+    - AMS
+    - BEECREDIT
+    - VOUCHER
+- left: platform_product.code
+  right: authorization_agreement.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: authorization_agreement
+  removed_from: docs/wiki/v3/tables/authorization_agreement.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: authorization_agreement.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.authorization_agreement.platform_product_code;database_profile:lowcode_pplatform.authorization_agreement.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: platform_product\n  comment: 平台产品id\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 5\n  miss: 5\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - PLATFORM
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - ORDER
+    - RVSFACTOR_PC
+    - STORAGE
+    - VOUCHER
+- left: ca_fee_company.id
+  right: ca_fee_order.company_id
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: ca_fee_order
+  removed_from: docs/wiki/v3/tables/ca_fee_order.md
+  fence_yaml: "type: EQUI_JOIN\nleft: ca_fee_company.id\nright: ca_fee_order.company_id\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.ca_fee_order.company_id;database_profile:lowcode_pplatform.ca_fee_order.company_id\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: company\n  comment: 企业 ID\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 145\n  miss: 145\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.id,\
+    \ right: ca_fee_order.company_id, trust: confirmed}\n- {source: name, left: ca_fee_company.id,\
+    \ right: ca_fee_order.company_id, trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '2181230897443905557'
+    - '2181230902485459031'
+    - '2181230908009357345'
+    - '2181230910450442305'
+    - '2181230913197711440'
+    - '2181230918281207837'
+    - '2181308541514555398'
+    - '2181318116351418426'
+    right_only_sample:
+    - '2057342782138810369'
+    - '2057698471537344514'
+    - '2058103374831476737'
+    - '2057639337950351361'
+    - '2057342224033832962'
+    - '2058100487355035650'
+    - '2055119960431976449'
+    - '2155600334574067717'
+- left: cust_company_info.id
+  right: cust_account_info.ref_cust_company_info
+  verdict: false_friend
+  reason: negligible overlap on large domains (left->right=0.0, right->left=0.0, join_hits=2,
+    distinct L/R=94906/46240); not a usable equi-join
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_account_info
+  removed_from: docs/wiki/v3/tables/cust_account_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_account_info.ref_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_account_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_account_info.ref_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_company_info\n  comment: 客户账号信息\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 200\n  miss: 200\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_account_info.ref_cust_company_info,\n  trust: confirmed}\n- {source:\
+    \ name, left: cust_company_info.id, right: cust_account_info.ref_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 2
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample:
+    - '1806241711613743105'
+    - '1828371179608768513'
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 00001e60aa00440eba11a890a7c60052
+    - 0001fa7332804fd6958de66ec99dfcb9
+    - 0003549ca3a74e40a47dd258fcfb8239
+    - 0003597d1eb548efb9676cd70093206f
+    - 0004ea46b9da45f98e7ab174f695c693
+    - 0008629161d2473b94f93c6715924a94
+    - 000ae3ffe8594644b8f4210d47bfb9d8
+    - 000b24aa0d6640db95d6cb43a2170841
+- left: cust_company_info.id
+  right: cust_auth_application.ref_cust_company_info
+  verdict: false_friend
+  reason: negligible overlap on large domains (left->right=0.0038, right->left=0.0166,
+    join_hits=358, distinct L/R=94906/29687); not a usable equi-join
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_auth_application
+  removed_from: docs/wiki/v3/tables/cust_auth_application.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_auth_application.ref_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_auth_application.ref_cust_company_info;database_profile:lowcode_pplatform.cust_auth_application.ref_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_company_info\n  comment: 客户应用\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 200\n  miss: 200\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_auth_application.ref_cust_company_info,\n  trust: confirmed}\n-\
+    \ {source: name, left: cust_company_info.id, right: cust_auth_application.ref_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 358
+    left_in_right_ratio: 0.0038
+    right_in_left_ratio: 0.0166
+    intersection_sample:
+    - '1765286986895069185'
+    - '1765340835084046337'
+    - '1765340985663754242'
+    - '1765341486388154369'
+    - '1765345518737494018'
+    - '1765346105428348930'
+    - '1765358678336933890'
+    - '1765552185387323393'
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 00001e60aa00440eba11a890a7c60052
+    - 0001fa7332804fd6958de66ec99dfcb9
+    - 0003597d1eb548efb9676cd70093206f
+    - 000766482fda414a9d2cfe13e521bc19
+    - 000850588b6c45968fe98eb61c1903ca
+    - 0008629161d2473b94f93c6715924a94
+    - 000ae3ffe8594644b8f4210d47bfb9d8
+    - 000b3fd95b4b45199a7f5cadbc5cace7
+- left: platform_product.code
+  right: cust_auth_application.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_auth_application
+  removed_from: docs/wiki/v3/tables/cust_auth_application.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: cust_auth_application.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_auth_application.platform_product_code;database_profile:lowcode_pplatform.cust_auth_application.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: platform_product\n  comment: 平台产品编码\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 6\n  miss: 6\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - ACFLOW
+    - RVSFACTOR_PC
+    - BEECREDIT
+    - ORDER
+    - STORAGE
+    - VOUCHER
+    - DRAFT
+    - DRAFTQA
+- left: tenant_product.id
+  right: cust_auth_application.ref_cust_auth_application_tenant_product
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_auth_application
+  removed_from: docs/wiki/v3/tables/cust_auth_application.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_product.id\nright: cust_auth_application.ref_cust_auth_application_tenant_product\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_auth_application.ref_cust_auth_application_tenant_product;database_profile:lowcode_pplatform.cust_auth_application.ref_cust_auth_application_tenant_product\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_product\n  comment: 关联应用\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 23\n  miss: 23\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1823633623839248385'
+    - '1826128361583771649'
+    - '1826813600559169538'
+    - '1826829436405526530'
+    - '1826909844156305410'
+    - '1827890533386448897'
+    - '1828331133954285569'
+    - '1828724865390518273'
+    right_only_sample:
+    - 9eddb408db724423b03ec73c9dfa0d31
+    - 9541fb4aa0204235953230941d544eba
+    - b62140e9ad9a4aa7b246639748e5a378
+    - da1e3038ba994de3aba89777ce4bfc87
+    - c0baa4e4884948848cdf9c52ccb28ce2
+    - 9f9b544fe6134930ae4c6530180f50b3
+    - c1642df7ef05479e9749090da5cdd14e
+    - 3ea039a881344df1bbda3f1aa035fbad
+- left: cust_company_info.id
+  right: cust_certification_info.ref_cust_company_info
+  verdict: false_friend
+  reason: negligible overlap on large domains (left->right=0.0, right->left=0.0021,
+    join_hits=4, distinct L/R=94906/2069); not a usable equi-join
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_certification_info
+  removed_from: docs/wiki/v3/tables/cust_certification_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_certification_info.ref_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_certification_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_certification_info.ref_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_company_info\noverlap:\n  probed: true\n  ratio: 0.0\n\
+    \  sample_size: 104\n  miss: 104\n  deepened: false\n  query_ok: true\n  authenticity:\
+    \ unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code, right: cust_certification_info.ref_cust_company_info,\n\
+    \  trust: confirmed}\n- {source: name, left: cust_company_info.id, right: cust_certification_info.ref_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 4
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0021
+    intersection_sample:
+    - '1780153659779190785'
+    - '1792814837658718210'
+    - '1821785016382324738'
+    - '1821786118548946946'
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 00308e137b1342faa5caec51b13c8117
+    - 005ff8f0196d46b991b050274084ce16
+    - 007256534f0e426d84ada3f28bd43fec
+    - 00d365f5417c44f9ac77612b24dcac41
+    - 00d5fa160a7b4d09841c86a40b409b88
+    - 01013c18c54c4621814b6cb14a08ee20
+    - 011722a5c561465c9fa1c04331afb209
+    - 011fb1debe10447794af504c807cb247
+- left: cust_company_lifecycle_info.code
+  right: cust_company_info.apply_data_id
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: overlap
+  host_page: cust_company_info
+  removed_from: docs/wiki/v3/tables/cust_company_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_lifecycle_info.code\nright: cust_company_info.apply_data_id\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_profile:lowcode_pplatform.cust_company_info.apply_data_id\n\
+    source: overlap\njoin_role: business_code\npriority: primary\nname_evidence:\n\
+    \  match: none\n  stem: apply_data_id\n  comment: 认证流程数据id\noverlap:\n  probed:\
+    \ true\n  ratio: 1.0\n  sample_size: 15\n  miss: 0\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: likely\npreview_block: overlap_unsemantic\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - 9962b5551a034090a2348fe738b51ddd
+    - 2981dc9ef90f4f68821c7170293de309
+    - 99951a5dc3cc454882be3d8f7d3c91b9
+    - 2ee734c4e3724992837b30c23e785265
+    - e15cab11f32b4f38b574898dcee7860e
+    - bc8a679177024fe6ab408ef1eb357a23
+    - 6b6e6a72cd7b442f9661f2fc837741a5
+    - 04a53ea5429b45988064a17f3ea12b93
+    right_only_sample:
+    - '1778305834205061122'
+    - '1778331702036357121'
+    - '1778310054387916801'
+    - '1778365181846433794'
+    - '1778359117545799681'
+    - '1778371452436574210'
+    - '1778378356015632386'
+    - '0'
+- left: cust_account_info.code
+  right: cust_company_info.apply_data_id
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: overlap
+  host_page: cust_company_info
+  removed_from: docs/wiki/v3/tables/cust_company_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_account_info.code\nright: cust_company_info.apply_data_id\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_profile:lowcode_pplatform.cust_company_info.apply_data_id\n\
+    source: overlap\njoin_role: business_code\npriority: primary\nname_evidence:\n\
+    \  match: none\n  stem: apply_data_id\n  comment: 认证流程数据id\noverlap:\n  probed:\
+    \ true\n  ratio: 1.0\n  sample_size: 15\n  miss: 0\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: likely\npreview_block: overlap_unsemantic\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - 2547bc94af2282105239a36196446826
+    - f7a9d77091664f789ab4db4c464c9e41
+    - 197473262f7444f9b8bdbace093d4870
+    - 698c7ec83ca37cefc5ff5f40fc60f3fd
+    - fdefbbff3cd143049b8da336300a3b6c
+    - c9c485f0c5dc40ea80d9b6628c6bc57c
+    - fa665f6e75124490aff963a5166d1e27
+    - 1b1f08e252e74179a68ed00edfad513f
+    right_only_sample:
+    - '1778305834205061122'
+    - '1778331702036357121'
+    - '1778310054387916801'
+    - '1778365181846433794'
+    - '1778359117545799681'
+    - '1778371452436574210'
+    - '1778378356015632386'
+    - '0'
+- left: cust_company_info.id
+  right: cust_head_company_info.ref_cust_head_company_info_cust_company_info
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_head_company_info
+  removed_from: docs/wiki/v3/tables/cust_head_company_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_head_company_info.ref_cust_head_company_info_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_head_company_info.ref_cust_head_company_info_cust_company_info;database_profile:lowcode_pplatform.cust_head_company_info.ref_cust_head_company_info_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: cust_company_info\n  comment: 客户信息和总公司信息\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 200\n  miss: 200\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_head_company_info.ref_cust_head_company_info_cust_company_info,\n\
+    \  trust: confirmed}\n- {source: name, left: cust_company_info.id, right: cust_head_company_info.ref_cust_head_company_info_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 001dda931ea944b8b107d5a2c1f0a8c7
+    - 0034e20e40314d42b939dac246456ead
+    - 003cee4cf7e5454fb8a14efa8a79d3d8
+    - 0053ef9c7982413a8a8d4facb6e61a65
+    - 00d365f5417c44f9ac77612b24dcac41
+    - 00d5fa160a7b4d09841c86a40b409b88
+    - 01545ab7d8e34ca98b407c9e57944462
+    - 01a816a6d2234844b92a25af904a6b6f
+- left: cust_company_info.id
+  right: cust_interworking_product.ref_cust_interworking_product_cust_company_info
+  verdict: false_friend
+  reason: negligible overlap on large domains (left->right=0.0, right->left=0.0066,
+    join_hits=2, distinct L/R=94906/261); not a usable equi-join
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_interworking_product
+  removed_from: docs/wiki/v3/tables/cust_interworking_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_interworking_product.ref_cust_interworking_product_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_cust_company_info;database_profile:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: cust_company_info\n  comment: 关联企业\noverlap:\n  probed: true\n\
+    \  ratio: 0.005\n  sample_size: 200\n  miss: 199\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_interworking_product.ref_cust_interworking_product_cust_company_info,\n\
+    \  trust: confirmed}\n- {source: name, left: cust_company_info.id, right: cust_interworking_product.ref_cust_interworking_product_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 2
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0066
+    intersection_sample:
+    - '1821434531005194242'
+    - '1821435194212737026'
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 0143c29073d541618a87d287f5e810b8
+    - 01d7f99b8ae941f5b4a23c462caa5cca
+    - 04ef147ad58c43c8b71617db77736254
+    - 068e9db3f4fa4b4c9dae06f2b88171ba
+    - 07647a54570f4d868d39d0a8f9b70ae8
+    - 07b1faac2dd34ec493a76ee5fec0923d
+    - 07c48cac27a44e919c25ead7bf34ab4c
+    - 0836f2a61b0b4258b9b5bdd2da093104
+- left: platform_product.code
+  right: cust_interworking_product.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_interworking_product
+  removed_from: docs/wiki/v3/tables/cust_interworking_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: cust_interworking_product.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_interworking_product.platform_product_code;database_profile:lowcode_pplatform.cust_interworking_product.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: platform_product\n  comment: 平台产品编码\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 4\n  miss: 4\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP5
+    - AMS
+- left: cust_customized_product.id
+  right: cust_interworking_product.product_id
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_interworking_product
+  removed_from: docs/wiki/v3/tables/cust_interworking_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_customized_product.id\nright: cust_interworking_product.product_id\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_interworking_product.product_id;database_profile:lowcode_pplatform.cust_interworking_product.product_id\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: product\n  comment: 互通产品id\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 14\n  miss: 14\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1864586189864779778'
+    - '1864586262497542146'
+    - '1864639471878615041'
+    - '1864639537875988482'
+    - '1873994820391464961'
+    - '1877285129625333761'
+    - '1877535701204373505'
+    - '1877537787592540161'
+    right_only_sample:
+    - '1932270848080400385'
+    - '1932274602375933954'
+    - '1878649109879275522'
+    - '1878625020661809154'
+    - '1877637220721119234'
+    - '1878625128094711810'
+    - '1878647260178628609'
+    - '1878649160961703938'
+- left: tenant_interworking_product.id
+  right: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_interworking_product
+  removed_from: docs/wiki/v3/tables/cust_interworking_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_interworking_product.id\nright: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product;database_profile:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_interworking_product\n  comment: 关联互通产品\noverlap:\n\
+    \  probed: true\n  ratio: 0.0\n  sample_size: 14\n  miss: 14\n  deepened: false\n\
+    \  query_ok: true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1925367905722998786'
+    - '1925378951654162434'
+    - '2119658036745207837'
+    - '2119658258934280258'
+    - '2119658492582187088'
+    - '1881239523618652161'
+    - '1891732181419941889'
+    - '1878625020661809154'
+    right_only_sample:
+    - f5a6ba16bde247da8005652037051571
+    - af0c15eee0bc41a8b3fa39079ea44a97
+    - 2dbc124f73dd4e9eb96cc74685b17645
+    - 5afb2d5a0ac241f395f9dfc9436b7a93
+    - 87a6136555544df2adf6295bdd75956f
+    - 4264a4d3ef144caf851983a844b15a9d
+    - 4932eca2392d45f8821aba513f379c7f
+    - ccf30c163d794060bba0450b455b796c
+- left: cust_company_info.id
+  right: cust_person_info.ref_cust_company_info
+  verdict: false_friend
+  reason: negligible overlap on large domains (left->right=0.0038, right->left=0.0176,
+    join_hits=358, distinct L/R=94906/54029); not a usable equi-join
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_person_info
+  removed_from: docs/wiki/v3/tables/cust_person_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_person_info.ref_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_person_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_person_info.ref_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_company_info\n  comment: 关联企业\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 200\n  miss: 200\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_person_info.ref_cust_company_info,\n  trust: confirmed}\n- {source:\
+    \ name, left: cust_company_info.id, right: cust_person_info.ref_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 358
+    left_in_right_ratio: 0.0038
+    right_in_left_ratio: 0.0176
+    intersection_sample:
+    - '1765286986895069185'
+    - '1765340835084046337'
+    - '1765340985663754242'
+    - '1765341486388154369'
+    - '1765345518737494018'
+    - '1765346105428348930'
+    - '1765358678336933890'
+    - '1765552185387323393'
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 00001e60aa00440eba11a890a7c60052
+    - 0001c11158ac4b7eaa1207d48cee6be6
+    - 0001fa7332804fd6958de66ec99dfcb9
+    - 0003549ca3a74e40a47dd258fcfb8239
+    - 0003597d1eb548efb9676cd70093206f
+    - 0004ea46b9da45f98e7ab174f695c693
+    - 0006a62389f847019be0fd6cba43b815
+    - 000766482fda414a9d2cfe13e521bc19
+- left: cust_customized_product.id
+  right: cust_project_rel.product_id
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_project_rel
+  removed_from: docs/wiki/v3/tables/cust_project_rel.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_customized_product.id\nright: cust_project_rel.product_id\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_project_rel.product_id;database_profile:lowcode_pplatform.cust_project_rel.product_id\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: product\n  comment: 产品\noverlap:\n  probed: true\n  ratio:\
+    \ 0.0\n  sample_size: 15\n  miss: 15\n  deepened: false\n  query_ok: true\n  authenticity:\
+    \ unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1864586189864779778'
+    - '1864586262497542146'
+    - '1864639471878615041'
+    - '1864639537875988482'
+    - '1873994820391464961'
+    - '1877285129625333761'
+    - '1877535701204373505'
+    - '1877537787592540161'
+    right_only_sample:
+    - '1795047363653136386'
+    - '1823335930310791170'
+    - '1828338709404180481'
+    - '1829056399900778498'
+    - '1797564722686484482'
+    - '1830931997592944642'
+    - '1829056506230579202'
+    - '1797628152482992129'
+- left: platform_product.id
+  right: cust_project_rel.ref_cust_project_rel_platform_product
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_project_rel
+  removed_from: docs/wiki/v3/tables/cust_project_rel.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.id\nright: cust_project_rel.ref_cust_project_rel_platform_product\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_project_rel.ref_cust_project_rel_platform_product;database_profile:lowcode_pplatform.cust_project_rel.ref_cust_project_rel_platform_product\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: platform_product\n  comment: 平台产品\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 5\n  miss: 5\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '11'
+    - '13'
+    - '12'
+    - '1881239448301518849'
+    - '14'
+    - '15'
+    - '16'
+    - '17'
+    right_only_sample:
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a65
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+- left: cust_company_info.id
+  right: cust_role_info.ref_cust_company_info
+  verdict: false_friend
+  reason: negligible overlap on large domains (left->right=0.0038, right->left=0.007,
+    join_hits=359, distinct L/R=94906/54135); not a usable equi-join
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_role_info
+  removed_from: docs/wiki/v3/tables/cust_role_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_role_info.ref_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_role_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_role_info.ref_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_company_info\n  comment: 客户类型\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 200\n  miss: 200\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_role_info.ref_cust_company_info,\n  trust: confirmed}\n- {source:\
+    \ name, left: cust_company_info.id, right: cust_role_info.ref_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 359
+    left_in_right_ratio: 0.0038
+    right_in_left_ratio: 0.007
+    intersection_sample:
+    - '1765286986895069185'
+    - '1765340835084046337'
+    - '1765340985663754242'
+    - '1765341486388154369'
+    - '1765345518737494018'
+    - '1765346105428348930'
+    - '1765358678336933890'
+    - '1765552185387323393'
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 00001e60aa00440eba11a890a7c60052
+    - 0001c11158ac4b7eaa1207d48cee6be6
+    - 0001fa7332804fd6958de66ec99dfcb9
+    - 0003549ca3a74e40a47dd258fcfb8239
+    - 0003597d1eb548efb9676cd70093206f
+    - 0004ea46b9da45f98e7ab174f695c693
+    - 0006a62389f847019be0fd6cba43b815
+    - 000766482fda414a9d2cfe13e521bc19
+- left: cust_auth_application.id
+  right: cust_role_info.ref_cust_auth_application
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: cust_role_info
+  removed_from: docs/wiki/v3/tables/cust_role_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_auth_application.id\nright: cust_role_info.ref_cust_auth_application\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.cust_role_info.ref_cust_auth_application;database_profile:lowcode_pplatform.cust_role_info.ref_cust_auth_application\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_auth_application\n  comment: 应用客户角色\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 1\n  miss: 1\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unknown\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1871474323862810625'
+    - '1987870488104411137'
+    - '1987864503168147458'
+    - '1985238664271151105'
+    - '1987935932517330945'
+    - '1895394120364077058'
+    - '1987934161664987138'
+    - '2210739819162656798'
+    right_only_sample:
+    - 230a731da3ad4dd289c9db0e14684874
+    - 694986669b5d4553904cea955d1f0bbd
+    - b967b659ddd44e87acb369272f19f813
+    - fb2a5e58eb9446f4bd45be1c689be603
+    - 6bbf2f2db88d4bf0bcaa3ef70b4bf8d6
+    - d514060c371f4bf1a4b0df972368636b
+    - 300618305dd24808a90fd0bd79c98263
+    - a14b172fd76549f3bbb94117613c0ba5
+- left: cust_company_info.id
+  right: cust_shareholder_info.ref_cust_company_info
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_shareholder_info
+  removed_from: docs/wiki/v3/tables/cust_shareholder_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_shareholder_info.ref_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_shareholder_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_shareholder_info.ref_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_company_info\n  comment: 客户股东信息\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 5\n  miss: 5\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_shareholder_info.ref_cust_company_info,\n  trust: confirmed}\n-\
+    \ {source: name, left: cust_company_info.id, right: cust_shareholder_info.ref_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 313e49f751f146c9bec2d19682d756dc
+    - 6c682c4d0f804d1e9705ae80daedbe19
+    - 40a501bb9f1945069631e728ac752d59
+    - 78bd395c9ca34fe4b87fa1a816c6714a
+    - a1c94e1e892b4ec28c3332dac47754d3
+- left: platform_product_cust_role.product_code
+  right: platform_product.product_ref_num
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: likely
+  wiki_source: overlap
+  host_page: platform_product
+  removed_from: docs/wiki/v3/tables/platform_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product_cust_role.product_code\nright:\
+    \ platform_product.product_ref_num\ncardinality: one_to_many\ntrust: proposed\n\
+    authenticity: likely\nevidence: database_profile:lowcode_pplatform.platform_product.product_ref_num\n\
+    source: overlap\njoin_role: business_code\npriority: primary\nname_evidence:\n\
+    \  match: none\n  stem: product_ref_num\n  comment: 引用产品的平台数\noverlap:\n  probed:\
+    \ true\n  ratio: 1.0\n  sample_size: 12\n  miss: 0\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: likely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    right_only_sample:
+    - '85'
+    - '51'
+    - '0'
+    - '35'
+    - '1'
+    - '5'
+    - '11'
+    - '201'
+- left: platform_product.code
+  right: platform_product_cust_role.product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: platform_product_cust_role
+  removed_from: docs/wiki/v3/tables/platform_product_cust_role.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: platform_product_cust_role.product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.platform_product_cust_role.product_code;database_profile:lowcode_pplatform.platform_product_cust_role.product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: product\n  comment: 产品编码\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 12\n  miss: 12\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+- left: platform_product.id
+  right: tenant_interworking_product.ref_tenant_interworking_product_platform_product
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_interworking_product
+  removed_from: docs/wiki/v3/tables/tenant_interworking_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.id\nright: tenant_interworking_product.ref_tenant_interworking_product_platform_product\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_platform_product;database_profile:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_platform_product\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: platform_product\n  comment: 关联产品大类\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 3\n  miss: 3\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unlikely\nsides:\n- {source: l1_code, left: platform_product.id,\
+    \ right: tenant_interworking_product.platform_product_id,\n  trust: confirmed}\n\
+    - {source: name, left: platform_product.id, right: tenant_interworking_product.ref_tenant_interworking_product_platform_product,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '11'
+    - '13'
+    - '12'
+    - '1881239448301518849'
+    - '14'
+    - '15'
+    - '16'
+    - '17'
+    right_only_sample:
+    - 007142024a5c425bb3673f753060e533
+    - 956b7f49cc00471db99e552d778a12c2
+    - f285fa5cf17f4a8f9eefe93d3a513a6g
+- left: tenant_setting_config.id
+  right: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_interworking_product
+  removed_from: docs/wiki/v3/tables/tenant_interworking_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_setting_config.id\nright: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config;database_profile:lowcode_pplatform.tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_setting_config\n  comment: 关联租户\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 13\n  miss: 13\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: tenant_setting_config.id,\
+    \ right: tenant_interworking_product.tenant_id,\n  trust: confirmed}\n- {source:\
+    \ name, left: tenant_setting_config.id, right: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '101'
+    - '103'
+    - '107'
+    - '109'
+    - '110'
+    - '111'
+    - '113'
+    - '114'
+    right_only_sample:
+    - 98f508b0151a48c494b2d2a383f71e10
+    - a285d4cf94ec4384bb7b6cf5ba994b4a
+    - 94d6c35c8b4145149355b76c59a0e307
+    - d77dc6bffbcc46fba7a864a07ef63c24
+    - 570844039be64a079e4b1a9b5a7bb05a
+    - d19b81c772a6471f95cf3751316d1eb7
+    - a1c642847cf6423fa6aeeef420e2c3af
+    - fec598d1efc04156b1e39d5643c8ad3b
+- left: platform_product.code
+  right: tenant_interworking_product.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_interworking_product
+  removed_from: docs/wiki/v3/tables/tenant_interworking_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: tenant_interworking_product.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_interworking_product.platform_product_code;database_profile:lowcode_pplatform.tenant_interworking_product.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: secondary\nname_evidence:\n\
+    \  match: exact_table\n  stem: platform_product\n  comment: 平台产品编号\noverlap:\n\
+    \  probed: true\n  ratio: 0.0\n  sample_size: 11\n  miss: 11\n  deepened: false\n\
+    \  query_ok: true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - HTCP1
+    - HTCP2
+    - HTCP13
+    - HTCP14
+    - HTCP5
+    - HTCP19
+    - HTCP18
+    - HTCP7
+- left: tenant_setting_config.id
+  right: tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: tenant_interworking_project
+  removed_from: docs/wiki/v3/tables/tenant_interworking_project.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_setting_config.id\nright: tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config;database_profile:lowcode_pplatform.tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_setting_config\n  comment: 租户项目\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 2\n  miss: 2\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unknown\nsides:\n- {source: l1_code, left: tenant_setting_config.id,\
+    \ right: tenant_interworking_project.tenant_id,\n  trust: confirmed}\n- {source:\
+    \ name, left: tenant_setting_config.id, right: tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '101'
+    - '103'
+    - '107'
+    - '109'
+    - '110'
+    - '111'
+    - '113'
+    - '114'
+    right_only_sample:
+    - a285d4cf94ec4384bb7b6cf5ba994b4a
+    - d77dc6bffbcc46fba7a864a07ef63c24
+- left: tenant_interworking_product.id
+  right: tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_interworking_project
+  removed_from: docs/wiki/v3/tables/tenant_interworking_project.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_interworking_product.id\nright: tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product;database_profile:lowcode_pplatform.tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_interworking_product\n  comment: 租户产品项目\noverlap:\n\
+    \  probed: true\n  ratio: 0.0\n  sample_size: 6\n  miss: 6\n  deepened: false\n\
+    \  query_ok: true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left:\
+    \ tenant_interworking_product.id, right: tenant_interworking_project.product_id,\n\
+    \  trust: confirmed}\n- {source: name, left: tenant_interworking_product.id, right:\
+    \ tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1925367905722998786'
+    - '1925378951654162434'
+    - '2119658036745207837'
+    - '2119658258934280258'
+    - '2119658492582187088'
+    - '1881239523618652161'
+    - '1891732181419941889'
+    - '1878625020661809154'
+    right_only_sample:
+    - 76fe2ab40aa14dffa1fe2d720f398910
+    - 87a6136555544df2adf6295bdd75956f
+    - 4932eca2392d45f8821aba513f379c7f
+    - ccf30c163d794060bba0450b455b796c
+    - 2dbc124f73dd4e9eb96cc74685b17645
+    - 5afb2d5a0ac241f395f9dfc9436b7a93
+- left: platform_product.code
+  right: tenant_interworking_project.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_interworking_project
+  removed_from: docs/wiki/v3/tables/tenant_interworking_project.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: tenant_interworking_project.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_interworking_project.platform_product_code;database_profile:lowcode_pplatform.tenant_interworking_project.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: platform_product\n  comment: 平台产品编码\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 5\n  miss: 5\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - HTCP1
+    - HTCP5
+    - AMS
+    - HTCP13
+    - HTCP14
+- left: platform_product.code
+  right: tenant_migarory_log.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_migarory_log
+  removed_from: docs/wiki/v3/tables/tenant_migarory_log.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: tenant_migarory_log.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_migarory_log.platform_product_code;database_profile:lowcode_pplatform.tenant_migarory_log.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: platform_product\n  comment: 产品编码\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 10\n  miss: 10\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - ACFLOW
+    - '["ACFLOW"]'
+    - '["RVSFACTOR_PC","ACFLOW"]'
+    - RVSFACTOR_PC
+    - '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC"]'
+    - '["ORDER"]'
+    - '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]'
+- left: platform_product.code
+  right: tenant_migarory_log_bak.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_migarory_log_bak
+  removed_from: docs/wiki/v3/tables/tenant_migarory_log_bak.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: tenant_migarory_log_bak.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_migarory_log_bak.platform_product_code;database_profile:lowcode_pplatform.tenant_migarory_log_bak.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: platform_product\n  comment: 产品编码\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 14\n  miss: 14\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - '["RVSFACTOR_PC"]'
+    - '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]'
+    - '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]'
+    - ORDER
+    - '["ORDER"]'
+    - ACFLOW
+    - '["RVSFACTOR_PC","ORDER","ACFLOW"]'
+    - '["AMS"]'
+- left: tenant_setting_config.id
+  right: tenant_product.ref_tenant_product_tenant_setting_config
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_product
+  removed_from: docs/wiki/v3/tables/tenant_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_setting_config.id\nright: tenant_product.ref_tenant_product_tenant_setting_config\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_product.ref_tenant_product_tenant_setting_config;database_profile:lowcode_pplatform.tenant_product.ref_tenant_product_tenant_setting_config\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_setting_config\n  comment: 租户-产品\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0061\n  sample_size: 165\n  miss: 164\n  deepened: false\n\
+    \  query_ok: true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left:\
+    \ tenant_setting_config.id, right: tenant_product.tenant_id,\n  trust: confirmed}\n\
+    - {source: name, left: tenant_setting_config.id, right: tenant_product.ref_tenant_product_tenant_setting_config,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '101'
+    - '103'
+    - '107'
+    - '109'
+    - '110'
+    - '111'
+    - '113'
+    - '114'
+    right_only_sample:
+    - 01f3b8cc6889417d9e9d6853105b6062
+    - 02aa6d71034b4a9384fa5d40da2872ba
+    - 0311f88f6ba647908de90c5b72ef8578
+    - 035574d0911847bba88ae808b43ef08e
+    - 03817fe7eeac4fb6b2c8e062be75d354
+    - 04455e602b8b492fb1b785b5f49739f8
+    - 04469dfdcdd24ee68ca0915ffde3d268
+    - 05154011fc5a4b038fc54bb57851ada4
+- left: platform_product.code
+  right: tenant_product.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_product
+  removed_from: docs/wiki/v3/tables/tenant_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: tenant_product.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_product.platform_product_code;database_profile:lowcode_pplatform.tenant_product.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: secondary\nname_evidence:\n\
+    \  match: exact_table\n  stem: platform_product\n  comment: 平台产品编号\noverlap:\n\
+    \  probed: true\n  ratio: 0.0\n  sample_size: 8\n  miss: 8\n  deepened: false\n\
+    \  query_ok: true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - ACFLOW
+    - ORDER
+    - BEECREDIT
+    - VOUCHER
+    - RVSFACTOR_PC
+    - DRAFTQA
+    - STORAGE
+    - DRAFT
+- left: tenant_product.code
+  right: tenant_product_menu.product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: tenant_product_menu
+  removed_from: docs/wiki/v3/tables/tenant_product_menu.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_product.code\nright: tenant_product_menu.product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.tenant_product_menu.product_code;database_profile:lowcode_pplatform.tenant_product_menu.product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: product\n  comment: 产品code\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 2\n  miss: 2\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unknown\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - 005ef1d3ad6a429ca3bd132a8ea014c1
+    - 0160762ff3e64fa2b32c638fb25dbe6b
+    - 016573c5f844409fa3019486031b7ee0
+    - 0188994a80b3432a87d0e6fa8f2c68c2
+    - 01eab28faba3471284a6374c49cf074a
+    - 022ef3ad496045afad017083c4b3aff7
+    - 025a015ec68c47c887a125060d160da1
+    - 025aba40095f4aada48a295b76e8eab9
+    right_only_sample:
+    - BEECREDIT
+    - RVSFACTOR_PC
+    - ACCOUNT_PRODUCT
+- left: tenant_product.code
+  right: tenant_product_menu_res.product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: tenant_product_menu_res
+  removed_from: docs/wiki/v3/tables/tenant_product_menu_res.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_product.code\nright: tenant_product_menu_res.product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.tenant_product_menu_res.product_code;database_profile:lowcode_pplatform.tenant_product_menu_res.product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: product\n  comment: 产品code\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 2\n  miss: 2\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unknown\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - 005ef1d3ad6a429ca3bd132a8ea014c1
+    - 0160762ff3e64fa2b32c638fb25dbe6b
+    - 016573c5f844409fa3019486031b7ee0
+    - 0188994a80b3432a87d0e6fa8f2c68c2
+    - 01eab28faba3471284a6374c49cf074a
+    - 022ef3ad496045afad017083c4b3aff7
+    - 025a015ec68c47c887a125060d160da1
+    - 025aba40095f4aada48a295b76e8eab9
+    right_only_sample:
+    - ACCOUNT_PRODUCT
+    - RVSFACTOR_PC
+- left: tenant_product_menu.id
+  right: tenant_product_menu_res.menu_id
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_product_menu_res
+  removed_from: docs/wiki/v3/tables/tenant_product_menu_res.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_product_menu.id\nright: tenant_product_menu_res.menu_id\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_product_menu_res.menu_id;database_profile:lowcode_pplatform.tenant_product_menu_res.menu_id\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: menu\n  comment: 菜单ID\noverlap:\n  probed: true\n  ratio:\
+    \ 0.0\n  sample_size: 8\n  miss: 8\n  deepened: false\n  query_ok: true\n  authenticity:\
+    \ unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1824384433189928962'
+    - '1824384433219289089'
+    - '1824384433244454914'
+    - '1824384433273815041'
+    - '1824384433286397954'
+    - '1824384433294786561'
+    - '1828704144484376578'
+    - '1828704144534708226'
+    right_only_sample:
+    - '1872107996348271136'
+    - '1981320934212055042'
+    - '1981320934233026562'
+    - '1962088170374815745'
+    - '1981320934195277826'
+    - '1762315304497913857'
+    - '1767488269060788226'
+    - '1762729582990376962'
+- left: platform_product.code
+  right: tenant_project.platform_product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: tenant_project
+  removed_from: docs/wiki/v3/tables/tenant_project.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.code\nright: tenant_project.platform_product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.tenant_project.platform_product_code;database_profile:lowcode_pplatform.tenant_project.platform_product_code\n\
+    source: name\njoin_role: business_code\npriority: secondary\nname_evidence:\n\
+    \  match: exact_table\n  stem: platform_product\n  comment: 平台产品编码\noverlap:\n\
+    \  probed: true\n  ratio: 0.0\n  sample_size: 1\n  miss: 1\n  deepened: false\n\
+    \  query_ok: true\n  authenticity: unknown\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a64
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - 007142024a5c425bb3673f753060e533
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+    - f285fa5cf17f4a8f9eefeadd3a513a6e
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    right_only_sample:
+    - ORDER
+    - ACFLOW
+    - RVSFACTOR_PC
+    - BEECREDIT
+    - VOUCHER
+    - DRAFT
+    - DRAFTQA
+    - STORAGE
+- left: tenant_interworking_project.code
+  right: tenant_project.project_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project
+  removed_from: docs/wiki/v3/tables/tenant_project.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_interworking_project.code\nright: tenant_project.project_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project.project_code;database_profile:lowcode_pplatform.tenant_project.project_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: project\n  comment: 项目编码\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 200\n  miss: 200\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - f37562e4d0d445eebe7cfcdba0648480
+    - 7f3d88d76f464cbbb7fd0870ff13ed2a
+    - 292d1283d3ec48009f882fe5675cfc08
+    - 96dafc5359e14e6689893143e83804ad
+    - f97bde07a4544a1ea1bd59350de4a258
+    - e4ff59371e4f4307a05136657e28aaf9
+    - 26c78215b94a49b7b26059e04b415f8d
+    - e699b627ea8b4da1b7a15a6313b272e9
+    right_only_sample:
+    - meta-TP20250226-478
+    - meta-TP20250226-479
+    - meta-TP20250226-480
+    - meta-TP20250226-481
+    - meta-TP20250226-482
+    - meta-TP20250226-493
+    - meta-TP20250226-494
+    - meta-TP20250226-499
+- left: platform_product.id
+  right: tenant_project.ref_tenant_project_platform_product
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project
+  removed_from: docs/wiki/v3/tables/tenant_project.md
+  fence_yaml: "type: EQUI_JOIN\nleft: platform_product.id\nright: tenant_project.ref_tenant_project_platform_product\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project.ref_tenant_project_platform_product;database_profile:lowcode_pplatform.tenant_project.ref_tenant_project_platform_product\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: platform_product\n  comment: 平台产品-项目关联\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 3\n  miss: 3\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '11'
+    - '13'
+    - '12'
+    - '1881239448301518849'
+    - '14'
+    - '15'
+    - '16'
+    - '17'
+    right_only_sample:
+    - 007142024a5c425bb3673f753060e534
+    - b8468d68ba0a4762bda0f7b9164e4f6a
+    - f285fa5cf17f4a8f9eefe93d3a513a61
+    - f285fa5cf17f4a8f9eefe93d3a513a63
+    - f285fa5cf17f4a8f9eefe93d3a513a65
+    - f285fa5cf17f4a8f9eefe93d3a513a6b
+    - f285fa5cf17f4a8f9eefe93d3a513a6e
+- left: tenant_project.id
+  right: tenant_project_approval.ref_tenant_project_approval_tenant_project
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project_approval
+  removed_from: docs/wiki/v3/tables/tenant_project_approval.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_project.id\nright: tenant_project_approval.ref_tenant_project_approval_tenant_project\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project_approval.ref_tenant_project_approval_tenant_project;database_profile:lowcode_pplatform.tenant_project_approval.ref_tenant_project_approval_tenant_project\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_project\n  comment: 关联租户项目\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 200\n  miss: 200\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: tenant_project.code,\
+    \ right: tenant_project_approval.ref_tenant_project_approval_tenant_project,\n\
+    \  trust: confirmed}\n- {source: name, left: tenant_project.id, right: tenant_project_approval.ref_tenant_project_approval_tenant_project,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '2203106338874073180'
+    - '1999381039371583489'
+    - '7193142624923394048'
+    - '1203026947395813404'
+    - '1986272085919219713'
+    - '2188980103331987482'
+    - '2139595791851864103'
+    - '1905464553752363009'
+    right_only_sample:
+    - 00c5e941702e491d8c64e38cf9355b61
+    - 010130e199bd470fbb9e1880f6567d6e
+    - 01207612705944d185ac1f4e1f5c3601
+    - 0150bfede5ef467caac1acf41bb25484
+    - 0243c19cba1044f3b338862c74a7bd51
+    - 0418d3195aeb48ebaca138cd0e3eeb69
+    - 041f10ca4fa24e34b841a1ada5d3e3ac
+    - 0426f618e84b459e86061ee057d19db6
+- left: tenant_product.code
+  right: tenant_project_approval_business_info.product_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project_approval_business_info
+  removed_from: docs/wiki/v3/tables/tenant_project_approval_business_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_product.code\nright: tenant_project_approval_business_info.product_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project_approval_business_info.product_code;database_profile:lowcode_pplatform.tenant_project_approval_business_info.product_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: product\n  comment: 产品编码code\noverlap:\n  probed: true\n\
+    \  ratio: 0.0\n  sample_size: 3\n  miss: 3\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - 005ef1d3ad6a429ca3bd132a8ea014c1
+    - 0160762ff3e64fa2b32c638fb25dbe6b
+    - 016573c5f844409fa3019486031b7ee0
+    - 0188994a80b3432a87d0e6fa8f2c68c2
+    - 01eab28faba3471284a6374c49cf074a
+    - 022ef3ad496045afad017083c4b3aff7
+    - 025a015ec68c47c887a125060d160da1
+    - 025aba40095f4aada48a295b76e8eab9
+    right_only_sample:
+    - ACFLOW
+    - RVSFACTOR_PC
+    - ORDER
+- left: tenant_project_approval.id
+  right: tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project_approval_flow
+  removed_from: docs/wiki/v3/tables/tenant_project_approval_flow.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_project_approval.id\nright: tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval;database_profile:lowcode_pplatform.tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_project_approval\n  comment: 关联项目审批\noverlap:\n  probed:\
+    \ true\n  ratio: 0.0\n  sample_size: 100\n  miss: 100\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: tenant_project_approval.code,\
+    \ right: tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval,\n\
+    \  trust: confirmed}\n- {source: name, left: tenant_project_approval.id, right:\
+    \ tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - '1'
+    - '2170851568042123333'
+    - '2170885210369970205'
+    - '2171167294686769216'
+    - '2171167446172454961'
+    - '2171175590277685317'
+    - '2171195122295787551'
+    - '2171196115750244374'
+    right_only_sample:
+    - 0082fc0f2bd44ece804a55d1ed1c4c88
+    - 017934dbf1724be4986b534ee99c91a4
+    - 02ff603172cd4ac8958aa29ec443c4f5
+    - 03bf0e64335f4934a074ca9a30d386e6
+    - 049c5778d6384fa783a2acef5d70ce25
+    - 0572eaacb8914756b97766f790816a26
+    - 057f5931f5004e4a9a26a70e3d3e1a65
+    - 069a3c32017541cc9c63c4ad67a10863
+- left: tenant_project_approval_flow_node.code
+  right: tenant_project_approval_flow.node_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project_approval_flow
+  removed_from: docs/wiki/v3/tables/tenant_project_approval_flow.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_project_approval_flow_node.code\nright:\
+    \ tenant_project_approval_flow.node_code\ncardinality: one_to_many\ntrust: proposed\n\
+    authenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project_approval_flow.node_code;database_profile:lowcode_pplatform.tenant_project_approval_flow.node_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: node\n  comment: 节点编码\noverlap:\n  probed: true\n  ratio:\
+    \ 0.0\n  sample_size: 6\n  miss: 6\n  deepened: false\n  query_ok: true\n  authenticity:\
+    \ unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - bee3db2a56a849c7a341f74da19284fd
+    - 7f2dd2ad78614a139d501f4d9a79666b
+    - 0806ddc6ee2e4cee8780dd088c7ca137
+    - 434fd4a78e724dc5bacafbfcc85fcbaa
+    - 7072df58848042d093694302954eb757
+    - da7b6bd956024b74b29a61a40054c7cb
+    - b9e00b8959924037babd04af172e4dbb
+    - 7dc496bffd5e4494b8717ef03b9e542a
+    right_only_sample:
+    - PROJECT_CONFIG
+    - PROJECT_MANAGER
+    - BUSINESS_MANAGER
+    - OPERATION
+    - LEGAL_PROCESS
+    - LEGAL_REVIEW
+- left: tenant_project_approval_flow.code
+  right: tenant_project_approval_flow_config.flow_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project_approval_flow_config
+  removed_from: docs/wiki/v3/tables/tenant_project_approval_flow_config.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_project_approval_flow.code\nright: tenant_project_approval_flow_config.flow_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project_approval_flow_config.flow_code;database_profile:lowcode_pplatform.tenant_project_approval_flow_config.flow_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: flow\n  comment: 流程编码：NO_ONLINE，STANDARD，REGULAR\noverlap:\n\
+    \  probed: true\n  ratio: 0.0\n  sample_size: 3\n  miss: 3\n  deepened: false\n\
+    \  query_ok: true\n  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - ba2b1b19aa6243a89b366d23723c4fe2
+    - 18256e11508a4e8b90cb5c98a3a4229e
+    - defc4edba54e4900b1d21b79701ed2ec
+    - 8803a99d81504cbe96112b83dc696a08
+    - ee172efd20b24a4b87394c6049eed6fe
+    - 910b19649203480596f20baecbef890b
+    - 6a20ef246d124aa495b3a1b48be9a3b1
+    - 0bb6b377b8a94f9c993c8374be6071ce
+    right_only_sample:
+    - NO_ONLINE
+    - STANDARD
+    - REGULAR
+- left: tenant_project_approval_flow_node.code
+  right: tenant_project_approval_flow_config.node_code
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+  wiki_trust: proposed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: tenant_project_approval_flow_config
+  removed_from: docs/wiki/v3/tables/tenant_project_approval_flow_config.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_project_approval_flow_node.code\nright:\
+    \ tenant_project_approval_flow_config.node_code\ncardinality: one_to_many\ntrust:\
+    \ proposed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.tenant_project_approval_flow_config.node_code;database_profile:lowcode_pplatform.tenant_project_approval_flow_config.node_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: node\n  comment: 节点编码字典\noverlap:\n  probed: true\n \
+    \ ratio: 0.0\n  sample_size: 7\n  miss: 7\n  deepened: false\n  query_ok: true\n\
+    \  authenticity: unlikely\n"
+  live:
+    join_hits: 0
+    left_in_right_ratio: 0.0
+    right_in_left_ratio: 0.0
+    intersection_sample: []
+    left_only_sample:
+    - bee3db2a56a849c7a341f74da19284fd
+    - 7f2dd2ad78614a139d501f4d9a79666b
+    - 0806ddc6ee2e4cee8780dd088c7ca137
+    - 434fd4a78e724dc5bacafbfcc85fcbaa
+    - 7072df58848042d093694302954eb757
+    - da7b6bd956024b74b29a61a40054c7cb
+    - b9e00b8959924037babd04af172e4dbb
+    - 7dc496bffd5e4494b8717ef03b9e542a
+    right_only_sample:
+    - PROJECT_CONFIG
+    - PROJECT_MANAGER
+    - OTHER
+    - BUSINESS_MANAGER
+    - OPERATION
+    - LEGAL_PROCESS
+    - LEGAL_REVIEW
+- left: cust_company_info.id
+  right: cust_project_rel.ref_cust_project_rel_cust_company_info
+  verdict: superseded_by_code_join
+  reason: same right already has confirmed cust_company_info.code → cust_project_rel.ref_cust_project_rel_cust_company_info;
+    prior live=weak_overlap
+  wiki_trust: disputed
+  wiki_authenticity: unlikely
+  wiki_source: name
+  host_page: cust_project_rel
+  removed_from: docs/wiki/v3/tables/cust_project_rel.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_project_rel.ref_cust_project_rel_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unlikely\nevidence: database_schema:lowcode_pplatform.cust_project_rel.ref_cust_project_rel_cust_company_info;database_profile:lowcode_pplatform.cust_project_rel.ref_cust_project_rel_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: cust_company_info\n  comment: 客户和项目关系\noverlap:\n  probed:\
+    \ true\n  ratio: 0.01\n  sample_size: 200\n  miss: 198\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unlikely\nsides:\n- {source: l1_code, left: cust_company_info.code,\
+    \ right: cust_project_rel.ref_cust_project_rel_cust_company_info,\n  trust: confirmed}\n\
+    - {source: name, left: cust_company_info.id, right: cust_project_rel.ref_cust_project_rel_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: 360
+    left_in_right_ratio: 0.0038
+    right_in_left_ratio: 0.0236
+    intersection_sample:
+    - '1765286986895069185'
+    - '1765340835084046337'
+    - '1765340985663754242'
+    - '1765341486388154369'
+    - '1765345518737494018'
+    - '1765346105428348930'
+    - '1765358678336933890'
+    - '1765552185387323393'
+    left_only_sample:
+    - '1895394035061563393'
+    - '1895394043843194882'
+    - '1895063219575140353'
+    - '1895392101750419457'
+    - '1895394046335852546'
+    - '1895394056712560642'
+    - '1895063216983060482'
+    - '1895063224327286786'
+    right_only_sample:
+    - 00001e60aa00440eba11a890a7c60052
+    - 0001c11158ac4b7eaa1207d48cee6be6
+    - 0001fa7332804fd6958de66ec99dfcb9
+    - 0003549ca3a74e40a47dd258fcfb8239
+    - 0003597d1eb548efb9676cd70093206f
+    - 0004ea46b9da45f98e7ab174f695c693
+    - 0006a62389f847019be0fd6cba43b815
+    - 000766482fda414a9d2cfe13e521bc19
+- left: cust_company_info.id
+  right: cust_auth_application_config.cust_id
+  verdict: empty_no_code
+  reason: no CustAuthApplicationConfig usage in pplatform-web; live empty_endpoint
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: cust_auth_application_config
+  removed_from: docs/wiki/v3/tables/cust_auth_application_config.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_auth_application_config.cust_id\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.cust_auth_application_config.cust_id;database_profile:lowcode_pplatform.cust_auth_application_config.cust_id\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ family_hub\n  stem: cust\n  comment: 企业id\noverlap:\n  probed: true\n  sample_size:\
+    \ 0\n  miss: 0\n  deepened: false\n  query_ok: true\n  authenticity: unknown\n"
+  live:
+    join_hits: null
+    left_in_right_ratio: null
+    right_in_left_ratio: null
+- left: cust_auth_application.id
+  right: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
+  verdict: empty_no_code
+  reason: no CustAuthApplicationConfig usage in pplatform-web; live empty_endpoint
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: cust_auth_application_config
+  removed_from: docs/wiki/v3/tables/cust_auth_application_config.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_auth_application.id\nright: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application;database_profile:lowcode_pplatform.cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: cust_auth_application\n  comment: 客户产品开通\noverlap:\n  probed:\
+    \ true\n  sample_size: 0\n  miss: 0\n  deepened: false\n  query_ok: true\n  authenticity:\
+    \ unknown\n"
+  live:
+    join_hits: null
+    left_in_right_ratio: null
+    right_in_left_ratio: null
+- left: cust_company_info.id
+  right: cust_company_lifecycle_info.ref_cust_company_info
+  verdict: superseded_same_left_endpoint
+  reason: same left `cust_company_info.id` already has confirmed join to `cust_company_lifecycle_info.company_id`
+    between cust_company_info↔cust_company_lifecycle_info; uncertain `cust_company_lifecycle_info.ref_cust_company_info`
+    removed
+  wiki_trust: disputed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: cust_company_lifecycle_info
+  removed_from: docs/wiki/v3/tables/cust_company_lifecycle_info.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_company_lifecycle_info.ref_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.cust_company_lifecycle_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_company_lifecycle_info.ref_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ exact_table\n  stem: cust_company_info\n  comment: 关联企业code\noverlap:\n  probed:\
+    \ true\n  sample_size: 0\n  miss: 0\n  deepened: false\n  query_ok: true\n  authenticity:\
+    \ unknown\nsides:\n- {source: l1_code, left: cust_company_info.id, right: cust_company_lifecycle_info.company_id,\n\
+    \  trust: confirmed}\n- {source: name, left: cust_company_info.id, right: cust_company_lifecycle_info.ref_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: null
+    left_in_right_ratio: null
+    right_in_left_ratio: null
+- left: cust_company_info.id
+  right: cust_customized_product.ref_cust_customized_product_cust_company_info
+  verdict: superseded_same_left_endpoint
+  reason: same left `cust_company_info.id` already has confirmed join to `cust_customized_product.cust_id`
+    between cust_company_info↔cust_customized_product; uncertain `cust_customized_product.ref_cust_customized_product_cust_company_info`
+    removed
+  wiki_trust: disputed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: cust_customized_product
+  removed_from: docs/wiki/v3/tables/cust_customized_product.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_customized_product.ref_cust_customized_product_cust_company_info\n\
+    cardinality: one_to_many\ntrust: disputed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.cust_customized_product.ref_cust_customized_product_cust_company_info;database_profile:lowcode_pplatform.cust_customized_product.ref_cust_customized_product_cust_company_info\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: cust_company_info\n  comment: 客户关联自定义产品配置\noverlap:\n  probed:\
+    \ true\n  sample_size: 0\n  miss: 0\n  deepened: false\n  query_ok: true\n  authenticity:\
+    \ unknown\nsides:\n- {source: l1_code, left: cust_company_info.id, right: cust_customized_product.cust_id,\n\
+    \  trust: confirmed}\n- {source: name, left: cust_company_info.id, right: cust_customized_product.ref_cust_customized_product_cust_company_info,\n\
+    \  trust: proposed}\n"
+  live:
+    join_hits: null
+    left_in_right_ratio: null
+    right_in_left_ratio: null
+- left: cust_company_info.id
+  right: cust_setting_config.cust_id
+  verdict: code_disproven
+  reason: CustSettingConfig used as singleton (list/getById); cust_id not used as
+    per-company FK in code; live empty
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: cust_setting_config
+  removed_from: docs/wiki/v3/tables/cust_setting_config.md
+  fence_yaml: "type: EQUI_JOIN\nleft: cust_company_info.id\nright: cust_setting_config.cust_id\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.cust_setting_config.cust_id;database_profile:lowcode_pplatform.cust_setting_config.cust_id\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ family_hub\n  stem: cust\n  comment: 企业id\noverlap:\n  probed: true\n  sample_size:\
+    \ 0\n  miss: 0\n  deepened: false\n  query_ok: true\n  authenticity: unknown\n"
+  live:
+    join_hits: null
+    left_in_right_ratio: null
+    right_in_left_ratio: null
+- left: tenant_project_approval_flow.code
+  right: tenant_project_approval.flow_code
+  verdict: code_disproven
+  reason: 'ApiModelProperty: flow_code → tenant_project_approval_flow_config#flow_code,
+    not flow.code; ProjectApprovalApplication.listFlowConfig queries FlowConfig by
+    flowCode'
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: tenant_project_approval
+  removed_from: docs/wiki/v3/tables/tenant_project_approval.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_project_approval_flow.code\nright: tenant_project_approval.flow_code\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.tenant_project_approval.flow_code;database_profile:lowcode_pplatform.tenant_project_approval.flow_code\n\
+    source: name\njoin_role: business_code\npriority: primary\nname_evidence:\n  match:\
+    \ family_suffix\n  stem: flow\n  comment: 流程配置编码（tenant_project_approval_flow_config#flow_code）\n\
+    overlap:\n  probed: true\n  sample_size: 0\n  miss: 0\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unknown\n"
+  live:
+    join_hits: null
+    left_in_right_ratio: null
+    right_in_left_ratio: null
+- left: tenant_project_approval_flow_config.id
+  right: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config
+  verdict: code_disproven
+  reason: runtime joins by flow_code string to flow_config, not by flow_config.id;
+    live empty_endpoint
+  wiki_trust: proposed
+  wiki_authenticity: unknown
+  wiki_source: name
+  host_page: tenant_project_approval
+  removed_from: docs/wiki/v3/tables/tenant_project_approval.md
+  fence_yaml: "type: EQUI_JOIN\nleft: tenant_project_approval_flow_config.id\nright:\
+    \ tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config\n\
+    cardinality: one_to_many\ntrust: proposed\nauthenticity: unknown\nevidence: database_schema:lowcode_pplatform.tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config;database_profile:lowcode_pplatform.tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config\n\
+    source: name\njoin_role: identity\npriority: primary\nname_evidence:\n  match:\
+    \ long_ref\n  stem: tenant_project_approval_flow_config\n  comment: 关联租户项目流程配置\n\
+    overlap:\n  probed: true\n  sample_size: 0\n  miss: 0\n  deepened: false\n  query_ok:\
+    \ true\n  authenticity: unknown\n"
+  live:
+    join_hits: null
+    left_in_right_ratio: null
+    right_in_left_ratio: null
+round2_policy: shared-endpoint supersession (uncertain A.a↔B.x removed when A.a↔B.y
+  or A.b↔B.x confirmed) + code-disproven empties; promote code-verified proposed→confirmed

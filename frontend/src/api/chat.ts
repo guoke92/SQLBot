@@ -97,6 +97,15 @@ export interface ConversationRunSnapshot {
   error_summary?: string
 }
 
+export type ReasoningEffortLevel = 'none' | 'low' | 'high' | 'max'
+
+export interface LlmCapabilities {
+  model_id?: number | null
+  model_name?: string
+  wire?: 'completions' | 'responses'
+  default_effort?: ReasoningEffortLevel | null
+}
+
 export interface CreateRunRequest {
   chat_id: number
   question: string
@@ -106,6 +115,7 @@ export interface CreateRunRequest {
   reference_record_ids?: number[]
   finish_step?: number
   return_img?: boolean
+  reasoning_effort?: ReasoningEffortLevel
 }
 
 export interface ResumeRunRequest {
@@ -682,8 +692,7 @@ export class ChatLogHistoryItem {
     // Enum member names (GENERATE_QUERY / EXECUTE_QUERY / …) are stored by value
     // ('0'/'12'/…); history resolves missing value→name via OperationEnum, so labels
     // always come from current i18n keys. No SQL-era name remap is needed.
-    this.operate =
-      operate == null || operate === '' ? '' : t(`chat.log.${String(operate)}`)
+    this.operate = operate == null || operate === '' ? '' : t(`chat.log.${String(operate)}`)
     this.local_operation = !!local_operation
     this.error = !!error
     this.message = message
@@ -936,6 +945,8 @@ export const chatApi = {
     return request.get(`/chat/recent_questions/${datasource_id}`)
   },
   checkLLMModel: () => request.get('/system/aimodel/default', { requestOptions: { silent: true } }),
+  llmCapabilities: () =>
+    request.get('/chat/llm_capabilities', { requestOptions: { silent: true } }),
   export2Excel: (record_id: number | undefined, chat_id: any) =>
     request.get(`/chat/record/${record_id}/excel/export/${chat_id}`, {
       responseType: 'blob',

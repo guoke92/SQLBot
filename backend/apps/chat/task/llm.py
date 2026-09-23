@@ -33,10 +33,9 @@ from apps.chat.curd.chat import (
     save_question,
 )
 from apps.chat.models.chat_model import Chat, ChatLog, ChatQuestion, ChatRecord
-from apps.conversation.llm import get_chat_model, get_default_chat_config
+from apps.conversation.llm import get_chat_model, resolve_chat_llm_config
 from apps.datasource.models.datasource import CoreDatasource
 from apps.protocol import get_protocol
-from apps.system.crud.aimodel_manage import get_ai_model_list_by_workspace
 from apps.system.crud.assistant import AssistantOutDs, AssistantOutDsFactory
 from apps.system.crud.parameter_manage import get_groups
 from apps.system.crud.user import user_ws_list
@@ -159,11 +158,20 @@ class LLMService:
         self.chat_question = chat_question
         self.config = config
         if no_reasoning:
-            # only work while using qwen
+            # Recommend / no-think callers: force DeepSeek effort=none (and drop
+            # Qwen Completions enable_thinking) instead of only stripping Qwen.
+            from apps.ai_model.model_factory import with_reasoning_effort
+
+            self.config = with_reasoning_effort(self.config, "none")
             if self.config.additional_params:
-                if self.config.additional_params.get("extra_body"):
-                    if self.config.additional_params.get("extra_body").get("enable_thinking"):
-                        del self.config.additional_params["extra_body"]["enable_thinking"]
+                extra = self.config.additional_params.get("extra_body")
+                if isinstance(extra, dict) and "enable_thinking" in extra:
+                    extra = dict(extra)
+                    extra["enable_thinking"] = False
+                    self.config.additional_params = {
+                        **self.config.additional_params,
+                        "extra_body": extra,
+                    }
 
         self.chat_question.ai_modal_id = self.config.model_id
         self.chat_question.ai_modal_name = self.config.model_name
@@ -180,17 +188,13 @@ class LLMService:
 
     @classmethod
     async def create(cls, *args, **kwargs):
-        specialized_model_id = None
-        _ai_model_list = []
-        if args[3]:
-            if args[1]:
-                ws_id = args[1].oid
-                _ai_model_list = get_ai_model_list_by_workspace(args[0], ws_id)
-            if args[3].enable_custom_model:
-                if args[3].custom_model:
-                    if any(str(model.id) == str(args[3].custom_model) for model in _ai_model_list):
-                        specialized_model_id = args[3].custom_model
-        config: LLMConfig = await get_default_chat_config(specialized_model_id)
+        reasoning_effort = kwargs.pop("reasoning_effort", None)
+        config: LLMConfig = await resolve_chat_llm_config(
+            args[0] if args else None,
+            args[1] if len(args) > 1 else None,
+            args[3] if len(args) > 3 else kwargs.get("current_assistant"),
+            reasoning_effort,
+        )
         instance = cls(*args, **kwargs, config=config)
 
         chat_params: list[SysArgModel] = await get_groups(args[0], "chat")

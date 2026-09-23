@@ -58,7 +58,11 @@ def _safe_delivery_chart(**kwargs: Any) -> dict[str, Any] | None:
 
 
 def has_publishable_query_result(state: Mapping[str, Any]) -> bool:
-    """True when this turn already has a required successful SQL dataset."""
+    """True when this turn already has a required successful SQL dataset.
+
+    Prefers in-memory tool_steps / current-turn messages; falls back to
+    ``result_dataset`` rows for ``run_id`` (never prior-turn transcript).
+    """
     from apps.chat.graphs.nodes.unified_agent import _agent_has_sql_result
     from apps.conversation.messages import deserialize_messages
 

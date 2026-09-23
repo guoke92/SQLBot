@@ -1,0 +1,1004 @@
+# JOIN live validation (lowcode_pplatform)
+
+- generated_at: `2026-09-22T09:29:56.545740+00:00`
+- edges: 194
+- by_verdict: `{'empty_endpoint': 27, 'shared_domain': 17, 'fk_like': 38, 'impossible': 49, 'weak_overlap': 57, 'false_friend': 6}`
+
+## impossible (49)
+
+- `tenant_migarory_log.batch_no` → `tenant_migarory_log_bak.batch_no` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/154753 (0.0) | right_in_left=0/75 (0.0)
+  - left-only sample: ['0.001227333', '0.001419916', '0.00146235', '0.001472708', '0.001507078', '0.001609858', '0.001653929', '0.0016585']
+  - right-only sample: ['OUTPUT_PROJECT_SYNC', 'OUTPUT_TENANT_SYNC', 'OUTPUT_CUST_PRODUCT_SYNC', 'INPUT_project_20240905163839', 'INPUT_project_20240905164552', 'OUTPUT_PRODUCT_SYNC', 'INPUT_tenant_20240905172700', '0.965978708']
+- `tenant_migarory_log.req_no` → `tenant_migarory_log_bak.req_no` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/154753 (0.0) | right_in_left=0/4594 (0.0)
+  - left-only sample: ['000000b78f7a48ecabaab8b32159f2f2', '000007bbac25414f893c1dc17c6182fc', '000092c2364d41e3a39c3ff2610b5a86', '0000ba27fd3e4fd9ba236a7f7198e79b', '000185328a9447f9909feea33261d7c4', '0001f330906445378c0d3e00c194a34a', '0001f7e08621414ca525e60612a69c2e', '0002072c6b0c4fee9990f92beb2109e3']
+  - right-only sample: ['8300bfcb7e144d6eb0cbc63511291cf4', 'ee83f5c9a4fe45e184684a0009b279c2', 'c39243594c5b49f99c289dd7d2ac9f77', '832066dc53404a32bc60dc5833d8f3f0', 'cbdb1c65d1c644c1a411695259aaccae', '626c53d5b3834d70aaa20356c0b57354', '59740996690b498bb42cc98e722b3bbb', 'd41c662ea6754d319d7b58ac44891f6e']
+- `tenant_product.platform_product_code` → `tenant_interworking_product.platform_product_code` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/40 (0.0)
+  - left-only sample: ['ACFLOW', 'ORDER', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR_PC', 'DRAFTQA', 'STORAGE', 'DRAFT']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+- `tenant_project.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/3586 (0.0) | right_in_left=0/12 (0.0)
+  - left-only sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA', 'STORAGE']
+  - right-only sample: ['HTCP1', 'HTCP5', 'AMS', 'HTCP13', 'HTCP14']
+- `cust_company_lifecycle_info.company_id` → `cust_company_survey_whitelist.company_id` (host=`cust_company_survey_whitelist`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/71 (0.0) | right_in_left=0/11 (0.0)
+  - left-only sample: ['1955901154958671873', '1953727212855742466', '1955892015372169218', '1955881627314511874', '1955547916564504577', '1955455301971423233', '1952571150572310530', '1955940327141203969']
+  - right-only sample: ['1993860367081840641', '2054762388929851394', '2058837800669777921', '2059103360591134721', '2059114279754964994', '2059114867171917826', '2059115419645157377', '2119738548914503746']
+- `cust_company_survey_state.company_id` → `cust_company_lifecycle_info.company_id` (host=`cust_company_lifecycle_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/11 (0.0) | right_in_left=0/71 (0.0)
+  - left-only sample: ['2054762388929851394', '2154868455847768065', '2144657987287924796', '2145519944517820484', '2119738548914503746', '1993860367081840641', '2059103360591134721', '2059114279754964994']
+  - right-only sample: ['1955901154958671873', '1953727212855742466', '1955892015372169218', '1955881627314511874', '1955547916564504577', '1955455301971423233', '1952571150572310530', '1955940327141203969']
+- `cust_customized_product.cust_id` → `cust_interworking_product.cust_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/25 (0.0) | right_in_left=0/304 (0.0)
+  - left-only sample: ['1830871454996692993', '1864237302084366337', '1871148152045826049', '1877275083680559105', '1877532933144166402', '1831884100124372993', '2016400585846108161', '1925154031884906497']
+  - right-only sample: ['1821434531005194242', '1821435194212737026', '1848997820024352770', '1859048380303540226', '1871372344049635330', '1877256727877820417', '1877554401148125186', '1877641757930467330']
+- `cust_survey_answer.company_id` → `cust_company_survey_state.company_id` (host=`cust_company_survey_state`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/410 (0.0) | right_in_left=0/11 (0.0)
+  - left-only sample: ['1825800806480588802', '1892054042215378946', '1892156709218856961', '1895063296888745986', '1895063332051726337', '1895064832295546882', '1895065955389616129', '1895066273261268993']
+  - right-only sample: ['2054762388929851394', '2154868455847768065', '2144657987287924796', '2145519944517820484', '2119738548914503746', '1993860367081840641', '2059103360591134721', '2059114279754964994']
+- `cust_survey_answer.company_id` → `cust_company_survey_whitelist.company_id` (host=`cust_company_survey_whitelist`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/410 (0.0) | right_in_left=0/11 (0.0)
+  - left-only sample: ['1825800806480588802', '1892054042215378946', '1892156709218856961', '1895063296888745986', '1895063332051726337', '1895064832295546882', '1895065955389616129', '1895066273261268993']
+  - right-only sample: ['1993860367081840641', '2054762388929851394', '2058837800669777921', '2059103360591134721', '2059114279754964994', '2059114867171917826', '2059115419645157377', '2119738548914503746']
+- `tenant_product.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/12 (0.0)
+  - left-only sample: ['ACFLOW', 'ORDER', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR_PC', 'DRAFTQA', 'STORAGE', 'DRAFT']
+  - right-only sample: ['HTCP1', 'HTCP5', 'AMS', 'HTCP13', 'HTCP14']
+- `tenant_project.platform_product_code` → `tenant_interworking_product.platform_product_code` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/3586 (0.0) | right_in_left=0/40 (0.0)
+  - left-only sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA', 'STORAGE']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+- `cust_auth_application.platform_product_code` → `cust_interworking_product.platform_product_code` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/31929 (0.0) | right_in_left=0/304 (0.0)
+  - left-only sample: ['ACFLOW', 'RVSFACTOR_PC', 'BEECREDIT', 'ORDER', 'STORAGE', 'VOUCHER', 'DRAFT', 'DRAFTQA']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'AMS']
+- `cust_company_info.channel_code` → `cust_project_code_record.channel_code` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/544 (0.0) | right_in_left=0/348 (0.0)
+  - left-only sample: ['longteng', 'jingke']
+  - right-only sample: ['WKCSXM10360224916', 'LN1TXCPXM7227711347', 'CDMYPDXM8870239217', 'LN1YSYRXM4628939839', '0902XM1401916398', 'https://ams-fin.qhhrly.cn/', 'XT09035793772183', '12']
+- `cust_invite_info.channel_code` → `cust_company_info.channel_code` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/104 (0.0) | right_in_left=0/544 (0.0)
+  - left-only sample: ['00000', '55555', '0', 'xmm01', '111', '0924-wyw项目测试', '0924-WYWXMCS9806393896', 'RSWXZRYD2586716567']
+  - right-only sample: ['longteng', 'jingke']
+- `cust_project_code_record.company_id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/348 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['1829777183756697601', '1829809051062702081', '1829816399747776514', '1830071619282997250', '1830167448777486337', '1830500902884065281', '1830522544855171074', '1830815493384130561']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `cust_project_pushcust.project_id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/4 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['7188022193298518016', '7038695915979223040', '7272544026650607616', '2150151662310789151']
+  - right-only sample: ['100002', '6606082674815668224', '100004', '1247245793941786680', '1251134813386051647', '6837993668279926784', '7267374337280811008', '7267375290331537408']
+- `cust_project_rel.channel_code` → `cust_company_info.channel_code` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/196 (0.0) | right_in_left=0/544 (0.0)
+  - left-only sample: ['1231231', 'XMYS7390834775', 'DHHKXM08084234978526', 'WKCSXM10360224916', 'CDMYPDXM8870239217', 'WC000011493493272', '0902XM1401916398', 'YSXDXM5085322705']
+  - right-only sample: ['longteng', 'jingke']
+- `cust_shareholder_info.certification_no` → `cust_head_company_info.certification_no` (host=`cust_head_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/3 (0.0) | right_in_left=0/517 (0.0)
+  - left-only sample: ['wertwetew', '11']
+  - right-only sample: ['92371600MADL5W1W2R', '12150105MB1P09595M', '91510000MA61Y1649J', '91510000MA61Y1648Q', '91511503MA6ANJFA1B', '365544567655523454', '256578987865454345', '91320301MA1Y2PXQ1T']
+- `cust_user_rel.company_id` → `cust_company_lifecycle_info.company_id` (host=`cust_company_lifecycle_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/71 (0.0)
+  - left-only sample: ['1796181695229874177']
+  - right-only sample: ['1955901154958671873', '1953727212855742466', '1955892015372169218', '1955881627314511874', '1955547916564504577', '1955455301971423233', '1952571150572310530', '1955940327141203969']
+- `cust_user_rel.company_id` → `cust_company_survey_state.company_id` (host=`cust_company_survey_state`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/11 (0.0)
+  - left-only sample: ['1796181695229874177']
+  - right-only sample: ['2054762388929851394', '2154868455847768065', '2144657987287924796', '2145519944517820484', '2119738548914503746', '1993860367081840641', '2059103360591134721', '2059114279754964994']
+- `cust_user_rel.company_id` → `cust_company_survey_whitelist.company_id` (host=`cust_company_survey_whitelist`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/11 (0.0)
+  - left-only sample: ['1796181695229874177']
+  - right-only sample: ['1993860367081840641', '2054762388929851394', '2058837800669777921', '2059103360591134721', '2059114279754964994', '2059114867171917826', '2059115419645157377', '2119738548914503746']
+- `cust_user_rel.company_id` → `cust_oper_change_record.company_id` (host=`cust_oper_change_record`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/4422 (0.0)
+  - left-only sample: ['1796181695229874177']
+  - right-only sample: ['2142916945710686284', '1794986367098163202', '1895064037500104706', '1895067107928829954', '1895394336731443201', '1895394348472541186', '1895394348894924802', '2140023598889308197']
+- `cust_user_rel.company_id` → `cust_project_code_record.company_id` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/348 (0.0)
+  - left-only sample: ['1796181695229874177']
+  - right-only sample: ['1829777183756697601', '1829809051062702081', '1829816399747776514', '1830071619282997250', '1830167448777486337', '1830500902884065281', '1830522544855171074', '1830815493384130561']
+- `cust_user_rel.company_id` → `cust_survey_answer.company_id` (host=`cust_survey_answer`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/410 (0.0)
+  - left-only sample: ['1796181695229874177']
+  - right-only sample: ['1825800806480588802', '1892054042215378946', '1892156709218856961', '1895063296888745986', '1895063332051726337', '1895064832295546882', '1895065955389616129', '1895066273261268993']
+- `tenant_product.id` → `tenant_interworking_project.product_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/12 (0.0)
+  - left-only sample: ['1823633623839248385', '1826128361583771649', '1826813600559169538', '1826829436405526530', '1826909844156305410', '1827890533386448897', '1828331133954285569', '1828724865390518273']
+  - right-only sample: ['1925378951654162434', '1876913796624117761', '1878647260178628609', '1878649109879275522', '1878649160961703938', '1891732181419941889']
+- `tenant_product.platform_product_id` → `tenant_interworking_product.platform_product_id` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/40 (0.0)
+  - left-only sample: ['2', '3', '5', '7', '8', '10', '26', '27']
+  - right-only sample: ['6', '11', '12', '13', '14', '1881239448301518849', '15', '16']
+- `tenant_project.product_id` → `tenant_interworking_project.product_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/3586 (0.0) | right_in_left=0/12 (0.0)
+  - left-only sample: ['1894702550325932033', '1894703094242631681', '1894651248497025026', '1830801341789655041', '1830872984529362946', '1894651102321336322', '1894652082605678593', '1830801345111543810']
+  - right-only sample: ['1925378951654162434', '1876913796624117761', '1878647260178628609', '1878649109879275522', '1878649160961703938', '1891732181419941889']
+- `ca_fee_company.certification_no` → `cust_head_company_info.certification_no` (host=`cust_head_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1044 (0.0) | right_in_left=0/517 (0.0)
+  - left-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+  - right-only sample: ['92371600MADL5W1W2R', '12150105MB1P09595M', '91510000MA61Y1649J', '91510000MA61Y1648Q', '91511503MA6ANJFA1B', '365544567655523454', '256578987865454345', '91320301MA1Y2PXQ1T']
+- `ca_fee_project_config.project_id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/451 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['1187786460929990658', '1189159246101479516', '1213440899401388037', '1219665662046109764', '1246514280572915724', '1266390983981924431', '1266391265428111368', '1269955837934174288']
+  - right-only sample: ['100002', '6606082674815668224', '100004', '1247245793941786680', '1251134813386051647', '6837993668279926784', '7267374337280811008', '7267375290331537408']
+- `cust_project_pushcust.project_id` → `tenant_interworking_project.project_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/4 (0.0) | right_in_left=0/12 (0.0)
+  - left-only sample: ['7188022193298518016', '7038695915979223040', '7272544026650607616', '2150151662310789151']
+  - right-only sample: ['7297136236251090944', '1828341757505560577', '1828687414838697985', '1830148193587081218', '1831506779094122497', '1831877494535925762', '1831950270561038337', '1828687814761390081']
+- `project_file_info.project_id` → `cust_project_pushcust.project_id` (host=`cust_project_pushcust`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/57 (0.0) | right_in_left=0/4 (0.0)
+  - left-only sample: ['1195688373960839255', '2163913362700771426', '2171576460173660186', '2173276344136245335', '2173359507491549225', '2173642390437371940', '6839113487803121664', '1828341757505560577']
+  - right-only sample: ['7188022193298518016', '7038695915979223040', '7272544026650607616', '2150151662310789151']
+- `tenant_interworking_project.project_id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/12 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['7297136236251090944', '1828341757505560577', '1828687414838697985', '1830148193587081218', '1831506779094122497', '1831877494535925762', '1831950270561038337', '1828687814761390081']
+  - right-only sample: ['100002', '6606082674815668224', '100004', '1247245793941786680', '1251134813386051647', '6837993668279926784', '7267374337280811008', '7267375290331537408']
+- `tenant_product.platform_product_code` → `cust_interworking_product.platform_product_code` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/304 (0.0)
+  - left-only sample: ['ACFLOW', 'ORDER', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR_PC', 'DRAFTQA', 'STORAGE', 'DRAFT']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'AMS']
+- `cust_auth_application.code` → `cust_role_info.ref_cust_auth_application` (host=`cust_role_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/32088 (0.0) | right_in_left=0/100 (0.0)
+  - left-only sample: ['0003ed3faab346198b2baaa5c14a8166', '00043011780e4203abaa79f44f272add', '000478739d0a40088058c35c1661c253', '000717b3595146ef9dd15100c4cc5215', '0007e4d5358a4b1d82c8076b013da3de', '00082009d48547af949575a57258099f', '000c995a6482495faadb75873af24281', '000e7be04a84457886dd2903e40d9ecf']
+  - right-only sample: ['230a731da3ad4dd289c9db0e14684874', '694986669b5d4553904cea955d1f0bbd', 'b967b659ddd44e87acb369272f19f813', 'fb2a5e58eb9446f4bd45be1c689be603', '6bbf2f2db88d4bf0bcaa3ef70b4bf8d6', 'd514060c371f4bf1a4b0df972368636b', '300618305dd24808a90fd0bd79c98263', 'a14b172fd76549f3bbb94117613c0ba5']
+- `cust_company_lifecycle_info.company_id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/71 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['1955901154958671873', '1953727212855742466', '1955892015372169218', '1955881627314511874', '1955547916564504577', '1955455301971423233', '1952571150572310530', '1955940327141203969']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `cust_company_survey_state.company_id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/11 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['2054762388929851394', '2154868455847768065', '2144657987287924796', '2145519944517820484', '2119738548914503746', '1993860367081840641', '2059103360591134721', '2059114279754964994']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `cust_company_survey_whitelist.company_id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/11 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['1993860367081840641', '2054762388929851394', '2058837800669777921', '2059103360591134721', '2059114279754964994', '2059114867171917826', '2059115419645157377', '2119738548914503746']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `cust_oper_change_record.company_id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/4422 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['2142916945710686284', '1794986367098163202', '1895064037500104706', '1895067107928829954', '1895394336731443201', '1895394348472541186', '1895394348894924802', '2140023598889308197']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `cust_survey_answer.company_id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/410 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['1825800806480588802', '1892054042215378946', '1892156709218856961', '1895063296888745986', '1895063332051726337', '1895064832295546882', '1895065955389616129', '1895066273261268993']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `cust_user_rel.company_id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['1796181695229874177']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `tenant_product.id` → `cust_interworking_product.product_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/304 (0.0)
+  - left-only sample: ['1823633623839248385', '1826128361583771649', '1826813600559169538', '1826829436405526530', '1826909844156305410', '1827890533386448897', '1828331133954285569', '1828724865390518273']
+  - right-only sample: ['1932270848080400385', '1932274602375933954', '1878649109879275522', '1878625020661809154', '1877637220721119234', '1878625128094711810', '1878647260178628609', '1878649160961703938']
+- `cust_company_info.id` → `wec_project_cust_operation_rel.company_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/94910 (0.0) | right_in_left=0/2331 (0.0)
+  - left-only sample: ['1895394035061563393', '1895394043843194882', '1895063219575140353', '1895392101750419457', '1895394046335852546', '1895394056712560642', '1895063216983060482', '1895063224327286786']
+  - right-only sample: ['1', '1111111111111111113', '1111111111111111114', '1111111111111111115', '1111111111111111116', '1188907398446714968', '1193195328094867537', '1193580492104929347']
+- `cust_project_rel.product_id` → `cust_interworking_product.product_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/60078 (0.0) | right_in_left=0/304 (0.0)
+  - left-only sample: ['1795047363653136386', '1823335930310791170', '1828338709404180481', '1829056399900778498', '1797564722686484482', '1830931997592944642', '1829056506230579202', '1797628152482992129']
+  - right-only sample: ['1932270848080400385', '1932274602375933954', '1878649109879275522', '1878625020661809154', '1877637220721119234', '1878625128094711810', '1878647260178628609', '1878649160961703938']
+- `cust_user_rel.user_id` → `cust_person_info.user_id` (host=`cust_person_info`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/39074 (0.0)
+  - left-only sample: ['1796181696198758401']
+  - right-only sample: ['0', '1795787994825048066', '1821757677907697666', '1831248744927961089', '2001906851070574594', '2001906851070574595', '2001945375601819650', '2002918423880499203']
+- `cust_user_rel.user_id` → `cust_survey_answer.user_id` (host=`cust_survey_answer`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/1 (0.0) | right_in_left=0/410 (0.0)
+  - left-only sample: ['1796181696198758401']
+  - right-only sample: ['2072219086843355137', '2071491434482311169', '1983805043994783745', '2074011577892671489', '2066789994289610753', '2075062261882753025', '1839207065417060354', '1895063298645729282']
+- `tenant_product.code` → `platform_product.product_code` (host=`platform_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/20 (0.0)
+  - left-only sample: ['005ef1d3ad6a429ca3bd132a8ea014c1', '0160762ff3e64fa2b32c638fb25dbe6b', '016573c5f844409fa3019486031b7ee0', '0188994a80b3432a87d0e6fa8f2c68c2', '01eab28faba3471284a6374c49cf074a', '022ef3ad496045afad017083c4b3aff7', '025a015ec68c47c887a125060d160da1', '025aba40095f4aada48a295b76e8eab9']
+  - right-only sample: ['ACFLOW', 'AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13']
+- `tenant_product.code` → `platform_product_cust_role.product_code` (host=`platform_product_cust_role`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/501 (0.0) | right_in_left=0/62 (0.0)
+  - left-only sample: ['005ef1d3ad6a429ca3bd132a8ea014c1', '0160762ff3e64fa2b32c638fb25dbe6b', '016573c5f844409fa3019486031b7ee0', '0188994a80b3432a87d0e6fa8f2c68c2', '01eab28faba3471284a6374c49cf074a', '022ef3ad496045afad017083c4b3aff7', '025a015ec68c47c887a125060d160da1', '025aba40095f4aada48a295b76e8eab9']
+  - right-only sample: ['AMS', 'ACFLOW', 'ORDER', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'RVSFACTOR_PC']
+- `cust_project_rel.product_id` → `tenant_interworking_project.product_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/60078 (0.0) | right_in_left=0/12 (0.0)
+  - left-only sample: ['1795047363653136386', '1823335930310791170', '1828338709404180481', '1829056399900778498', '1797564722686484482', '1830931997592944642', '1829056506230579202', '1797628152482992129']
+  - right-only sample: ['1925378951654162434', '1876913796624117761', '1878647260178628609', '1878649109879275522', '1878649160961703938', '1891732181419941889']
+- `tenant_project.code` → `platform_product.project_code` (host=`platform_product`, wiki trust=`proposed`/`unknown`)
+  - reason: no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+  - join_hits=0 | left_in_right=0/3586 (0.0) | right_in_left=0/1 (0.0)
+  - left-only sample: ['00027be18af64eceb8c30d7728b00ce3', '002600c381544b5f9337d58225e3cc07', '00434c215f1facc129338fd94773d3a9', '004f3ef396c6760240b6bd0feaef7ca4', '005becbdc3d3481c9f4020ce8211832d', '005e268b954040258e169b25d7b59bb2', '00788db29fc94743b1951d33349adb8e', '008fc937276d42ad965439db349f7f6d']
+  - right-only sample: ['0cb8c9bc0c2f4053986a9cb63060f951']
+
+## false_friend (6)
+
+- `cust_group_rel.cust_id` → `cust_interworking_product.cust_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: negligible overlap on large domains (left->right=0.0045, right->left=0.0099, join_hits=3, distinct L/R=571/261); not a usable equi-join
+  - join_hits=3 | left_in_right=3/670 (0.0045) | right_in_left=3/304 (0.0099)
+  - intersection sample: ['1942064770976636930', '1976218503095443458', '1985886359711043586']
+  - left-only sample: ['999999999', '1190352480584609887', '1765286986895069185', '1765340835084046337', '1765340985663754242', '1765341486388154369', '1765345518737494018', '1765346105428348930']
+  - right-only sample: ['1821434531005194242', '1821435194212737026', '1848997820024352770', '1859048380303540226', '1871372344049635330', '1877256727877820417', '1877554401148125186', '1877641757930467330']
+- `cust_person_info.certification_no` → `cust_company_info.certification_no` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: negligible overlap on large domains (left->right=0.0001, right->left=0.0, join_hits=5, distinct L/R=50887/53426); not a usable equi-join
+  - join_hits=5 | left_in_right=5/56672 (0.0001) | right_in_left=2/94475 (0.0)
+  - intersection sample: ['11', '420101199704164953']
+  - left-only sample: ['0005844f53407df6149df10fffdae28cb099400302e025da81b709ff2b0df6aa', '00087ca94e0ed95211426a4c468ee387cedca9be8940224f776cba887eff8789', '0008a89464896391f3b05ed2446fb352b9d2b74493a4a7667c2d9afc869c5d2f', '0010cf1085f87037a5d25d7112b8f64fc264cc05cb484c8cd25d82c7a19ea904', '0010ff5dfb3da157b108b68b796f6adbe6c930e84d8d6f2c586c8fa732426fd6', '0011a61a5dd62561c082b084cdfb6a59c69fd214e7303727d527be44a6279ebe', '0014c59484afc76f68a3689715a810863aef4577dea4587189fc28b45d8b588a', '00151ffcca958f06c9a143365bec8df247a854373b05eedb1bee33a3b3880f50']
+  - right-only sample: [',9144200028213222XT', '-', '000000000000000', '00000000000000000X', '000000000000000011', '000000005607170850', '00010107054941260M', '000OAKV6W1J02XQZ68']
+- `cust_person_info.certification_no` → `cust_head_company_info.certification_no` (host=`cust_head_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: negligible overlap on large domains (left->right=0.0001, right->left=0.0116, join_hits=7, distinct L/R=50887/443); not a usable equi-join
+  - join_hits=7 | left_in_right=7/56672 (0.0001) | right_in_left=6/517 (0.0116)
+  - intersection sample: ['2a048c58a5795f03524c8ebed7f6f7420fa9c9bf656c98b361b70550c61fcf64', 'd88179201e900d3737e9c9b2abdfa94ce27949e85f931ae9c082715a41d11fde', '1619adf1477d7698056ffd1b4180024c']
+  - left-only sample: ['0005844f53407df6149df10fffdae28cb099400302e025da81b709ff2b0df6aa', '00087ca94e0ed95211426a4c468ee387cedca9be8940224f776cba887eff8789', '0008a89464896391f3b05ed2446fb352b9d2b74493a4a7667c2d9afc869c5d2f', '0010cf1085f87037a5d25d7112b8f64fc264cc05cb484c8cd25d82c7a19ea904', '0010ff5dfb3da157b108b68b796f6adbe6c930e84d8d6f2c586c8fa732426fd6', '0011a61a5dd62561c082b084cdfb6a59c69fd214e7303727d527be44a6279ebe', '0014c59484afc76f68a3689715a810863aef4577dea4587189fc28b45d8b588a', '00151ffcca958f06c9a143365bec8df247a854373b05eedb1bee33a3b3880f50']
+  - right-only sample: ['92371600MADL5W1W2R', '12150105MB1P09595M', '91510000MA61Y1649J', '91510000MA61Y1648Q', '91511503MA6ANJFA1B', '365544567655523454', '256578987865454345', '91320301MA1Y2PXQ1T']
+- `cust_project_rel.project_id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: negligible overlap on large domains (left->right=0.0, right->left=0.0021, join_hits=2, distinct L/R=1819/173); not a usable equi-join
+  - join_hits=2 | left_in_right=2/59913 (0.0) | right_in_left=5/2331 (0.0021)
+  - intersection sample: ['7383800930013659136', '7384076079942144000']
+  - left-only sample: ['1185950264071295049', '1187751782177050662', '1187786460929990658', '1187797539093483575', '1189159246101479516', '1192862188402901028', '1195673301674889304', '1195688373960839255']
+  - right-only sample: ['100002', '6606082674815668224', '100004', '1247245793941786680', '1251134813386051647', '6837993668279926784', '7267374337280811008', '7267375290331537408']
+- `cust_survey_answer.company_id` → `cust_project_code_record.company_id` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: negligible overlap on large domains (left->right=0.0146, right->left=0.0057, join_hits=6, distinct L/R=66/263); not a usable equi-join
+  - join_hits=6 | left_in_right=6/410 (0.0146) | right_in_left=2/348 (0.0057)
+  - intersection sample: ['2191472527480475708']
+  - left-only sample: ['1825800806480588802', '1892054042215378946', '1892156709218856961', '1895063296888745986', '1895063332051726337', '1895064832295546882', '1895065955389616129', '1895066273261268993']
+  - right-only sample: ['1829777183756697601', '1829809051062702081', '1829816399747776514', '1830071619282997250', '1830167448777486337', '1830500902884065281', '1830522544855171074', '1830815493384130561']
+- `tenant_project.id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: negligible overlap on large domains (left->right=0.0006, right->left=0.0021, join_hits=2, distinct L/R=3586/173); not a usable equi-join
+  - join_hits=2 | left_in_right=2/3586 (0.0006) | right_in_left=5/2331 (0.0021)
+  - intersection sample: ['7383800930013659136', '7384076079942144000']
+  - left-only sample: ['2203106338874073180', '1999381039371583489', '7193142624923394048', '1203026947395813404', '1986272085919219713', '2188980103331987482', '2139595791851864103', '1905464553752363009']
+  - right-only sample: ['100002', '6606082674815668224', '100004', '1247245793941786680', '1251134813386051647', '6837993668279926784', '7267374337280811008', '7267375290331537408']
+
+## empty_endpoint (27)
+
+- `tenant_project_approval.flow_code` → `tenant_project_approval_flow_config.flow_code` (host=`tenant_project_approval_flow_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/15 (None)
+- `tenant_project_approval_flow_config.code` → `tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config` (host=`tenant_project_approval`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/0 (None)
+- `tenant_setting_config.apaas_tenant_code` → `tenant_setting_config_share.apaas_tenant_code` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/1 (None) | right_in_left=None/0 (None)
+- `tenant_setting_config.mp_dbass_app_id` → `tenant_setting_config_share.mp_dbass_app_id` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/0 (None)
+- `tenant_setting_config.operator_applet_code` → `tenant_setting_config_share.operator_applet_code` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/36 (None) | right_in_left=None/0 (None)
+- `tenant_setting_config.operator_qr_code` → `tenant_setting_config_share.operator_qr_code` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/36 (None) | right_in_left=None/0 (None)
+- `tenant_setting_config.operator_wechat_code` → `tenant_setting_config_share.operator_wechat_code` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/36 (None) | right_in_left=None/0 (None)
+- `tenant_setting_config.uni_social_credit_code` → `tenant_setting_config_share.uni_social_credit_code` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/244 (None) | right_in_left=None/0 (None)
+- `cust_build_record.cust_id` → `cust_auth_application_config.cust_id` (host=`cust_auth_application_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/19069 (None) | right_in_left=None/0 (None)
+- `cust_build_record.cust_id` → `cust_setting_config.cust_id` (host=`cust_setting_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/19069 (None) | right_in_left=None/0 (None)
+- `cust_change_record.cust_id` → `cust_auth_application_config.cust_id` (host=`cust_auth_application_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/5503 (None) | right_in_left=None/0 (None)
+- `cust_change_record.cust_id` → `cust_setting_config.cust_id` (host=`cust_setting_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/5503 (None) | right_in_left=None/0 (None)
+- `cust_company_info.code` → `cust_company_lifecycle_info.ref_cust_company_info` (host=`cust_company_lifecycle_info`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/94910 (None) | right_in_left=None/0 (None)
+- `cust_customized_product.cust_id` → `cust_auth_application_config.cust_id` (host=`cust_auth_application_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/25 (None) | right_in_left=None/0 (None)
+- `cust_group_rel.cust_id` → `cust_auth_application_config.cust_id` (host=`cust_auth_application_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/670 (None) | right_in_left=None/0 (None)
+- `cust_group_rel.cust_id` → `cust_setting_config.cust_id` (host=`cust_setting_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/670 (None) | right_in_left=None/0 (None)
+- `cust_interworking_product.cust_id` → `cust_auth_application_config.cust_id` (host=`cust_auth_application_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/304 (None) | right_in_left=None/0 (None)
+- `cust_setting_config.cust_id` → `cust_auth_application_config.cust_id` (host=`cust_auth_application_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/0 (None)
+- `cust_setting_config.cust_id` → `cust_customized_product.cust_id` (host=`cust_customized_product`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/25 (None)
+- `cust_setting_config.cust_id` → `cust_interworking_product.cust_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/304 (None)
+- `ca_fee_project_config.project_id` → `wechat_project_approval_apply.project_id` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/451 (None) | right_in_left=None/0 (None)
+- `cust_project_pushcust.project_id` → `wechat_project_approval_apply.project_id` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/4 (None) | right_in_left=None/0 (None)
+- `cust_project_rel.project_id` → `wechat_project_approval_apply.project_id` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/59913 (None) | right_in_left=None/0 (None)
+- `project_file_info.project_id` → `wechat_project_approval_apply.project_id` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/57 (None) | right_in_left=None/0 (None)
+- `tenant_interworking_project.project_id` → `wechat_project_approval_apply.project_id` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/12 (None) | right_in_left=None/0 (None)
+- `wechat_project_approval_apply.project_id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/2331 (None)
+- `tenant_project.id` → `wechat_project_approval_apply.project_id` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/3586 (None) | right_in_left=None/0 (None)
+
+## weak_overlap (57)
+
+- `tenant_setting_config.prd_mp_app_id` → `tenant_setting_config_share.prd_mp_app_id` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0366, right->left=0.9259, join_hits=3)
+  - join_hits=3 | left_in_right=3/82 (0.0366) | right_in_left=25/27 (0.9259)
+  - intersection sample: ['wx0821ca938ea7f8ee', 'wx2e8254825b33f21e', 'wxab90faadcc845329']
+  - left-only sample: ['wx7a4052eb070e4cfa', 'wx53c82dadf297c1a5', 'wxc228d0e7eb54040a', 'wxbb4672250373e63b', 'wx0821ca938ea7f8eea', 'wxcadea59ae5c546ea', 'wxcd7cc09d3d35f3ef', 'wxcccc970df82aff8a']
+  - right-only sample: ['wxbb4672250373e63d', '85546']
+- `cust_company_info.certification_no` → `cust_head_company_info.certification_no` (host=`cust_head_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0003, right->left=0.0716, join_hits=33)
+  - join_hits=33 | left_in_right=33/94475 (0.0003) | right_in_left=37/517 (0.0716)
+  - intersection sample: ['91511503MA6ANJFA1B', '92370281MA3NLLLB9Q', '914419007977512733', '91420104698304881B', '91411422MA9GDU3Y84', '91510000782260084X', '913301066767581619', '913304817154628586']
+  - left-only sample: [',9144200028213222XT', '-', '000000000000000', '00000000000000000X', '000000000000000011', '000000005607170850', '00010107054941260M', '000OAKV6W1J02XQZ68']
+  - right-only sample: ['92371600MADL5W1W2R', '12150105MB1P09595M', '91510000MA61Y1649J', '91510000MA61Y1648Q', '365544567655523454', '256578987865454345', '91320301MA1Y2PXQ1T', '91440300326495365L']
+- `cust_project_rel.channel_code` → `cust_project_code_record.channel_code` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.898, right->left=0.4914, join_hits=176)
+  - join_hits=176 | left_in_right=176/196 (0.898) | right_in_left=171/348 (0.4914)
+  - intersection sample: ['WKCSXM10360224916', 'CDMYPDXM8870239217', '0902XM1401916398', 'LN1XM10757644228', 'od99O4hg', 'CRSX7237089105', 'RYDZYZHXM0014049059398', 'WKCSXM26163244500']
+  - left-only sample: ['1231231', 'XMYS7390834775', 'DHHKXM08084234978526', 'WC000011493493272', 'YSXDXM5085322705', 'RYD000022', 'RYD130577', 'RYD072091']
+  - right-only sample: ['LN1TXCPXM7227711347', 'LN1YSYRXM4628939839', 'https://ams-fin.qhhrly.cn/', 'XT09035793772183', '12', '7NZ1G7WM', '123', '2354534']
+- `cust_project_rel.project_id` → `cust_project_pushcust.project_id` (host=`cust_project_pushcust`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0027, right->left=1.0, join_hits=159)
+  - join_hits=159 | left_in_right=159/59913 (0.0027) | right_in_left=4/4 (1.0)
+  - intersection sample: ['2150151662310789151', '7038695915979223040', '7188022193298518016', '7272544026650607616']
+  - left-only sample: ['1185950264071295049', '1187751782177050662', '1187786460929990658', '1187797539093483575', '1189159246101479516', '1192862188402901028', '1195673301674889304', '1195688373960839255']
+- `ca_fee_order.certification_no` → `ca_fee_special_config.certification_no` (host=`ca_fee_special_config`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0298, right->left=0.4909, join_hits=47)
+  - join_hits=47 | left_in_right=47/1575 (0.0298) | right_in_left=27/55 (0.4909)
+  - intersection sample: ['538280511140845054', '698241080913565968', '91085866BPCF4NNKQM', '91110102MA00C29B5W', '91340100MA2MWW1B93', '91346504AQJK18BTAK', '91420100MA4F5CLCXK', '914409045583945632']
+  - left-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+  - right-only sample: ['114500006GR9QBLL7P', '91100000100003962T', '91110108551385082Q', '91330106MACA91BP4N', '9134000013370212X3', '91350900587527783P', '91440300573106363N', '91441200632828391P']
+- `ca_fee_order.project_id` → `ca_fee_project_config.project_id` (host=`ca_fee_project_config`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.0931, join_hits=1575)
+  - join_hits=1575 | left_in_right=1575/1575 (1.0) | right_in_left=42/451 (0.0931)
+  - intersection sample: ['1266390983981924431', '1830423127757283330', '1904050837575725057', '1920300349066686465', '1930078506149605378', '1943246702275346434', '1954818497776812034', '2125798324761018435']
+  - right-only sample: ['1187786460929990658', '1189159246101479516', '1213440899401388037', '1219665662046109764', '1246514280572915724', '1266391265428111368', '1269955837934174288', '1269961284888035357']
+- `ca_fee_order.project_id` → `ca_fee_special_config.project_id` (host=`ca_fee_special_config`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.2051, right->left=0.9091, join_hits=323)
+  - join_hits=323 | left_in_right=323/1575 (0.2051) | right_in_left=50/55 (0.9091)
+  - intersection sample: ['2195523314326196242', '2125798324761018435', '2185618099955314761', '2195841603069829219', '2193620170784645139', '1943246702275346434', '2195842748211286036', '1830423127757283330']
+  - left-only sample: ['1266390983981924431', '1904050837575725057', '1920300349066686465', '1930078506149605378', '1954818497776812034', '2139662727663083556', '2142470089230803012', '2142893270630404153']
+  - right-only sample: ['2201987628939620356', '2196174394819100686', '1901549918158655490', '1901521649515872258']
+- `tenant_migarory_log.platform_product_code` → `tenant_interworking_product.platform_product_code` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0007, right->left=0.175, join_hits=106)
+  - join_hits=106 | left_in_right=106/154750 (0.0007) | right_in_left=7/40 (0.175)
+  - intersection sample: ['AMS']
+  - left-only sample: ['ACFLOW', '["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', 'RVSFACTOR_PC', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+- `tenant_migarory_log.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0007, right->left=0.0833, join_hits=106)
+  - join_hits=106 | left_in_right=106/154750 (0.0007) | right_in_left=1/12 (0.0833)
+  - intersection sample: ['AMS']
+  - left-only sample: ['ACFLOW', '["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', 'RVSFACTOR_PC', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]']
+  - right-only sample: ['HTCP1', 'HTCP5', 'HTCP13', 'HTCP14']
+- `tenant_migarory_log_bak.platform_product_code` → `tenant_interworking_product.platform_product_code` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0041, right->left=0.175, join_hits=19)
+  - join_hits=19 | left_in_right=19/4597 (0.0041) | right_in_left=7/40 (0.175)
+  - intersection sample: ['AMS']
+  - left-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', 'ORDER', '["ORDER"]', 'ACFLOW', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+- `tenant_migarory_log_bak.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0041, right->left=0.0833, join_hits=19)
+  - join_hits=19 | left_in_right=19/4597 (0.0041) | right_in_left=1/12 (0.0833)
+  - intersection sample: ['AMS']
+  - left-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', 'ORDER', '["ORDER"]', 'ACFLOW', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]']
+  - right-only sample: ['HTCP1', 'HTCP5', 'HTCP13', 'HTCP14']
+- `tenant_product_menu.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.8629, right->left=0.1742, join_hits=2190)
+  - join_hits=2190 | left_in_right=2190/2538 (0.8629) | right_in_left=77/442 (0.1742)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['BEECREDIT', 'ACCOUNT_PRODUCT']
+  - right-only sample: ['ACFLOW', 'ORDER']
+- `tenant_product_menu_res.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0455, right->left=0.1742, join_hits=5)
+  - join_hits=5 | left_in_right=5/110 (0.0455) | right_in_left=77/442 (0.1742)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACCOUNT_PRODUCT']
+  - right-only sample: ['ACFLOW', 'ORDER']
+- `tenant_project_approval.sp_no` → `wechat_project_approval_apply.sp_no` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.4051, join_hits=510)
+  - join_hits=510 | left_in_right=510/510 (1.0) | right_in_left=32/79 (0.4051)
+  - intersection sample: ['202512290002', '202604090001', '202604270003', '202605110011', '202605120011', '202605120015', '202605130016', '202606220001']
+  - right-only sample: ['202512290017', '202512300002', '202512310005', '202601040004', '202601040005', '202601060002', '202601060005', '202601060006']
+- `ca_fee_company.certification_no` → `ca_cfca_upgrade_report.certification_no` (host=`ca_cfca_upgrade_report`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0134, right->left=0.6118, join_hits=14)
+  - join_hits=14 | left_in_right=14/1044 (0.0134) | right_in_left=260/425 (0.6118)
+  - intersection sample: ['456457657585858568', '547457457457658665', '698241080913565968', '91110102MA00C29B5W', '9111010877336966X1', '91130108542037094C', '91330102MA24KBCF2C', '91340100MA2MUWT73J']
+  - left-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+  - right-only sample: ['11572642955MCKN80X', '231645787943164946', '232424123213214243', '294403008RR8YXF437', '419488915332808833', '464575856865867969', '91165363REC655J2TY', '91193211EPC2NRJH77']
+- `ca_fee_order.certification_no` → `ca_cfca_upgrade_report.certification_no` (host=`ca_cfca_upgrade_report`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0152, right->left=0.6118, join_hits=24)
+  - join_hits=24 | left_in_right=24/1575 (0.0152) | right_in_left=260/425 (0.6118)
+  - intersection sample: ['456457657585858568', '547457457457658665', '698241080913565968', '91110102MA00C29B5W', '9111010877336966X1', '91130108542037094C', '91330102MA24KBCF2C', '91340100MA2MUWT73J']
+  - left-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+  - right-only sample: ['11572642955MCKN80X', '231645787943164946', '232424123213214243', '294403008RR8YXF437', '419488915332808833', '464575856865867969', '91165363REC655J2TY', '91193211EPC2NRJH77']
+- `ca_fee_order.company_id` → `ca_cfca_upgrade_report.company_id` (host=`ca_cfca_upgrade_report`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0152, right->left=0.6024, join_hits=24)
+  - join_hits=24 | left_in_right=24/1575 (0.0152) | right_in_left=256/425 (0.6024)
+  - intersection sample: ['1895062586749071361', '1920020228698324994', '1895392132960235521', '1930079697541607425', '2066850938684231681', '2091826962269929473', '2042560389698805762', '1895063332051726337']
+  - left-only sample: ['2057342782138810369', '2057698471537344514', '2058103374831476737', '2057639337950351361', '2057342224033832962', '2058100487355035650', '2055119960431976449', '2155600334574067717']
+  - right-only sample: ['2079746608594124802', '2071874684636033026', '999999999', '1895062710724308994', '2046060301248806913', '2090727703421333505', '1984086336409223170', '2091724896930033666']
+- `ca_fee_special_config.certification_no` → `ca_cfca_upgrade_report.certification_no` (host=`ca_cfca_upgrade_report`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0545, right->left=0.0965, join_hits=3)
+  - join_hits=3 | left_in_right=3/55 (0.0545) | right_in_left=41/425 (0.0965)
+  - intersection sample: ['698241080913565968', '91110102MA00C29B5W']
+  - left-only sample: ['114500006GR9QBLL7P', '538280511140845054', '91085866BPCF4NNKQM', '91100000100003962T', '91110108551385082Q', '91330106MACA91BP4N', '9134000013370212X3', '91340100MA2MWW1B93']
+  - right-only sample: ['11572642955MCKN80X', '231645787943164946', '232424123213214243', '294403008RR8YXF437', '419488915332808833', '456457657585858568', '464575856865867969', '547457457457658665']
+- `cust_build_record.cust_id` → `cust_change_record.cust_id` (host=`cust_change_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0484, right->left=0.4238, join_hits=923)
+  - join_hits=923 | left_in_right=923/19069 (0.0484) | right_in_left=2332/5503 (0.4238)
+  - intersection sample: ['2001853938596831234', '2002936309709881345', '2002918350518865922', '2001953060164780033', '6137896199429273056', '1965652963968790530', '1993872160003350530', '2003759206477721602']
+  - left-only sample: ['2001860400870563842', '2001945084773089282', '2001948166921961473', '2001955843113340930', '2002941503353073666', '2002949747272368130', '2002949753696538626', '2002949755776217089']
+  - right-only sample: ['2001949958225313793', '2003012651257024513', '1188534030698553414', '1962774876312715265', '1895393774972772353', '1980817553684221953', '1895392053201350657', '2005453707270234114']
+- `cust_build_record.cust_id` → `cust_customized_product.cust_id` (host=`cust_customized_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0005, right->left=0.64, join_hits=9)
+  - join_hits=9 | left_in_right=9/19069 (0.0005) | right_in_left=16/25 (0.64)
+  - intersection sample: ['2016400585846108161', '1925154031884906497', '2018237685069053954', '2019608410243264514', '2026127898711224322', '2092538483610546177', '2093226654363086849', '2019653231439454209']
+  - left-only sample: ['2001853938596831234', '2001860400870563842', '2001945084773089282', '2001948166921961473', '2001949470639468545', '2001953060164780033', '2001955843113340930', '2002918350518865922']
+  - right-only sample: ['1830871454996692993', '1864237302084366337', '1871148152045826049', '1877275083680559105', '1877532933144166402', '1831884100124372993']
+- `cust_build_record.cust_id` → `cust_interworking_product.cust_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0114, right->left=0.7895, join_hits=217)
+  - join_hits=217 | left_in_right=217/19069 (0.0114) | right_in_left=240/304 (0.7895)
+  - intersection sample: ['1909565839459409921', '1924796547148812290', '1925004798165524482', '1925376421963735042', '1926996124485677057', '1927648071583203330', '1931921349217230849', '1932329305785823233']
+  - left-only sample: ['2001853938596831234', '2001860400870563842', '2001945084773089282', '2001948166921961473', '2001949470639468545', '2001953060164780033', '2001955843113340930', '2002918350518865922']
+  - right-only sample: ['1821434531005194242', '1821435194212737026', '1848997820024352770', '1859048380303540226', '1871372344049635330', '1877256727877820417', '1877554401148125186', '1877641757930467330']
+- `cust_build_record.person_id` → `cust_oper_change_record.person_id` (host=`cust_oper_change_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0488, right->left=0.2779, join_hits=931)
+  - join_hits=931 | left_in_right=931/19069 (0.0488) | right_in_left=1229/4422 (0.2779)
+  - intersection sample: ['2033458981781958657', '2145363606626123845', '2034537694088896513', '2145519944689786900', '2006282660145348610', '2035990257979228162', '2035959889426817025', '2147926867103997969']
+  - left-only sample: ['2001853939070787586', '2001945085213491201', '2001949471058898945', '2001953060584210434', '2001955843532771329', '2002918350938296321', '2002936310129311746', '2002941503776698370']
+  - right-only sample: ['2142916948147576886', '1895389484526936065', '1895390870105632769', '1895392472380092418', '1895394337951985665', '1895394349906993153', '1895394350371319809', '2140023600898379847']
+- `cust_change_record.cust_id` → `cust_customized_product.cust_id` (host=`cust_customized_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.006, right->left=0.76, join_hits=33)
+  - join_hits=33 | left_in_right=33/5503 (0.006) | right_in_left=19/25 (0.76)
+  - intersection sample: ['1830871454996692993', '1864237302084366337', '1877532933144166402', '1831884100124372993', '1925154031884906497', '2019608410243264514', '2026127898711224322', '2093226654363086849']
+  - left-only sample: ['2001853938596831234', '2002936309709881345', '2002918350518865922', '2001953060164780033', '2001949958225313793', '6137896199429273056', '2003012651257024513', '1965652963968790530']
+  - right-only sample: ['1871148152045826049', '1877275083680559105', '2016400585846108161', '2018237685069053954', '2092538483610546177', '2030829038016778242']
+- `cust_change_record.cust_id` → `cust_interworking_product.cust_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.042, right->left=0.4079, join_hits=231)
+  - join_hits=231 | left_in_right=231/5503 (0.042) | right_in_left=124/304 (0.4079)
+  - intersection sample: ['1821435194212737026', '1848997820024352770', '1859048380303540226', '1877641757930467330', '1879348693402451969', '1879440115539775489', '1879847316508430338', '1880067342981443585']
+  - left-only sample: ['2001853938596831234', '2002936309709881345', '2002918350518865922', '2001953060164780033', '2001949958225313793', '6137896199429273056', '2003012651257024513', '1965652963968790530']
+  - right-only sample: ['1821434531005194242', '1871372344049635330', '1877256727877820417', '1877554401148125186', '1878981072896716801', '1879353073405067265', '1879464568212815873', '1879733645028229121']
+- `cust_company_info.certification_no` → `cust_shareholder_info.certification_no` (host=`cust_shareholder_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=1)
+  - join_hits=1 | left_in_right=1/94475 (0.0) | right_in_left=1/3 (0.3333)
+  - intersection sample: ['11']
+  - left-only sample: [',9144200028213222XT', '-', '000000000000000', '00000000000000000X', '000000000000000011', '000000005607170850', '00010107054941260M', '000OAKV6W1J02XQZ68']
+  - right-only sample: ['wertwetew']
+- `cust_group_rel.cust_id` → `cust_build_record.cust_id` (host=`cust_build_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.3254, right->left=0.0094, join_hits=218)
+  - join_hits=218 | left_in_right=218/670 (0.3254) | right_in_left=179/19069 (0.0094)
+  - intersection sample: ['1897938441525334018', '1902718234112872449', '1910241223095939073', '1912022457400623106', '1915314462110896130', '1915649950267412481', '1916366712270995458', '1916372767890792450']
+  - left-only sample: ['999999999', '1190352480584609887', '1765286986895069185', '1765340835084046337', '1765340985663754242', '1765341486388154369', '1765345518737494018', '1765346105428348930']
+  - right-only sample: ['2001853938596831234', '2001860400870563842', '2001945084773089282', '2001948166921961473', '2001949470639468545', '2001953060164780033', '2001955843113340930', '2002918350518865922']
+- `cust_group_rel.cust_id` → `cust_change_record.cust_id` (host=`cust_change_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.309, right->left=0.0821, join_hits=207)
+  - join_hits=207 | left_in_right=207/670 (0.309) | right_in_left=452/5503 (0.0821)
+  - intersection sample: ['999999999', '1765286986895069185', '1765340835084046337', '1768171665592655874', '1775129891665514498', '1793836532235882498', '1793838191280246786', '1810912942390726657']
+  - left-only sample: ['1190352480584609887', '1765340985663754242', '1765341486388154369', '1765345518737494018', '1765346105428348930', '1765358678336933890', '1765552185387323393', '1765568443998986241']
+  - right-only sample: ['2001853938596831234', '2002936309709881345', '2002918350518865922', '2001953060164780033', '2001949958225313793', '2003012651257024513', '1965652963968790530', '1993872160003350530']
+- `cust_group_rel.cust_id` → `cust_customized_product.cust_id` (host=`cust_customized_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.003, right->left=0.08, join_hits=2)
+  - join_hits=2 | left_in_right=2/670 (0.003) | right_in_left=2/25 (0.08)
+  - intersection sample: ['2016400585846108161', '1925154031884906497']
+  - left-only sample: ['999999999', '1190352480584609887', '1765286986895069185', '1765340835084046337', '1765340985663754242', '1765341486388154369', '1765345518737494018', '1765346105428348930']
+  - right-only sample: ['1830871454996692993', '1864237302084366337', '1871148152045826049', '1877275083680559105', '1877532933144166402', '1831884100124372993', '2018237685069053954', '2019608410243264514']
+- `cust_invite_info.channel_code` → `cust_project_code_record.channel_code` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.4327, right->left=0.2126, join_hits=45)
+  - join_hits=45 | left_in_right=45/104 (0.4327) | right_in_left=74/348 (0.2126)
+  - intersection sample: ['111', 'RSWXZRYD2586716567', 'RYDZYZHXM0014049059398', '1', '12', 'RYD971998', 'RYD876551', '123456']
+  - left-only sample: ['00000', '55555', '0', 'xmm01', '0924-wyw项目测试', '0924-WYWXMCS9806393896', '项目001', '项目002']
+  - right-only sample: ['WKCSXM10360224916', 'LN1TXCPXM7227711347', 'CDMYPDXM8870239217', 'LN1YSYRXM4628939839', '0902XM1401916398', 'https://ams-fin.qhhrly.cn/', 'XT09035793772183', '7NZ1G7WM']
+- `cust_invite_info.channel_code` → `cust_project_rel.channel_code` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.3942, right->left=0.5153, join_hits=41)
+  - join_hits=41 | left_in_right=41/104 (0.3942) | right_in_left=101/196 (0.5153)
+  - intersection sample: ['RSWXZRYD2586716567', 'RYDZYZHXM0014049059398', 'RYD971998', 'RYD130577', 'RYD876551', 'RYD072091', 'RYD399331', 'RYD247470']
+  - left-only sample: ['00000', '55555', '0', 'xmm01', '111', '0924-wyw项目测试', '0924-WYWXMCS9806393896', '项目001']
+  - right-only sample: ['1231231', 'XMYS7390834775', 'DHHKXM08084234978526', 'WKCSXM10360224916', 'CDMYPDXM8870239217', 'WC000011493493272', '0902XM1401916398', 'YSXDXM5085322705']
+- `cust_oper_change_record.company_id` → `cust_company_lifecycle_info.company_id` (host=`cust_company_lifecycle_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0206, right->left=0.4507, join_hits=91)
+  - join_hits=91 | left_in_right=91/4422 (0.0206) | right_in_left=32/71 (0.4507)
+  - intersection sample: ['1955547916564504577', '1955455301971423233', '1952571150572310530', '1793838191280246786', '1956229238400802818', '1895392053201350657', '1957678888875384833', '1957693760449581058']
+  - left-only sample: ['2142916945710686284', '1794986367098163202', '1895064037500104706', '1895067107928829954', '1895394336731443201', '1895394348472541186', '1895394348894924802', '2140023598889308197']
+  - right-only sample: ['1955901154958671873', '1953727212855742466', '1955892015372169218', '1955881627314511874', '1955940327141203969', '1953726963382734849', '1956175368736931842', '1956241140300492802']
+- `cust_oper_change_record.company_id` → `cust_company_survey_state.company_id` (host=`cust_company_survey_state`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0014, right->left=0.1818, join_hits=6)
+  - join_hits=6 | left_in_right=6/4422 (0.0014) | right_in_left=2/11 (0.1818)
+  - intersection sample: ['2154868455847768065', '2145519944517820484']
+  - left-only sample: ['2142916945710686284', '1794986367098163202', '1895064037500104706', '1895067107928829954', '1895394336731443201', '1895394348472541186', '1895394348894924802', '2140023598889308197']
+  - right-only sample: ['2054762388929851394', '2144657987287924796', '2119738548914503746', '1993860367081840641', '2059103360591134721', '2059114279754964994', '2059114867171917826', '2059115419645157377']
+- `cust_oper_change_record.company_id` → `cust_company_survey_whitelist.company_id` (host=`cust_company_survey_whitelist`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0014, right->left=0.1818, join_hits=6)
+  - join_hits=6 | left_in_right=6/4422 (0.0014) | right_in_left=2/11 (0.1818)
+  - intersection sample: ['2145519944517820484', '2154868455847768065']
+  - left-only sample: ['2142916945710686284', '1794986367098163202', '1895064037500104706', '1895067107928829954', '1895394336731443201', '1895394348472541186', '1895394348894924802', '2140023598889308197']
+  - right-only sample: ['1993860367081840641', '2054762388929851394', '2058837800669777921', '2059103360591134721', '2059114279754964994', '2059114867171917826', '2059115419645157377', '2119738548914503746']
+- `cust_oper_change_record.company_id` → `cust_project_code_record.company_id` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0538, right->left=0.2126, join_hits=238)
+  - join_hits=238 | left_in_right=238/4422 (0.0538) | right_in_left=74/348 (0.2126)
+  - intersection sample: ['1830071619282997250', '1830849466895351809', '1838835122143117314', '1839117061854978049', '1838035629588676610', '1828636860005367810', '1853706543629320194', '1857999092953567234']
+  - left-only sample: ['2142916945710686284', '1794986367098163202', '1895064037500104706', '1895067107928829954', '1895394336731443201', '1895394348472541186', '1895394348894924802', '2140023598889308197']
+  - right-only sample: ['1829777183756697601', '1829809051062702081', '1829816399747776514', '1830167448777486337', '1830500902884065281', '1830522544855171074', '1830815493384130561', '1830503948619857922']
+- `cust_person_info.certification_no` → `cust_shareholder_info.certification_no` (host=`cust_shareholder_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=2)
+  - join_hits=2 | left_in_right=2/56672 (0.0) | right_in_left=1/3 (0.3333)
+  - intersection sample: ['11']
+  - left-only sample: ['0005844f53407df6149df10fffdae28cb099400302e025da81b709ff2b0df6aa', '00087ca94e0ed95211426a4c468ee387cedca9be8940224f776cba887eff8789', '0008a89464896391f3b05ed2446fb352b9d2b74493a4a7667c2d9afc869c5d2f', '0010cf1085f87037a5d25d7112b8f64fc264cc05cb484c8cd25d82c7a19ea904', '0010ff5dfb3da157b108b68b796f6adbe6c930e84d8d6f2c586c8fa732426fd6', '0011a61a5dd62561c082b084cdfb6a59c69fd214e7303727d527be44a6279ebe', '0014c59484afc76f68a3689715a810863aef4577dea4587189fc28b45d8b588a', '00151ffcca958f06c9a143365bec8df247a854373b05eedb1bee33a3b3880f50']
+  - right-only sample: ['wertwetew']
+- `cust_project_code_record.company_id` → `cust_company_lifecycle_info.company_id` (host=`cust_company_lifecycle_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0029, right->left=0.0986, join_hits=1)
+  - join_hits=1 | left_in_right=1/348 (0.0029) | right_in_left=7/71 (0.0986)
+  - intersection sample: ['1955901154958671873']
+  - left-only sample: ['1829777183756697601', '1829809051062702081', '1829816399747776514', '1830071619282997250', '1830167448777486337', '1830500902884065281', '1830522544855171074', '1830815493384130561']
+  - right-only sample: ['1953727212855742466', '1955892015372169218', '1955881627314511874', '1955547916564504577', '1955455301971423233', '1952571150572310530', '1955940327141203969', '1953726963382734849']
+- `cust_project_code_record.company_id` → `cust_company_survey_state.company_id` (host=`cust_company_survey_state`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0029, right->left=0.0909, join_hits=1)
+  - join_hits=1 | left_in_right=1/348 (0.0029) | right_in_left=1/11 (0.0909)
+  - intersection sample: ['2119738548914503746']
+  - left-only sample: ['1829777183756697601', '1829809051062702081', '1829816399747776514', '1830071619282997250', '1830167448777486337', '1830500902884065281', '1830522544855171074', '1830815493384130561']
+  - right-only sample: ['2054762388929851394', '2154868455847768065', '2144657987287924796', '2145519944517820484', '1993860367081840641', '2059103360591134721', '2059114279754964994', '2059114867171917826']
+- `cust_project_code_record.company_id` → `cust_company_survey_whitelist.company_id` (host=`cust_company_survey_whitelist`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0029, right->left=0.0909, join_hits=1)
+  - join_hits=1 | left_in_right=1/348 (0.0029) | right_in_left=1/11 (0.0909)
+  - intersection sample: ['2119738548914503746']
+  - left-only sample: ['1829777183756697601', '1829809051062702081', '1829816399747776514', '1830071619282997250', '1830167448777486337', '1830500902884065281', '1830522544855171074', '1830815493384130561']
+  - right-only sample: ['1993860367081840641', '2054762388929851394', '2058837800669777921', '2059103360591134721', '2059114279754964994', '2059114867171917826', '2059115419645157377', '2144657987287924796']
+- `cust_survey_answer.company_id` → `cust_company_lifecycle_info.company_id` (host=`cust_company_lifecycle_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0146, right->left=0.0282, join_hits=6)
+  - join_hits=6 | left_in_right=6/410 (0.0146) | right_in_left=2/71 (0.0282)
+  - intersection sample: ['1895063332051726337']
+  - left-only sample: ['1825800806480588802', '1892054042215378946', '1892156709218856961', '1895063296888745986', '1895064832295546882', '1895065955389616129', '1895066273261268993', '1911965580512600066']
+  - right-only sample: ['1955901154958671873', '1953727212855742466', '1955892015372169218', '1955881627314511874', '1955547916564504577', '1955455301971423233', '1952571150572310530', '1955940327141203969']
+- `cust_survey_answer.company_id` → `cust_oper_change_record.company_id` (host=`cust_oper_change_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1463, right->left=0.019, join_hits=60)
+  - join_hits=60 | left_in_right=60/410 (0.1463) | right_in_left=84/4422 (0.019)
+  - intersection sample: ['1825800806480588802', '1892054042215378946', '1892156709218856961', '1895063296888745986', '1895063332051726337', '1895064832295546882', '1911965580512600066', '1920020228698324994']
+  - left-only sample: ['1895065955389616129', '1895066273261268993', '1983803335313903617', '2066789070218579969', '2069665825948250114', '2070018798428409857', '2071485527766257665', '2071574797611298817']
+  - right-only sample: ['2142916945710686284', '1794986367098163202', '1895064037500104706', '1895067107928829954', '1895394336731443201', '1895394348472541186', '1895394348894924802', '2140023598889308197']
+- `ca_fee_project_config.project_id` → `cust_project_pushcust.project_id` (host=`cust_project_pushcust`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0022, right->left=0.25, join_hits=1)
+  - join_hits=1 | left_in_right=1/451 (0.0022) | right_in_left=1/4 (0.25)
+  - intersection sample: ['7272544026650607616']
+  - left-only sample: ['1187786460929990658', '1189159246101479516', '1213440899401388037', '1219665662046109764', '1246514280572915724', '1266390983981924431', '1266391265428111368', '1269955837934174288']
+  - right-only sample: ['7188022193298518016', '7038695915979223040', '2150151662310789151']
+- `ca_fee_project_config.project_id` → `tenant_interworking_project.project_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0044, right->left=0.1667, join_hits=2)
+  - join_hits=2 | left_in_right=2/451 (0.0044) | right_in_left=2/12 (0.1667)
+  - intersection sample: ['1828341757505560577', '1830148193587081218']
+  - left-only sample: ['1187786460929990658', '1189159246101479516', '1213440899401388037', '1219665662046109764', '1246514280572915724', '1266390983981924431', '1266391265428111368', '1269955837934174288']
+  - right-only sample: ['7297136236251090944', '1828687414838697985', '1831506779094122497', '1831877494535925762', '1831950270561038337', '1828687814761390081', '1829772575550390273']
+- `cust_project_rel.project_id` → `project_file_info.project_id` (host=`project_file_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.018, right->left=0.5789, join_hits=1079)
+  - join_hits=1079 | left_in_right=1079/59913 (0.018) | right_in_left=33/57 (0.5789)
+  - intersection sample: ['1195688373960839255', '1828341757505560577', '1929723188042915842', '2125798324761018435', '2157793540208341046', '2163913362700771426', '2171576460173660186', '2173359507491549225']
+  - left-only sample: ['1185950264071295049', '1187751782177050662', '1187786460929990658', '1187797539093483575', '1189159246101479516', '1192862188402901028', '1195673301674889304', '1195813585230495749']
+  - right-only sample: ['2173276344136245335', '2173642390437371940', '6839113487803121664', '2171600914522054732', '2173640005270908992', '6710027789166186496', '6725338807710781440', '6760043437930917888']
+- `platform_product.product_code` → `tenant_product_menu.product_code` (host=`tenant_product_menu`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1, right->left=0.9441, join_hits=2)
+  - join_hits=2 | left_in_right=2/20 (0.1) | right_in_left=2396/2538 (0.9441)
+  - intersection sample: ['BEECREDIT', 'RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW', 'AMS', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13', 'HTCP14']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `platform_product.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.05, right->left=0.0455, join_hits=1)
+  - join_hits=1 | left_in_right=1/20 (0.05) | right_in_left=5/110 (0.0455)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW', 'AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `project_file_info.project_id` → `ca_fee_project_config.project_id` (host=`ca_fee_project_config`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1053, right->left=0.0089, join_hits=6)
+  - join_hits=6 | left_in_right=6/57 (0.1053) | right_in_left=4/451 (0.0089)
+  - intersection sample: ['1828341757505560577', '1929723188042915842', '2125798324761018435', '2181249335876923405']
+  - left-only sample: ['1195688373960839255', '2163913362700771426', '2171576460173660186', '2173276344136245335', '2173359507491549225', '2173642390437371940', '6839113487803121664', '2157793540208341046']
+  - right-only sample: ['1187786460929990658', '1189159246101479516', '1213440899401388037', '1219665662046109764', '1246514280572915724', '1266390983981924431', '1266391265428111368', '1269955837934174288']
+- `project_file_info.project_id` → `tenant_interworking_project.project_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0175, right->left=0.0833, join_hits=1)
+  - join_hits=1 | left_in_right=1/57 (0.0175) | right_in_left=1/12 (0.0833)
+  - intersection sample: ['1828341757505560577']
+  - left-only sample: ['1195688373960839255', '2163913362700771426', '2171576460173660186', '2173276344136245335', '2173359507491549225', '2173642390437371940', '6839113487803121664', '1929723188042915842']
+  - right-only sample: ['7297136236251090944', '1828687414838697985', '1830148193587081218', '1831506779094122497', '1831877494535925762', '1831950270561038337', '1828687814761390081', '1829772575550390273']
+- `project_file_info.project_id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1404, right->left=0.006, join_hits=8)
+  - join_hits=8 | left_in_right=8/57 (0.1404) | right_in_left=14/2331 (0.006)
+  - intersection sample: ['6839113487803121664']
+  - left-only sample: ['1195688373960839255', '2163913362700771426', '2171576460173660186', '2173276344136245335', '2173359507491549225', '2173642390437371940', '1828341757505560577', '1929723188042915842']
+  - right-only sample: ['100002', '6606082674815668224', '100004', '1247245793941786680', '1251134813386051647', '6837993668279926784', '7267374337280811008', '7267375290331537408']
+- `tenant_product_menu.product_code` → `platform_product_cust_role.product_code` (host=`platform_product_cust_role`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.2581, join_hits=2538)
+  - join_hits=2538 | left_in_right=2538/2538 (1.0) | right_in_left=16/62 (0.2581)
+  - intersection sample: ['BEECREDIT', 'RVSFACTOR_PC', 'ACCOUNT_PRODUCT']
+  - right-only sample: ['AMS', 'ACFLOW', 'ORDER', 'CROSSBORDER', 'DEALER', 'VOUCHER', 'STORAGE', 'DRAFTQA']
+- `tenant_product_menu_res.product_code` → `platform_product_cust_role.product_code` (host=`platform_product_cust_role`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.1935, join_hits=110)
+  - join_hits=110 | left_in_right=110/110 (1.0) | right_in_left=12/62 (0.1935)
+  - intersection sample: ['RVSFACTOR_PC', 'ACCOUNT_PRODUCT']
+  - right-only sample: ['AMS', 'ACFLOW', 'ORDER', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'STORAGE']
+- `tenant_project.channel_code` → `cust_project_code_record.channel_code` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0273, right->left=0.75, join_hits=98)
+  - join_hits=98 | left_in_right=98/3586 (0.0273) | right_in_left=261/348 (0.75)
+  - intersection sample: ['CDMYPDXM8870239217', 'LN1YSYRXM4628939839', 'LN1XM10757644228', '7NZ1G7WM', 'od99O4hg', 'WKCSXM26163244500', '123456', 'JXvUXYZJ']
+  - left-only sample: ['01fLDUJ5', '03AHYUcc', '05o663NI', '06zOQJJO', '0998JU2G', '09rroqeo', '0a1PqKtu', '0AznqMSt']
+  - right-only sample: ['WKCSXM10360224916', 'LN1TXCPXM7227711347', '0902XM1401916398', 'https://ams-fin.qhhrly.cn/', 'XT09035793772183', '12', '123', 'CRSX7237089105']
+- `tenant_project.channel_code` → `cust_project_rel.channel_code` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0151, right->left=0.898, join_hits=54)
+  - join_hits=54 | left_in_right=54/3586 (0.0151) | right_in_left=176/196 (0.898)
+  - intersection sample: ['00p1Z1my', '575AbAfa', 'BLYR050203', 'BLYR098596', 'BLYR407955', 'BLYR595731', 'BLYR814743', 'BLYR899016']
+  - left-only sample: ['01fLDUJ5', '03AHYUcc', '05o663NI', '06zOQJJO', '0998JU2G', '09rroqeo', '0a1PqKtu', '0AznqMSt']
+  - right-only sample: ['1231231', 'DHHKXM08084234978526', 'WKCSXM10360224916', 'WC000011493493272', '0902XM1401916398', 'YSXDXM5085322705', 'CRSX7237089105', 'RYDZYZHXM0014049059398']
+- `tenant_project.wechat_audit_no` → `wec_project_operation_rel.wechat_audit_no` (host=`wec_project_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1769, right->left=0.2463, join_hits=72)
+  - join_hits=72 | left_in_right=72/407 (0.1769) | right_in_left=33/134 (0.2463)
+  - intersection sample: ['321321', '/', '12312312', '1212', '1', '202605110011', '321', '202605120015']
+  - left-only sample: ['202308190001', 'AS543543543543', '立项审批编号0527', '202512290017', '202601060002', '6766876', '634643636', '202506060048']
+  - right-only sample: ['14142626', '5252452354', '87897797897', '5252345', '759327957', '412414', '12133456', '20220101']
+- `tenant_project.id` → `project_file_info.project_id` (host=`project_file_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0033, right->left=0.7719, join_hits=12)
+  - join_hits=12 | left_in_right=12/3586 (0.0033) | right_in_left=44/57 (0.7719)
+  - intersection sample: ['1195688373960839255', '2163913362700771426', '2171576460173660186', '2173276344136245335', '2173359507491549225', '2173642390437371940', '1828341757505560577', '1929723188042915842']
+  - left-only sample: ['2203106338874073180', '1999381039371583489', '7193142624923394048', '1203026947395813404', '1986272085919219713', '2188980103331987482', '2139595791851864103', '1905464553752363009']
+  - right-only sample: ['6839113487803121664', '2173640005270908992', '6710027789166186496', '6725338807710781440', '6760043437930917888', '7322481299712331776']
+- `cust_role_info.platform_cust_id` → `cust_company_info.platform_cust_id` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.2005, right->left=0.8033, join_hits=5819)
+  - join_hits=5819 | left_in_right=5819/29024 (0.2005) | right_in_left=5818/7243 (0.8033)
+  - intersection sample: ['1818192064158994434', '1819264286588379137', '1819330156538863617', '1823928133132328961', '1824289168074842113', '1824345297609658370', '1830120913295757314', '1830122805535035394']
+  - left-only sample: ['0', '10010', '210010', '1817856563107004418', '1818190259450646530', '1818214708266766338', '1818487778260914178', '1818525421795381249']
+  - right-only sample: ['1879430492395884546', '2003760196227686401', '1895391802793574401', '1895393088032583682', '1895065967603662850', '1796472724724043777', '1797549174046773249', '1797530308251930626']
+- `cust_interworking_product.product_id` → `tenant_interworking_project.product_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0789, right->left=0.5, join_hits=24)
+  - join_hits=24 | left_in_right=24/304 (0.0789) | right_in_left=6/12 (0.5)
+  - intersection sample: ['1925378951654162434', '1878647260178628609', '1878649109879275522', '1878649160961703938', '1891732181419941889']
+  - left-only sample: ['1932270848080400385', '1932274602375933954', '1878625020661809154', '1877637220721119234', '1878625128094711810', '1932274689483239425', '1948215740762099714', '1948218032672411650']
+  - right-only sample: ['1876913796624117761']
+- `platform_product_client.platform_product_id` → `tenant_interworking_product.platform_product_id` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.4615, right->left=0.175, join_hits=12)
+  - join_hits=12 | left_in_right=12/26 (0.4615) | right_in_left=7/40 (0.175)
+  - intersection sample: ['6']
+  - left-only sample: ['2', '3', '4', '5', '7', '8', '10']
+  - right-only sample: ['11', '12', '13', '14', '1881239448301518849', '15', '16', '17']
+
+## shared_domain (17)
+
+- `tenant_project_approval_flow.node_code` → `tenant_project_approval_flow_config.node_code` (host=`tenant_project_approval_flow_config`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.8); same value domain / business code space likely
+  - join_hits=1873 | left_in_right=1873/1873 (1.0) | right_in_left=12/15 (0.8)
+  - intersection sample: ['PROJECT_CONFIG', 'PROJECT_MANAGER', 'BUSINESS_MANAGER', 'OPERATION', 'LEGAL_PROCESS', 'LEGAL_REVIEW']
+  - right-only sample: ['OTHER']
+- `platform_product.product_code` → `platform_product_cust_role.product_code` (host=`platform_product_cust_role`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.5, right->left=0.7903); same value domain / business code space likely
+  - join_hits=10 | left_in_right=10/20 (0.5) | right_in_left=49/62 (0.7903)
+  - intersection sample: ['ACFLOW', 'AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'ORDER', 'RVSFACTOR_PC']
+  - left-only sample: ['HTCP1', 'HTCP13', 'HTCP14', 'HTCP15', 'HTCP18', 'HTCP19', 'HTCP2', 'HTCP5']
+  - right-only sample: ['CROSSBORDER', 'ACCOUNT_PRODUCT']
+- `tenant_project_approval_flow_node.node_code` → `tenant_project_approval_flow_config.node_code` (host=`tenant_project_approval_flow_config`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.8); same value domain / business code space likely
+  - join_hits=1094 | left_in_right=1094/1094 (1.0) | right_in_left=12/15 (0.8)
+  - intersection sample: ['PROJECT_CONFIG', 'PROJECT_MANAGER', 'BUSINESS_MANAGER', 'OPERATION', 'LEGAL_PROCESS', 'LEGAL_REVIEW']
+  - right-only sample: ['OTHER']
+- `tenant_project_approval_flow_node.cc_user_id` → `tenant_project_approval_flow_comment.cc_user_id` (host=`tenant_project_approval_flow_comment`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.7553, right->left=0.8696); same value domain / business code space likely
+  - join_hits=71 | left_in_right=71/94 (0.7553) | right_in_left=40/46 (0.8696)
+  - intersection sample: ['["1534087161817419777","1801438863791919106"]', '["1534087161817419777"]', '["1761948088379621378"]', '["1761948088379621378","1801438863791919106"]', '["1801438863791919106"]', '["1801438863791919106","1998571949021429761"]', '["1801438863791919106","1761948088379621378"]', '["1199575951023624194"]']
+  - left-only sample: ['["1761948088379621378","1767457267428179970"]', '["1534087161817419777","1801438863791919106","1761948088379621378"]', '["1525044710953656322","1801438863791919106"]', '["1761948088379621378","1430722074891210753"]', '["1801438863791919106","1761948088379621378","1525044710953656322"]', '["1480444461854887938","1801438863791919106"]', '["1801438863791919106","1998571949021429761","1534087161817419777"]', '["34","1174240536503197698","1534087161817419777"]']
+  - right-only sample: ['["1397053042238709762","1765651421920575490"]', '["1765651421920575490"]', '["1199575951023624194","34"]', '["1270269369180852226","1590169621110685697"]', '["1310118569410772993"]']
+- `ca_fee_company.tenant_id` → `ca_fee_project_config.tenant_id` (host=`ca_fee_project_config`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.7738); same value domain / business code space likely
+  - join_hits=1020 | left_in_right=1020/1020 (1.0) | right_in_left=349/451 (0.7738)
+  - intersection sample: ['143', '1828327605750595586', '7193804667923615744', '7207299002969866240', '2073983902956453890', '2095707308939407361']
+  - right-only sample: ['118', '109', '107', '7353315337155657728', '7235216824822272000', '415465856', '101', '7193452507902689280']
+- `ca_fee_order.tenant_id` → `ca_fee_project_config.tenant_id` (host=`ca_fee_project_config`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.7738); same value domain / business code space likely
+  - join_hits=1575 | left_in_right=1575/1575 (1.0) | right_in_left=349/451 (0.7738)
+  - intersection sample: ['143', '1828327605750595586', '7193804667923615744', '7207299002969866240', '2073983902956453890', '2095707308939407361']
+  - right-only sample: ['118', '109', '107', '7353315337155657728', '7235216824822272000', '415465856', '101', '7193452507902689280']
+- `cust_interworking_product.platform_product_code` → `tenant_interworking_product.platform_product_code` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.85); same value domain / business code space likely
+  - join_hits=304 | left_in_right=304/304 (1.0) | right_in_left=34/40 (0.85)
+  - intersection sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'AMS']
+  - right-only sample: ['HTCP19', 'HTCP18', 'HTCP7', 'HTCP6', 'HTCP15']
+- `cust_interworking_product.tenant_id` → `tenant_interworking_product.tenant_id` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.85); same value domain / business code space likely
+  - join_hits=304 | left_in_right=304/304 (1.0) | right_in_left=34/40 (0.85)
+  - intersection sample: ['143', '1828327605750595586', '1952258513165279234', '7091976733283807232', '7188015515987521536', '7193804667923615744', '7208371736946307072']
+  - right-only sample: ['1878691036685721602', '1925006056351932418', '1928065403507306497', '7194615292039262208', '7316017472254349312', '7335569949044940800']
+- `tenant_product.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.8403, right->left=0.7999); same value domain / business code space likely
+  - join_hits=421 | left_in_right=421/501 (0.8403) | right_in_left=123792/154750 (0.7999)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'ORDER', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFTQA', 'DRAFT']
+  - right-only sample: ['["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]']
+- `tenant_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.8403, right->left=0.9106); same value domain / business code space likely
+  - join_hits=421 | left_in_right=421/501 (0.8403) | right_in_left=4186/4597 (0.9106)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFTQA', 'DRAFT']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', '["ORDER"]', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]', '["ACFLOW"]', '[null,null]']
+- `tenant_project.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9724, right->left=0.7999); same value domain / business code space likely
+  - join_hits=3487 | left_in_right=3487/3586 (0.9724) | right_in_left=123792/154750 (0.7999)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'ORDER', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA']
+  - right-only sample: ['["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]']
+- `tenant_project.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9724, right->left=0.9106); same value domain / business code space likely
+  - join_hits=3487 | left_in_right=3487/3586 (0.9724) | right_in_left=4186/4597 (0.9106)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', '["ORDER"]', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]', '["ACFLOW"]', '[null,null]']
+- `tenant_project.tenant_id` → `tenant_interworking_product.tenant_id` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.6991, right->left=0.925); same value domain / business code space likely
+  - join_hits=2507 | left_in_right=2507/3586 (0.6991) | right_in_left=37/40 (0.925)
+  - intersection sample: ['143', '1828327605750595586', '1928065403507306497', '1952258513165279234', '7091976733283807232', '7188015515987521536', '7193804667923615744', '7194615292039262208']
+  - left-only sample: ['101', '103', '107', '109', '111', '113', '114', '118']
+  - right-only sample: ['1878691036685721602', '1925006056351932418', '7316017472254349312']
+- `tenant_project_approval.sp_no` → `wechat_project_approval_field_history.sp_no` (host=`wechat_project_approval_field_history`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.5101); same value domain / business code space likely
+  - join_hits=510 | left_in_right=510/510 (1.0) | right_in_left=885/1735 (0.5101)
+  - intersection sample: ['202605110011', '202604270003', '202604090001', '202605120011', '202512290002', 'MN-202606030156', 'MN-202604300059', 'MN-202605060097']
+  - right-only sample: ['202512290017', '202512300002', '202512310005', '202601040004', '202601040005', '202601060002', '202601060005', '202601060006']
+- `cust_project_rel.project_id` → `ca_fee_project_config.project_id` (host=`ca_fee_project_config`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.7355, right->left=0.6275); same value domain / business code space likely
+  - join_hits=44066 | left_in_right=44066/59913 (0.7355) | right_in_left=283/451 (0.6275)
+  - intersection sample: ['1187786460929990658', '1189159246101479516', '1213440899401388037', '1246514280572915724', '1266390983981924431', '1266391265428111368', '1276590451591221344', '1828341757505560577']
+  - left-only sample: ['1185950264071295049', '1187751782177050662', '1187797539093483575', '1192862188402901028', '1195673301674889304', '1195688373960839255', '1195813585230495749', '1196037445225807911']
+  - right-only sample: ['1219665662046109764', '1269955837934174288', '1269961284888035357', '1269961597820862478', '1269962229818589236', '1269963790108065800', '1269964087228366934', '1276847510773567550']
+- `open_sso_channel.app_id` → `cust_app_channel_config.app_id` (host=`cust_app_channel_config`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.5); same value domain / business code space likely
+  - join_hits=3 | left_in_right=3/3 (1.0) | right_in_left=1/2 (0.5)
+  - intersection sample: ['73d62771729e4ffba7f263cb6012746d']
+  - right-only sample: ['d547c3081b1a44d7992031434438e1f3']
+- `tenant_product.platform_product_id` → `platform_product_client.platform_product_id` (host=`platform_product_client`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9701, right->left=0.5); same value domain / business code space likely
+  - join_hits=486 | left_in_right=486/501 (0.9701) | right_in_left=13/26 (0.5)
+  - intersection sample: ['2', '3', '5', '7', '8', '10']
+  - left-only sample: ['26', '27']
+  - right-only sample: ['4', '6']
+
+## fk_like (38)
+
+- `tenant_project_approval_flow.node_code` → `tenant_project_approval_flow_node.node_code` (host=`tenant_project_approval_flow_node`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=1873 | left_in_right=1873/1873 (1.0) | right_in_left=1094/1094 (1.0)
+  - intersection sample: ['PROJECT_CONFIG', 'PROJECT_MANAGER', 'LEGAL_PROCESS', 'BUSINESS_MANAGER', 'OPERATION', 'LEGAL_REVIEW']
+- `tenant_migarory_log.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9987); consistent with FK / identity reference
+  - join_hits=151867 | left_in_right=151867/154750 (0.9814) | right_in_left=4591/4597 (0.9987)
+  - intersection sample: ['ACFLOW', '["ACFLOW"]', 'RVSFACTOR_PC', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","ACFLOW"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', 'ORDER']
+  - left-only sample: ['["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]', '["ACFLOW","AMS"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","AMS","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","DRAFT","ACFLOW"]']
+  - right-only sample: ['[null,null]', '["false"]']
+- `tenant_product_menu.menu_id` → `tenant_product_menu_res.menu_id` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=222 | left_in_right=222/2538 (0.0875) | right_in_left=110/110 (1.0)
+  - intersection sample: ['1872107996348271136', '1981320934212055042', '1981320934233026562', '1962088170374815745', '1981320934195277826', '1762315304497913857', '1767488269060788226', '1762729582990376962']
+  - left-only sample: ['1805893388928557057', '1806283438349725697', '1805893388840476674', '1805893388815310849', '1805893388693676034', '1805893388869836802', '1805893388899196930', '1762315302400761857']
+- `tenant_product_menu.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=2332 | left_in_right=2332/2538 (0.9188) | right_in_left=110/110 (1.0)
+  - intersection sample: ['ACCOUNT_PRODUCT', 'RVSFACTOR_PC']
+  - left-only sample: ['BEECREDIT']
+- `wechat_project_approval_apply.sp_no` → `wechat_project_approval_field_history.sp_no` (host=`wechat_project_approval_field_history`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=79 | left_in_right=79/79 (1.0) | right_in_left=1735/1735 (1.0)
+  - intersection sample: ['202512290002', '202512290017', '202512300002', '202512310005', '202601040004', '202601040005', '202601060002', '202601060005']
+- `cust_company_survey_state.company_id` → `cust_company_survey_whitelist.company_id` (host=`cust_company_survey_whitelist`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=11 | left_in_right=11/11 (1.0) | right_in_left=11/11 (1.0)
+  - intersection sample: ['2054762388929851394', '2154868455847768065', '2144657987287924796', '2145519944517820484', '2119738548914503746', '1993860367081840641', '2059103360591134721', '2059114279754964994']
+- `tenant_interworking_product.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=27 | left_in_right=27/40 (0.675) | right_in_left=12/12 (1.0)
+  - intersection sample: ['HTCP1', 'HTCP5', 'AMS', 'HTCP13', 'HTCP14']
+  - left-only sample: ['HTCP2', 'HTCP19', 'HTCP18', 'HTCP7', 'HTCP6', 'HTCP15']
+- `tenant_interworking_product.tenant_id` → `tenant_interworking_project.tenant_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=16 | left_in_right=16/40 (0.4) | right_in_left=12/12 (1.0)
+  - intersection sample: ['143', '1828327605750595586']
+  - left-only sample: ['1878691036685721602', '1925006056351932418', '1928065403507306497', '1952258513165279234', '7091976733283807232', '7188015515987521536', '7193804667923615744', '7194615292039262208']
+- `tenant_product.tenant_id` → `tenant_interworking_product.tenant_id` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.975); consistent with FK / identity reference
+  - join_hits=44 | left_in_right=44/501 (0.0878) | right_in_left=39/40 (0.975)
+  - intersection sample: ['143', '1828327605750595586', '1878691036685721602', '1928065403507306497', '1952258513165279234', '7091976733283807232', '7188015515987521536', '7193804667923615744']
+  - left-only sample: ['101', '103', '107', '109', '110', '111', '113', '114']
+  - right-only sample: ['1925006056351932418']
+- `tenant_project.tenant_id` → `tenant_interworking_project.tenant_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=2464 | left_in_right=2464/3586 (0.6871) | right_in_left=12/12 (1.0)
+  - intersection sample: ['143', '1828327605750595586']
+  - left-only sample: ['101', '103', '107', '109', '111', '113', '114', '118']
+- `tenant_setting_config.dbass_app_id` → `tenant_setting_config_share.dbass_app_id` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=244 | left_in_right=244/245 (0.9959) | right_in_left=29/29 (1.0)
+  - intersection sample: ['app_ChanRongPin336_20240529']
+  - left-only sample: ['app_ChanRongPin285_20240819']
+- `tenant_setting_config.uat_mp_app_id` → `tenant_setting_config_share.uat_mp_app_id` (host=`tenant_setting_config_share`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.963); consistent with FK / identity reference
+  - join_hits=8 | left_in_right=8/82 (0.0976) | right_in_left=26/27 (0.963)
+  - intersection sample: ['wx3bd724e38dc5df9c', 'wx5a4621f15abc7462', 'wxd4e6b0c088fb4355', 'wxdb453231b9e2a54f']
+  - left-only sample: ['wx5c6a4202254dd251', 'wxc554221e54113665', 'wxb03a52c6eb5d5eb2', 'wxe5f7516efb93c10c', 'wx19b7395e547996ec', 'wx089b9da8508f10ca', 'wx3da8d4a5ab676cb9', 'wx7062bae814ecd0eb']
+  - right-only sample: ['5434341']
+- `funding_rule_detail.product_code` → `funding_rule_front_cfg.product_code` (host=`funding_rule_front_cfg`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=1671 | left_in_right=1671/1671 (1.0) | right_in_left=47/47 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_info.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_detail`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=1671/1671 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_info.product_code` → `funding_rule_front_cfg.product_code` (host=`funding_rule_front_cfg`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=47/47 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `ca_fee_company.certification_no` → `ca_fee_special_config.certification_no` (host=`ca_fee_special_config`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9636); consistent with FK / identity reference
+  - join_hits=37 | left_in_right=37/1044 (0.0354) | right_in_left=53/55 (0.9636)
+  - intersection sample: ['114500006GR9QBLL7P', '538280511140845054', '698241080913565968', '91085866BPCF4NNKQM', '91100000100003962T', '91110102MA00C29B5W', '91110108551385082Q', '9134000013370212X3']
+  - left-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+  - right-only sample: ['91330106MACA91BP4N', '91440300573106363N']
+- `ca_fee_order.tenant_id` → `ca_fee_company.tenant_id` (host=`ca_fee_company`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=1575 | left_in_right=1575/1575 (1.0) | right_in_left=1020/1020 (1.0)
+  - intersection sample: ['143', '1828327605750595586', '7193804667923615744', '2073983902956453890', '7207299002969866240', '2095707308939407361']
+- `ca_fee_project_config.project_id` → `ca_fee_special_config.project_id` (host=`ca_fee_special_config`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9636); consistent with FK / identity reference
+  - join_hits=14 | left_in_right=14/451 (0.031) | right_in_left=53/55 (0.9636)
+  - intersection sample: ['2195523314326196242', '2125798324761018435', '2201987628939620356', '2185618099955314761', '2195841603069829219', '2193620170784645139', '1943246702275346434', '2195842748211286036']
+  - left-only sample: ['1187786460929990658', '1189159246101479516', '1213440899401388037', '1219665662046109764', '1246514280572915724', '1266390983981924431', '1266391265428111368', '1269955837934174288']
+  - right-only sample: ['1901549918158655490', '1901521649515872258']
+- `funding_rule_detail.product_code` → `funding_exception_resolution.product_code` (host=`funding_exception_resolution`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=1671 | left_in_right=1671/1671 (1.0) | right_in_left=92/92 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_front_cfg.product_code` → `funding_exception_resolution.product_code` (host=`funding_exception_resolution`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=47 | left_in_right=47/47 (1.0) | right_in_left=92/92 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_info.product_code` → `funding_exception_resolution.product_code` (host=`funding_exception_resolution`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=92/92 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `tenant_product.platform_product_code` → `tenant_project.platform_product_code` (host=`tenant_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=501 | left_in_right=501/501 (1.0) | right_in_left=3586/3586 (1.0)
+  - intersection sample: ['ACFLOW', 'ORDER', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR_PC', 'DRAFTQA', 'STORAGE', 'DRAFT']
+- `tenant_product.tenant_id` → `tenant_interworking_project.tenant_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=16 | left_in_right=16/501 (0.0319) | right_in_left=12/12 (1.0)
+  - intersection sample: ['143', '1828327605750595586']
+  - left-only sample: ['101', '103', '107', '109', '110', '111', '113', '114']
+- `tenant_product.tenant_id` → `tenant_project.tenant_id` (host=`tenant_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=318 | left_in_right=318/501 (0.6347) | right_in_left=3586/3586 (1.0)
+  - intersection sample: ['101', '103', '107', '109', '111', '113', '114', '118']
+  - left-only sample: ['110', '124', '134', '1822531938722594818', '1824003832324784129', '1824276619859222529', '1825732966131245058', '1825788639590289409']
+- `ca_fee_project_config.tenant_id` → `tenant_interworking_project.tenant_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=333 | left_in_right=333/451 (0.7384) | right_in_left=12/12 (1.0)
+  - intersection sample: ['143', '1828327605750595586']
+  - left-only sample: ['118', '109', '107', '7353315337155657728', '7235216824822272000', '415465856', '101', '7193452507902689280']
+- `cust_interworking_product.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=200 | left_in_right=200/304 (0.6579) | right_in_left=12/12 (1.0)
+  - intersection sample: ['HTCP1', 'HTCP5', 'AMS', 'HTCP13', 'HTCP14']
+  - left-only sample: ['HTCP2']
+- `cust_interworking_product.tenant_id` → `tenant_interworking_project.tenant_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=42 | left_in_right=42/304 (0.1382) | right_in_left=12/12 (1.0)
+  - intersection sample: ['143', '1828327605750595586']
+  - left-only sample: ['7188015515987521536', '7193804667923615744', '7208371736946307072', '7091976733283807232', '1952258513165279234']
+- `cust_project_rel.project_id` → `tenant_interworking_project.project_id` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=1614 | left_in_right=1614/59913 (0.0269) | right_in_left=12/12 (1.0)
+  - intersection sample: ['1828341757505560577', '1828687414838697985', '1828687814761390081', '1829772575550390273', '1830148193587081218', '1831506779094122497', '1831877494535925762', '1831950270561038337']
+  - left-only sample: ['1185950264071295049', '1187751782177050662', '1187786460929990658', '1187797539093483575', '1189159246101479516', '1192862188402901028', '1195673301674889304', '1195688373960839255']
+- `tenant_interworking_product.code` → `cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=22 | left_in_right=22/40 (0.55) | right_in_left=304/304 (1.0)
+  - intersection sample: ['0f93f67a813b4fd79134f46e65017cc2', '10947e5d6b9c4ea09ef94c5a80624336', '11050e432dab4b24b9adbff8644ea5a2', '14ef19ef031a4b0f9e97223ec1235d0c', '29b4c489bccc4c0f90293b7d22f3ea74', '2dbc124f73dd4e9eb96cc74685b17645', '4264a4d3ef144caf851983a844b15a9d', '4932eca2392d45f8821aba513f379c7f']
+  - left-only sample: ['3203de2f72ae40acb4c2529f1698a57d', '3d8c7e12f5284fb490d0252dc9ac5420', '42cba453d69647839903de09016a4a9b', '43bf270056d54ce6abe731393aa653d7', '628e1f4f45f34181959daeb4f7485e65', '75b163bec2954b05bcdb88f76b00467d', '8c8ddd69ed454b258d473e715b541903', '9ba6307fba54470db1cd382fcc87912a']
+- `tenant_product.tenant_id` → `cust_interworking_product.tenant_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=34 | left_in_right=34/501 (0.0679) | right_in_left=304/304 (1.0)
+  - intersection sample: ['7188015515987521536', '1828327605750595586', '143', '7193804667923615744', '7208371736946307072', '7091976733283807232', '1952258513165279234']
+  - left-only sample: ['101', '103', '107', '109', '110', '111', '113', '114']
+- `tenant_project.tenant_id` → `ca_fee_project_config.tenant_id` (host=`ca_fee_project_config`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=3000 | left_in_right=3000/3586 (0.8366) | right_in_left=451/451 (1.0)
+  - intersection sample: ['143', '118', '109', '107', '1828327605750595586', '7353315337155657728', '7235216824822272000', '415465856']
+  - left-only sample: ['103', '111', '113', '122', '123', '127', '128', '132']
+- `cust_person_info.user_id` → `cust_survey_answer.user_id` (host=`cust_survey_answer`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9561); consistent with FK / identity reference
+  - join_hits=159 | left_in_right=159/39074 (0.0041) | right_in_left=392/410 (0.9561)
+  - intersection sample: ['2072219086843355137', '2071491434482311169', '1983805043994783745', '2074011577892671489', '2066789994289610753', '2075062261882753025', '1839207065417060354', '1895063298645729282']
+  - left-only sample: ['0', '1795787994825048066', '1821757677907697666', '1831248744927961089', '2001906851070574594', '2001906851070574595', '2001945375601819650', '2002918423880499203']
+  - right-only sample: ['2081584740585103362', '2082357102880415745', '2092175560306917377']
+- `cust_company_info.id` → `ca_cfca_upgrade_report.company_id` (host=`ca_cfca_upgrade_report`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9835); consistent with FK / identity reference
+  - join_hits=31 | left_in_right=31/94910 (0.0003) | right_in_left=418/425 (0.9835)
+  - intersection sample: ['2079746608594124802', '2071874684636033026', '1895062586749071361', '1920020228698324994', '999999999', '1895392132960235521', '1895062710724308994', '2046060301248806913']
+  - left-only sample: ['1895394035061563393', '1895394043843194882', '1895063219575140353', '1895392101750419457', '1895394046335852546', '1895394056712560642', '1895063216983060482', '1895063224327286786']
+  - right-only sample: ['2090727703421333505', '2091770040039436289', '2210738100802433039']
+- `cust_company_info.id` → `gpt_learn_poster_log.company_id` (host=`gpt_learn_poster_log`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=83 | left_in_right=83/94910 (0.0009) | right_in_left=253/253 (1.0)
+  - intersection sample: ['1965235432276299777', '1988519238449090562', '1988161544116027393', '2001169748804505601', '1909443346485325825', '1892501776144211970', '1772468926711316481', '1821447215528402946']
+  - left-only sample: ['1895394035061563393', '1895394043843194882', '1895063219575140353', '1895392101750419457', '1895394046335852546', '1895394056712560642', '1895063216983060482', '1895063224327286786']
+- `tenant_project.id` → `ca_fee_special_config.project_id` (host=`ca_fee_special_config`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=16 | left_in_right=16/3586 (0.0045) | right_in_left=55/55 (1.0)
+  - intersection sample: ['2195523314326196242', '2125798324761018435', '2201987628939620356', '2185618099955314761', '2195841603069829219', '2193620170784645139', '1943246702275346434', '2195842748211286036']
+  - left-only sample: ['2203106338874073180', '1999381039371583489', '7193142624923394048', '1203026947395813404', '1986272085919219713', '2188980103331987482', '2139595791851864103', '1905464553752363009']
+- `tenant_project.product_id` → `cust_project_rel.product_id` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9946); consistent with FK / identity reference
+  - join_hits=3487 | left_in_right=3487/3586 (0.9724) | right_in_left=59752/60078 (0.9946)
+  - intersection sample: ['1823335930310791170', '1828338709404180481', '1829056399900778498', '1797564722686484482', '1830931997592944642', '1829056506230579202', '1797628152482992129', '1828331133954285569']
+  - left-only sample: ['1894651248497025026', '1943547492063920130', '1826909844156305410', '1826459586691653634', '1830862567825879042', '1830872058284433410', '1839129531127361538', '1826813759485542401']
+  - right-only sample: ['1795047363653136386', '1795047501020786690', '1797908254370435074', '1797908249651843074', '1798615336261480450', '1797628171562881025', '1803978789475938305', '1797908258858340354']
+- `tenant_setting_config.id` → `cust_interworking_product.tenant_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/365 (0.0192) | right_in_left=304/304 (1.0)
+  - intersection sample: ['143', '1828327605750595586', '1952258513165279234', '7091976733283807232', '7188015515987521536', '7193804667923615744', '7208371736946307072']
+  - left-only sample: ['101', '103', '107', '109', '110', '111', '113', '114']
+- `platform_product.code` → `tenant_project.ref_tenant_project_platform_product` (host=`tenant_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9994); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/20 (0.35) | right_in_left=3584/3586 (0.9994)
+  - intersection sample: ['f285fa5cf17f4a8f9eefe93d3a513a6b', 'f285fa5cf17f4a8f9eefe93d3a513a61', 'f285fa5cf17f4a8f9eefe93d3a513a63', 'f285fa5cf17f4a8f9eefe93d3a513a6e', 'b8468d68ba0a4762bda0f7b9164e4f6a', '007142024a5c425bb3673f753060e534']
+  - left-only sample: ['f285fa5cf17f4a8f9eefe93d3a513a64', '007142024a5c425bb3673f753060e533', 'f285fa5cf17f4a8f9eefeadd3a513a6e', 'f285fa5cf17f4a8f9eefe93d3a513a6g', '956b7f49cc00471db99e552d778a12c2']
+  - right-only sample: ['f285fa5cf17f4a8f9eefe93d3a513a65']

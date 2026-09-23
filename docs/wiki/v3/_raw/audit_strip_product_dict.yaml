@@ -1,0 +1,37 @@
+generated_at: '2026-09-23T03:39:41.151249+00:00'
+policy: satellite product_code / platform_product_code → concept only; keep platform_product.product_code
+  dict
+removed_keys:
+- argeement_migratory_record__platform_product_code
+- authorization_agreement__platform_product_code
+- cust_auth_application__platform_product_code
+- cust_interworking_product__platform_product_code
+- funding_exception_resolution__product_code
+- funding_rule_detail__product_code
+- funding_rule_front_cfg__product_code
+- funding_rule_info__product_code
+- platform_product_cust_role__product_code
+- tenant_interworking_product__platform_product_code
+- tenant_interworking_project__platform_product_code
+- tenant_product__platform_product_code
+- tenant_product_menu__product_code
+- tenant_product_menu_res__product_code
+- tenant_project__platform_product_code
+- tenant_project_approval_business_info__product_code
+dicts_deleted:
+- argeement_migratory_record__platform_product_code
+- authorization_agreement__platform_product_code
+- cust_auth_application__platform_product_code
+- cust_interworking_product__platform_product_code
+- funding_exception_resolution__product_code
+- funding_rule_detail__product_code
+- funding_rule_front_cfg__product_code
+- funding_rule_info__product_code
+- platform_product_cust_role__product_code
+- tenant_interworking_product__platform_product_code
+- tenant_interworking_project__platform_product_code
+- tenant_product__platform_product_code
+- tenant_product_menu__product_code
+- tenant_product_menu_res__product_code
+- tenant_project__platform_product_code
+- tenant_project_approval_business_info__product_code

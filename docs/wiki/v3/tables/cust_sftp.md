@@ -4,14 +4,18 @@ title: 客戶sftp信息
 page_key: cust_sftp
 belong: tables
 status: draft
-anchors: [cust_sftp]
-sources: ['database_schema:lowcode_pplatform.cust_sftp', 'code_path:CustAccessApplication.java:490']
+anchors:
+- cust_sftp
+sources:
+- database_schema:lowcode_pplatform.cust_sftp
+- code_path:CustAccessApplication.java:490
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_sftp__host, cust_sftp__port, cust_sftp__user_name, cust_sftp__enable,
-  cust_sftp__channel]
+databases:
+- lowcode_pplatform
+related:
+- cust_sftp__enable
 ---
 
 # 客戶sftp信息
@@ -25,9 +29,13 @@ table: cust_sftp
 database: lowcode_pplatform
 desc: 客戶sftp信息
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 渠道 SFTP 配置，不是企业主档
-name_anchors: [code, name, user_name]
+name_anchors:
+- code
+- name
+- user_name
 fields:
 - name: id
   type: number
@@ -42,18 +50,12 @@ fields:
 - name: host
   type: string
   desc: 服务器地址IP地址
-  dict: [qa.sftp.lls.com, uat.sftp.lls.com]
 - name: port
   type: number
   desc: 端口
-  dict: ['22']
 - name: user_name
   type: string
   desc: 登录用户名
-  dict: [app_bosc_shtl, app_sny_202607235624, app_alipayAnt_202606301619, app_dahua2026041601,
-    app_bgy_20250306, app_cclocal_601636163, app_ztsj_2026033169, app_JingKeNengY926_20240614,
-    app_eascs_2022070823, app_trinasolar_2023051522, app_ofhbjg_20260409, app_LongTengYC_609152804,
-    meituan]
 - name: password
   type: string
   desc: 登录密码
@@ -66,7 +68,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -114,8 +119,6 @@ fields:
 - name: channel
   type: string
   desc: 渠道
-  dict: [dahua, app_jkny, app_bosc_shtl, ZTSJ, alipayAnt-test, longteng, tianma, alipayAnt,
-    bgy, eascs, hbjg, sny_test, trinasolar, dahua-test, sny, meituan]
 default_filter:
   predicate: cust_sftp.enable = 'Y'
   trust: confirmed
@@ -126,8 +129,4 @@ default_filter:
 
 ### 字典
 
-- [[dicts/cust_sftp__host]]（`cust_sftp.host`）
-- [[dicts/cust_sftp__port]]（`cust_sftp.port`）
-- [[dicts/cust_sftp__user_name]]（`cust_sftp.user_name`）
 - [[dicts/cust_sftp__enable]]（`cust_sftp.enable`）
-- [[dicts/cust_sftp__channel]]（`cust_sftp.channel`）

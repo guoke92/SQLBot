@@ -54,6 +54,11 @@ def sanitize_audit_value(value: Any, *, key: object | None = None) -> Any:
         ("_password", "_secret", "_token")
     ):
         return "<redacted>"
+    # LangGraph msgpack checkpoints reject ints outside 64-bit range.
+    if isinstance(value, int) and not isinstance(value, bool):
+        if value >= 2**64 or value < -(2**63):
+            return str(value)
+        return value
     if normalized in {"configuration", "config"} and isinstance(value, str):
         try:
             return sanitize_audit_value(json.loads(value))

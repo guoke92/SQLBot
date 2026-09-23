@@ -300,7 +300,14 @@ def submit_graph(
                         # Only the worker that atomically claimed queued may run.
                         return
                     worker_token = str(claimed.worker_token or "")
-                worker_scope = bind_worker(run_id, worker_token)
+                    claim_chat_id = int(claimed.chat_id)
+                    claim_record_id = int(claimed.chat_record_id)
+                worker_scope = bind_worker(
+                    run_id,
+                    worker_token,
+                    chat_id=claim_chat_id,
+                    chat_record_id=claim_record_id,
+                )
                 worker_scope.__enter__()
             yield from run_graph(graph_key, state, **builder_kwargs)
             if run_id:
@@ -310,6 +317,18 @@ def submit_graph(
                 with session_scope() as session:
                     completed = session.get(ConversationRun, run_id)
                     status = completed.status if completed is not None else "missing"
+                    if (
+                        completed is not None
+                        and status == "awaiting_input"
+                        and completed.worker_token
+                    ):
+                        # Graph parked on interrupt; release the claim now that
+                        # inline clarification process events have been written.
+                        completed.worker_token = None
+                        completed.lease_expires_at = None
+                        completed.update_time = datetime.now()
+                        session.add(completed)
+                        session.commit()
                 if status in {"queued", "running"}:
                     raise RuntimeError(
                         f"Conversation graph ended without a terminal or interrupt state: {status}"

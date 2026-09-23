@@ -57,6 +57,6 @@ def render_multi_fact_playbook() -> str:
 
 # ── execute SLA (milliseconds for engines that support max_execution_time) ───
 # 0 = do not inject statement timeout (rely on driver only).
-EXECUTE_TIMEOUT_MS = 45_000
+EXECUTE_TIMEOUT_MS = 60_000
 # Soft ceiling used when DatasourceConf.timeout is 0/None.
-EXECUTE_TIMEOUT_SEC = 45
+EXECUTE_TIMEOUT_SEC = 60

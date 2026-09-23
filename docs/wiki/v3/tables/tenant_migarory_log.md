@@ -4,16 +4,19 @@ title: 租户项目迁移记录表
 page_key: tenant_migarory_log
 belong: tables
 status: draft
-anchors: [tenant_migarory_log]
-sources: ['database_schema:lowcode_pplatform.tenant_migarory_log']
+anchors:
+- tenant_migarory_log
+sources:
+- database_schema:lowcode_pplatform.tenant_migarory_log
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [platform_product, tenant_migarory_log__direction, tenant_migarory_log__type,
-  tenant_migarory_log__status, tenant_migarory_log__enable]
+databases:
+- lowcode_pplatform
+related:
+- tenant_migarory_log__status
+- tenant_migarory_log__enable
 ---
-
 # 租户项目迁移记录表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +28,12 @@ table: tenant_migarory_log
 database: lowcode_pplatform
 desc: 租户项目迁移记录表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 租户/项目迁移请求日志
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -45,20 +51,22 @@ fields:
 - name: direction
   type: string
   desc: 数据方向
-  dict: [IN, OUT]
+  dict:
+  - IN
+  - OUT
 - name: type
   type: string
   desc: 类型
-  dict: [migratoryProject, syncProject, migratoryCust, PROJECT_SYNC_VALIDATE, PROJECT_SYNC,
-    CUST_PRODUCT_SYNC, TENANT_SYNC, TENANT_SYNC_VALIDATE, syncProduct, PROJECT_QUERY,
-    migratoryTenant, migratoryOnTheWayCust, PRODUCT_SYNC, PRODUCT_SYNC_VALIDATE]
 - name: batch_no
   type: string
   desc: 批次号
 - name: status
   type: string
   desc: 迁移状态
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [是, 否]
 - name: req_sn
   type: string
   desc: 请求流水编码
@@ -93,7 +101,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -142,42 +153,16 @@ fields:
 
 ## 关联关系
 
-### unlikely — 值域不支持或冲突
-
-```ground:relation
-type: EQUI_JOIN
-left: platform_product.code
-right: tenant_migarory_log.platform_product_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.tenant_migarory_log.platform_product_code;database_profile:lowcode_pplatform.tenant_migarory_log.platform_product_code
-source: name
-join_role: business_code
-priority: primary
-name_evidence:
-  match: exact_table
-  stem: platform_product
-  comment: 产品编码
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 10
-  miss: 10
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-```
+_（本页暂无保留的 EQUI_JOIN 边；已移除边见 `_raw/join_validation/removed_relations.md`。）_
 
 ## 页面链接
 
-### 关联表
+### 概念
 
-- [[tables/platform_product]]
+- [[concepts/platform_product_code_term]]
 
 ### 字典
 
 - [[dicts/tenant_migarory_log__direction]]（`tenant_migarory_log.direction`）
-- [[dicts/tenant_migarory_log__type]]（`tenant_migarory_log.type`）
 - [[dicts/tenant_migarory_log__status]]（`tenant_migarory_log.status`）
 - [[dicts/tenant_migarory_log__enable]]（`tenant_migarory_log.enable`）

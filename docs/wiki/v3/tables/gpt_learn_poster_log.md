@@ -4,13 +4,18 @@ title: 智能审核引流卡片埋点记录
 page_key: gpt_learn_poster_log
 belong: tables
 status: draft
-anchors: [gpt_learn_poster_log]
-sources: ['database_schema:lowcode_pplatform.gpt_learn_poster_log', 'code_path:GptLearnPosterLogDao.java:17']
+anchors:
+- gpt_learn_poster_log
+sources:
+- database_schema:lowcode_pplatform.gpt_learn_poster_log
+- code_path:GptLearnPosterLogDao.java:17
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [gpt_learn_poster_log__enable]
+databases:
+- lowcode_pplatform
+related:
+- gpt_learn_poster_log__enable
 ---
 
 # 智能审核引流卡片埋点记录
@@ -24,9 +29,14 @@ table: gpt_learn_poster_log
 database: lowcode_pplatform
 desc: 智能审核引流卡片埋点记录
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 学习海报弹窗记录
-name_anchors: [user_name, company_name, code, name]
+name_anchors:
+- user_name
+- company_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -59,7 +69,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -109,6 +122,8 @@ default_filter:
   trust: confirmed
   evidence: code_path:GptLearnPosterLogDao.java:17
 ```
+
+## 关联关系
 
 ## 页面链接
 

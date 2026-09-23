@@ -1,0 +1,104 @@
+# Collide refine
+
+stats: `{'raw_priority': 3632, 'nominated': 97, 'to_validate': 96, 'accepted': 40, 'review': 55, 'rejected': 2, 'written': 40}`
+
+## Accepted (40)
+
+- `cust_company_info.id` → `gpt_learn_poster_log.company_id` [fk_like] hit=42 pattern: company_id → cust_company_info.id ✓ wrote
+- `tenant_interworking_product.id` → `cust_interworking_product.product_id` [fk_like] hit=19 pattern: product_id → tenant_interworking_product.id ✓ wrote
+- `tenant_migarory_log.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` [fk_like] hit=6 same-name `platform_product_code` ✓ wrote
+- `tenant_project_approval_flow_config.node_code` → `tenant_project_approval_flow_node.node_code` [fk_like] hit=6 same-name `node_code` ✓ wrote
+- `authorization_agreement.platform_product_code` → `cust_auth_application.platform_product_code` [fk_like] hit=5 same-name `platform_product_code` ✓ wrote
+- `authorization_agreement.platform_product_code` → `tenant_product.platform_product_code` [fk_like] hit=5 same-name `platform_product_code` ✓ wrote
+- `cust_auth_application.platform_product_code` → `tenant_product.platform_product_code` [fk_like] hit=5 same-name `platform_product_code` ✓ wrote
+- `cust_interworking_product.platform_product_code` → `tenant_interworking_project.platform_product_code` [fk_like] hit=5 same-name `platform_product_code` ✓ wrote
+- `authorization_agreement.platform_product_code` → `tenant_project.platform_product_code` [fk_like] hit=4 same-name `platform_product_code` ✓ wrote
+- `cust_auth_application.platform_product_code` → `tenant_project.platform_product_code` [fk_like] hit=4 same-name `platform_product_code` ✓ wrote
+- `tenant_product.id` → `cust_project_rel.product_id` [fk_like] hit=4 pattern: product_id → tenant_product.id ✓ wrote
+- `authorization_agreement.platform_product_code` → `argeement_migratory_record.platform_product_code` [fk_like] hit=3 same-name `platform_product_code` ✓ wrote
+- `cust_auth_application.platform_product_code` → `argeement_migratory_record.platform_product_code` [shared_domain] hit=3 same-name `platform_product_code` ✓ wrote
+- `tenant_product.platform_product_code` → `argeement_migratory_record.platform_product_code` [shared_domain] hit=3 same-name `platform_product_code` ✓ wrote
+- `cust_auth_application.platform_product_code` → `tenant_migarory_log.platform_product_code` [shared_domain] hit=3 same-name `platform_product_code` ✓ wrote
+- `platform_product.product_code` → `tenant_project_approval_business_info.product_code` [fk_like] hit=3 same-name `product_code` ✓ wrote
+- `platform_product_cust_role.product_code` → `tenant_product_menu.product_code` [fk_like] hit=3 same-name `product_code` ✓ wrote
+- `platform_product_cust_role.product_code` → `tenant_project_approval_business_info.product_code` [fk_like] hit=3 same-name `product_code` ✓ wrote
+- `tenant_product.platform_product_code` → `tenant_migarory_log.platform_product_code` [shared_domain] hit=3 same-name `platform_product_code` ✓ wrote
+- `argeement_migratory_record.platform_product_code` → `tenant_migarory_log.platform_product_code` [shared_domain] hit=2 same-name `platform_product_code` ✓ wrote
+- `tenant_project.platform_product_code` → `argeement_migratory_record.platform_product_code` [shared_domain] hit=2 same-name `platform_product_code` ✓ wrote
+- `cust_app_channel_config.code` → `cust_company_info.channel_code` [fk_like] hit=2 channel_code → cust_app_channel_config.code ✓ wrote
+- `cust_app_channel_config.code` → `open_sso_channel.channel_code` [shared_domain] hit=2 channel_code → cust_app_channel_config.code ✓ wrote
+- `cust_auth_application.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` [shared_domain] hit=2 same-name `platform_product_code` ✓ wrote
+- `cust_company_info.channel_code` → `open_sso_channel.channel_code` [shared_domain] hit=2 same-name `channel_code` ✓ wrote
+- `funding_exception_resolution.product_code` → `funding_rule_detail.product_code` [fk_like] hit=2 same-name `product_code` ✓ wrote
+- `funding_exception_resolution.product_code` → `funding_rule_front_cfg.product_code` [fk_like] hit=2 same-name `product_code` ✓ wrote
+- `funding_exception_resolution.product_code` → `tenant_project_approval_business_info.product_code` [shared_domain] hit=2 same-name `product_code` ✓ wrote
+- `funding_rule_front_cfg.product_code` → `funding_rule_detail.product_code` [fk_like] hit=2 same-name `product_code` ✓ wrote
+- `platform_product.product_code` → `funding_rule_detail.product_code` [fk_like] hit=2 same-name `product_code` ✓ wrote
+- `platform_product_cust_role.product_code` → `funding_rule_detail.product_code` [fk_like] hit=2 same-name `product_code` ✓ wrote
+- `tenant_project_approval_business_info.product_code` → `funding_rule_detail.product_code` [fk_like] hit=2 same-name `product_code` ✓ wrote
+- `funding_rule_front_cfg.product_code` → `tenant_project_approval_business_info.product_code` [shared_domain] hit=2 same-name `product_code` ✓ wrote
+- `funding_rule_info.product_code` → `tenant_project_approval_business_info.product_code` [shared_domain] hit=2 same-name `product_code` ✓ wrote
+- `platform_product_cust_role.product_code` → `tenant_product_menu_res.product_code` [fk_like] hit=2 same-name `product_code` ✓ wrote
+- `tenant_project.platform_product_code` → `tenant_migarory_log.platform_product_code` [shared_domain] hit=2 same-name `platform_product_code` ✓ wrote
+- `tenant_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` [shared_domain] hit=2 same-name `platform_product_code` ✓ wrote
+- `tenant_project.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` [shared_domain] hit=2 same-name `platform_product_code` ✓ wrote
+- `tenant_project_approval.sp_no` → `wechat_project_approval_field_history.sp_no` [shared_domain] hit=2 same-name `sp_no` ✓ wrote
+- `argeement_migratory_record.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` [shared_domain] hit=1 same-name `platform_product_code` ✓ wrote
+
+## Review (55)
+
+- `tenant_project.channel_code` → `cust_project_code_record.channel_code` hit=98 — non-empty but thin overlap (left->right=0.0273, right->left=0.75, join_hits=98)
+- `tenant_project.channel_code` → `cust_project_rel.channel_code` hit=54 — non-empty but thin overlap (left->right=0.0151, right->left=0.898, join_hits=54)
+- `ca_fee_special_config.certification_no` → `cust_company_info.certification_no` hit=24 — non-empty but thin overlap (left->right=0.7273, right->left=0.0003, join_hits=40)
+- `ca_cfca_upgrade_report.certification_no` → `cust_company_info.certification_no` hit=20 — non-empty but thin overlap (left->right=0.9859, right->left=0.0004, join_hits=419)
+- `tenant_project_approval.sp_no` → `wechat_project_approval_apply.sp_no` hit=18 — non-empty but thin overlap (left->right=1.0, right->left=0.4051, join_hits=510)
+- `cust_project_code_record.channel_code` → `cust_project_rel.channel_code` hit=16 — non-empty but thin overlap (left->right=0.4914, right->left=0.898, join_hits=171)
+- `ca_cfca_upgrade_report.certification_no` → `ca_fee_company.certification_no` hit=14 — non-empty but thin overlap (left->right=0.6118, right->left=0.0134, join_hits=260)
+- `ca_fee_order.certification_no` → `ca_fee_special_config.certification_no` hit=14 — non-empty but thin overlap (left->right=0.0298, right->left=0.4909, join_hits=47)
+- `cust_invite_info.channel_code` → `tenant_project.channel_code` hit=13 — non-empty but thin overlap (left->right=0.4519, right->left=0.0036, join_hits=47)
+- `tenant_project.id` → `project_file_info.project_id` hit=12 — non-empty but thin overlap (left->right=0.0033, right->left=0.7719, join_hits=12)
+- `tenant_project.id` → `wec_project_operation_rel.wec_project_id` hit=11 — non-empty but thin overlap (left->right=0.0031, right->left=0.0255, join_hits=11)
+- `cust_invite_info.channel_code` → `cust_project_code_record.channel_code` hit=6 — non-empty but thin overlap (left->right=0.4327, right->left=0.2126, join_hits=45)
+- `cust_invite_info.channel_code` → `cust_project_rel.channel_code` hit=5 — non-empty but thin overlap (left->right=0.3942, right->left=0.5153, join_hits=41)
+- `authorization_agreement.platform_product_code` → `tenant_migarory_log.platform_product_code` hit=3 — non-empty but thin overlap (left->right=0.1942, right->left=0.8006, join_hits=6094)
+- `ca_fee_order.certification_no` → `cust_company_info.certification_no` hit=3 — non-empty but thin overlap (left->right=1.0, right->left=0.0123, join_hits=1575)
+- `authorization_agreement.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` hit=2 — non-empty but thin overlap (left->right=0.1942, right->left=0.9147, join_hits=6094)
+- `ca_cfca_upgrade_report.certification_no` → `ca_fee_order.certification_no` hit=2 — non-empty but thin overlap (left->right=0.6118, right->left=0.0152, join_hits=260)
+- `ca_cfca_upgrade_report.certification_no` → `ca_fee_special_config.certification_no` hit=2 — non-empty but thin overlap (left->right=0.0965, right->left=0.0545, join_hits=41)
+- `platform_product.id` → `cust_project_rel.product_id` hit=2 — non-empty but thin overlap (left->right=0.15, right->left=0.0004, join_hits=3)
+- `funding_exception_resolution.product_code` → `platform_product.product_code` hit=2 — non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=92)
+- `funding_exception_resolution.product_code` → `platform_product_cust_role.product_code` hit=2 — non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=92)
+- `funding_rule_front_cfg.product_code` → `platform_product.product_code` hit=2 — non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=47)
+- `funding_rule_front_cfg.product_code` → `platform_product_cust_role.product_code` hit=2 — non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=47)
+- `funding_rule_info.product_code` → `platform_product.product_code` hit=2 — non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=53)
+- `funding_rule_info.product_code` → `platform_product_cust_role.product_code` hit=2 — non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=53)
+- `platform_product.product_code` → `tenant_product_menu.product_code` hit=2 — non-empty but thin overlap (left->right=0.1, right->left=0.9441, join_hits=2)
+- `cust_interworking_product.platform_product_code` → `argeement_migratory_record.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0099, right->left=0.0842, join_hits=3)
+- `tenant_interworking_product.platform_product_code` → `argeement_migratory_record.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.175, right->left=0.0842, join_hits=7)
+- `tenant_interworking_project.platform_product_code` → `argeement_migratory_record.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0833, right->left=0.0842, join_hits=1)
+- `cust_head_company_info.id` → `authorization_agreement.original_cust_id` hit=1 — non-empty but thin overlap (left->right=0.0011, right->left=0.1667, join_hits=1)
+- `authorization_agreement.platform_product_code` → `cust_interworking_product.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0011, right->left=0.0099, join_hits=34)
+- `authorization_agreement.platform_product_code` → `tenant_interworking_product.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0011, right->left=0.175, join_hits=34)
+- `authorization_agreement.platform_product_code` → `tenant_interworking_project.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0011, right->left=0.0833, join_hits=34)
+- `cust_company_info.certification_no` → `cust_shareholder_info.certification_no` hit=1 — non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=1)
+- `cust_company_info.legal_certification_no` → `cust_head_company_info.legal_certification_no` hit=1 — non-empty but thin overlap (left->right=0.0008, right->left=0.112, join_hits=41)
+- `cust_head_company_info.id` → `cust_company_info.relate_company_id` hit=1 — non-empty but thin overlap (left->right=0.0011, right->left=0.027, join_hits=1)
+- `cust_interworking_product.platform_product_code` → `tenant_migarory_log.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0099, right->left=0.0007, join_hits=3)
+- `cust_interworking_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0099, right->left=0.0041, join_hits=3)
+- `cust_person_info.certification_no` → `cust_shareholder_info.certification_no` hit=1 — non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=2)
+- `funding_exception_resolution.product_code` → `tenant_product_menu.product_code` hit=1 — non-empty but thin overlap (left->right=0.3696, right->left=0.8629, join_hits=34)
+- `funding_exception_resolution.product_code` → `tenant_product_menu_res.product_code` hit=1 — non-empty but thin overlap (left->right=0.3696, right->left=0.0455, join_hits=34)
+- `tenant_product_menu.product_code` → `funding_rule_detail.product_code` hit=1 — non-empty but thin overlap (left->right=0.8629, right->left=0.3124, join_hits=2190)
+- `funding_rule_detail.product_code` → `tenant_product_menu_res.product_code` hit=1 — non-empty but thin overlap (left->right=0.3124, right->left=0.0455, join_hits=522)
+- `funding_rule_front_cfg.product_code` → `tenant_product_menu.product_code` hit=1 — non-empty but thin overlap (left->right=0.383, right->left=0.8629, join_hits=18)
+- `funding_rule_front_cfg.product_code` → `tenant_product_menu_res.product_code` hit=1 — non-empty but thin overlap (left->right=0.383, right->left=0.0455, join_hits=18)
+- `funding_rule_info.product_code` → `tenant_product_menu.product_code` hit=1 — non-empty but thin overlap (left->right=0.4717, right->left=0.8629, join_hits=25)
+- `funding_rule_info.product_code` → `tenant_product_menu_res.product_code` hit=1 — non-empty but thin overlap (left->right=0.4717, right->left=0.0455, join_hits=25)
+- `platform_product.product_code` → `tenant_product_menu_res.product_code` hit=1 — non-empty but thin overlap (left->right=0.05, right->left=0.0455, join_hits=1)
+- `tenant_interworking_product.platform_product_code` → `tenant_migarory_log.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.175, right->left=0.0007, join_hits=7)
+- `tenant_interworking_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.175, right->left=0.0041, join_hits=7)
+- `tenant_interworking_project.platform_product_code` → `tenant_migarory_log.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0833, right->left=0.0007, join_hits=1)
+- `tenant_interworking_project.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` hit=1 — non-empty but thin overlap (left->right=0.0833, right->left=0.0041, join_hits=1)
+- `tenant_product_menu.product_code` → `tenant_project_approval_business_info.product_code` hit=1 — non-empty but thin overlap (left->right=0.8629, right->left=0.1742, join_hits=2190)
+- `tenant_project_approval_business_info.product_code` → `tenant_product_menu_res.product_code` hit=1 — non-empty but thin overlap (left->right=0.1742, right->left=0.0455, join_hits=77)
+- `tenant_project.wechat_audit_no` → `wec_project_operation_rel.wechat_audit_no` hit=1 — non-empty but thin overlap (left->right=0.1769, right->left=0.2463, join_hits=72)

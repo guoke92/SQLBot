@@ -122,7 +122,402 @@ def main(argv: list[str] | None = None) -> int:
         help="optional req-index root (lists concept markdown files)",
     )
 
+    vj_p = sub.add_parser(
+        "validate-joins",
+        help=(
+            "probe live DB for each EQUI_JOIN fence: join count + "
+            "A.x IN/NOT IN B.y (+ reverse) to confirm/reject relation"
+        ),
+    )
+    vj_p.add_argument(
+        "--wiki",
+        required=True,
+        help="wiki tree with tables/*.md fences (e.g. docs/wiki/v3)",
+    )
+    vj_p.add_argument(
+        "--db-url",
+        default="",
+        help="MySQL DSN (default: WIKI_EXTRACT_DSN)",
+    )
+    vj_p.add_argument(
+        "--database",
+        default="",
+        help="override database name from DSN",
+    )
+    vj_p.add_argument(
+        "--out",
+        default="",
+        help="report dir (default: <wiki>/_raw/join_validation)",
+    )
+    vj_p.add_argument(
+        "--table-prefix",
+        default="",
+        help="only edges whose left or right table starts with this prefix",
+    )
+    vj_p.add_argument(
+        "--trust",
+        default="",
+        help="comma-separated trust filter (e.g. high,medium)",
+    )
+    vj_p.add_argument(
+        "--sample-limit",
+        type=int,
+        default=8,
+        help="max sample values per intersection/diff (default 8)",
+    )
+    vj_p.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="max edges to probe (0 = all)",
+    )
+
+    cj_p = sub.add_parser(
+        "collide-joins",
+        help=(
+            "cartesian field collide: TopK (latest + col ASC/DESC) bags vs all "
+            "other-table fields; drop zero-hit; ignore id↔id / temporal / blob"
+        ),
+    )
+    cj_p.add_argument("--wiki", required=True, help="wiki tree (e.g. docs/wiki/v3)")
+    cj_p.add_argument(
+        "--out",
+        default="",
+        help="report dir (default: <wiki>/_raw/join_collide)",
+    )
+    cj_p.add_argument("--db-url", default="", help="MySQL DSN (default: WIKI_EXTRACT_DSN)")
+    cj_p.add_argument("--database", default="", help="override database name")
+    cj_p.add_argument("--k", type=int, default=50, help="TopK per sample path (merged)")
+    cj_p.add_argument("--workers", type=int, default=8, help="parallel IN probes")
+    cj_p.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="max undirected pairs to probe (0 = all)",
+    )
+    cj_p.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="ignore progress.jsonl and re-probe all pairs",
+    )
+
+    rf_p = sub.add_parser(
+        "refine-collide",
+        help=(
+            "refine collide survivors: pattern-orient + live validate; "
+            "optionally --write confirmed EQUI_JOIN fences"
+        ),
+    )
+    rf_p.add_argument("--wiki", required=True, help="wiki tree (e.g. docs/wiki/v3)")
+    rf_p.add_argument(
+        "--out",
+        default="",
+        help="collide report dir (default: <wiki>/_raw/join_collide)",
+    )
+    rf_p.add_argument("--db-url", default="", help="MySQL DSN (default: WIKI_EXTRACT_DSN)")
+    rf_p.add_argument("--database", default="", help="override database name")
+    rf_p.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="max candidates to live-validate (0 = all nominated)",
+    )
+    rf_p.add_argument(
+        "--write",
+        action="store_true",
+        help="append accepted fences onto child table pages",
+    )
+    rf_p.add_argument(
+        "--skip-validate",
+        action="store_true",
+        help="nominate only (no live DB)",
+    )
+
+    sync_p = sub.add_parser(
+        "sync-wiki-related",
+        help=(
+            "rebuild table related + 页面链接/关联表 from EQUI_JOIN fences; "
+            "mirror missing fences onto both endpoint pages"
+        ),
+    )
+    sync_p.add_argument("--wiki", required=True, help="wiki tree (e.g. docs/wiki/v3)")
+    sync_p.add_argument(
+        "--no-mirror",
+        action="store_true",
+        help="do not copy relation fences onto the other endpoint page",
+    )
+    sync_p.add_argument(
+        "--no-concepts",
+        action="store_true",
+        help="do not add ### 概念 links from field_semantics / concept field_targets",
+    )
+
+    scrub_p = sub.add_parser(
+        "scrub-wiki",
+        help=(
+            "surgical scrub of wiki tables/dicts: drop polluted dict:, "
+            "add comment_fk fences from schema comments; optional AI binary Y/N fill"
+        ),
+    )
+    scrub_p.add_argument("--wiki", required=True, help="wiki tree (e.g. docs/wiki/v3)")
+    scrub_p.add_argument(
+        "--raw",
+        default="",
+        help="catalog/profile dir (default: <wiki>/_raw)",
+    )
+    scrub_p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report only; do not write pages",
+    )
+    scrub_p.add_argument(
+        "--llm",
+        action="store_true",
+        help="require LLM for binary Y/N|0/1 fill on switch fields",
+    )
+    scrub_p.add_argument("--llm-base-url", default="")
+    scrub_p.add_argument("--llm-model", default="")
+
+    rx_p = sub.add_parser(
+        "reextract-joins",
+        help=(
+            "re-nominate EQUI_JOIN candidates (incl. same-name keys like menu_id), "
+            "skip removed/existing, live-validate, write report under --out"
+        ),
+    )
+    rx_p.add_argument(
+        "--wiki",
+        required=True,
+        help="wiki tree (e.g. docs/wiki/v3)",
+    )
+    rx_p.add_argument(
+        "--out",
+        default="",
+        help="report dir (default: <wiki>/_raw/join_reextract)",
+    )
+    rx_p.add_argument("--db-url", default="", help="MySQL DSN (default: WIKI_EXTRACT_DSN)")
+    rx_p.add_argument("--database", default="", help="override database name")
+    rx_p.add_argument(
+        "--skip-validate",
+        action="store_true",
+        help="only nominate candidates (no live DB)",
+    )
+    rx_p.add_argument("--min-score", type=int, default=5, help="min pair score")
+    rx_p.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="max candidates to live-validate (0 = all)",
+    )
+
     args = parser.parse_args(argv)
+    if args.cmd == "collide-joins":
+        from tools.wiki_extract.collide_joins import run_collide
+
+        wiki = Path(args.wiki)
+        out = Path(args.out) if args.out else wiki / "_raw" / "join_collide"
+        try:
+            payload = run_collide(
+                wiki_dir=wiki,
+                out_dir=out,
+                db_url=(args.db_url or "").strip(),
+                database=(args.database or "").strip(),
+                k=int(args.k),
+                workers=int(args.workers),
+                limit=int(args.limit),
+                resume=not bool(args.no_resume),
+            )
+        except (RuntimeError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        stats = payload.get("stats") or {}
+        print(
+            "collide-joins "
+            f"endpoints={stats.get('endpoints')} pairs={stats.get('pairs_total')} "
+            f"survivors_new={stats.get('survivors_new')} "
+            f"zero={stats.get('miss_zero')} -> {out}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if args.cmd == "refine-collide":
+        from tools.wiki_extract.refine_collide import run_refine
+
+        wiki = Path(args.wiki)
+        out = Path(args.out) if args.out else wiki / "_raw" / "join_collide"
+        try:
+            payload = run_refine(
+                wiki_dir=wiki,
+                out_dir=out,
+                db_url=(args.db_url or "").strip(),
+                database=(args.database or "").strip(),
+                limit=int(args.limit),
+                write=bool(args.write),
+                skip_validate=bool(args.skip_validate),
+            )
+        except (RuntimeError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        stats = payload.get("stats") or {}
+        print(
+            "refine-collide "
+            f"nominated={stats.get('nominated')} validated={stats.get('to_validate')} "
+            f"accepted={stats.get('accepted')} review={stats.get('review')} "
+            f"written={stats.get('written')} -> {out}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if args.cmd == "sync-wiki-related":
+        from tools.wiki_extract.sync_wiki_related import run_sync
+
+        wiki = Path(args.wiki)
+        try:
+            stats = run_sync(
+                wiki_dir=wiki,
+                mirror_fences=not bool(args.no_mirror),
+                concept_links=not bool(args.no_concepts),
+            )
+        except (RuntimeError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(
+            "sync-wiki-related "
+            f"edges={stats.get('edges')} mirrored={stats.get('mirrored_fences')} "
+            f"related={stats.get('updated_related')} links={stats.get('updated_page_links')} "
+            f"-> {wiki}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if args.cmd == "scrub-wiki":
+        from tools.wiki_extract.scrub_wiki import run_scrub
+
+        wiki = Path(args.wiki)
+        raw = Path(args.raw) if args.raw else wiki / "_raw"
+        chat = None
+        if bool(getattr(args, "llm", False)):
+            cfg = resolve_llm_config(
+                base_url=getattr(args, "llm_base_url", "") or "",
+                model=getattr(args, "llm_model", "") or "",
+            )
+            if cfg is None:
+                print(
+                    "LLM required: set WIKI_EXTRACT_LLM_API_KEY / "
+                    "WIKI_EXTRACT_LLM_BASE_URL / WIKI_EXTRACT_LLM_MODEL",
+                    file=sys.stderr,
+                )
+                return 2
+            from tools.wiki_extract.llm_client import chat_json
+
+            print(f"scrub-wiki LLM via {cfg.masked()}", file=sys.stderr)
+
+            def _chat(system: str, user: str) -> dict:
+                return chat_json(cfg, system=system, user=user)
+
+            chat = _chat
+        else:
+            cfg = resolve_llm_config(
+                base_url=getattr(args, "llm_base_url", "") or "",
+                model=getattr(args, "llm_model", "") or "",
+            )
+            if cfg is not None:
+                from tools.wiki_extract.llm_client import chat_json
+
+                print(f"scrub-wiki LLM via {cfg.masked()}", file=sys.stderr)
+
+                def _chat2(system: str, user: str) -> dict:
+                    return chat_json(cfg, system=system, user=user)
+
+                chat = _chat2
+        try:
+            report = run_scrub(
+                wiki_dir=wiki,
+                raw_dir=raw,
+                chat=chat,
+                write=not bool(args.dry_run),
+            )
+        except (RuntimeError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(
+            "scrub-wiki "
+            f"tables={len(report.get('tables_patched') or [])} "
+            f"cleared={report.get('fields_dict_cleared')} "
+            f"filled={report.get('fields_dict_filled')} "
+            f"binary_fills={report.get('binary_fills')} "
+            f"fences={len(report.get('fences_added') or [])} "
+            f"dicts_deleted={len(report.get('dicts_deleted') or [])} "
+            f"dicts_restored={len(report.get('dicts_restored') or [])} "
+            f"{'(dry-run) ' if args.dry_run else ''}-> {wiki}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if args.cmd == "reextract-joins":
+        from tools.wiki_extract.reextract_joins import run_reextract
+
+        wiki = Path(args.wiki)
+        out = Path(args.out) if args.out else wiki / "_raw" / "join_reextract"
+        try:
+            payload = run_reextract(
+                wiki_dir=wiki,
+                out_dir=out,
+                db_url=(args.db_url or "").strip(),
+                database=(args.database or "").strip(),
+                limit=int(args.limit),
+                skip_validate=bool(args.skip_validate),
+                min_score=int(args.min_score),
+            )
+        except (RuntimeError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        stats = payload.get("stats") or {}
+        print(
+            "reextract-joins "
+            f"tables={stats.get('tables')} candidates={stats.get('candidates')} "
+            f"accepted={stats.get('accepted')} review={stats.get('review')} "
+            f"rejected={stats.get('rejected')} -> {out}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if args.cmd == "validate-joins":
+        from tools.wiki_extract.validate_joins import run_validate_joins
+
+        wiki = Path(args.wiki)
+        out = Path(args.out) if args.out else wiki / "_raw" / "join_validation"
+        try:
+            report = run_validate_joins(
+                wiki_dir=wiki,
+                db_url=(args.db_url or "").strip(),
+                database=(args.database or "").strip(),
+                out_dir=out,
+                sample_limit=int(args.sample_limit),
+                limit=int(args.limit),
+                trust_filter=(args.trust or "").strip(),
+                table_prefix=(args.table_prefix or "").strip(),
+            )
+        except (RuntimeError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        by = report.get("by_verdict") or {}
+        print(
+            "join validation "
+            f"edges={report.get('relation_count')} "
+            f"fk_like={by.get('fk_like', 0)} "
+            f"shared={by.get('shared_domain', 0)} "
+            f"weak={by.get('weak_overlap', 0)} "
+            f"false_friend={by.get('false_friend', 0)} "
+            f"impossible={by.get('impossible', 0)} "
+            f"empty={by.get('empty_endpoint', 0)} "
+            f"missing={by.get('missing_column', 0)} "
+            f"error={by.get('query_error', 0)} "
+            f"-> {report.get('out_report')}",
+            file=sys.stderr,
+        )
+        return 0
+
     if args.cmd == "l1-coverage":
         from tools.wiki_extract.l1.coverage import coverage_report, format_coverage
 

@@ -4,17 +4,22 @@ title: CA服务费项目配置
 page_key: ca_fee_project_config
 belong: tables
 status: draft
-anchors: [ca_fee_project_config]
-sources: ['database_schema:lowcode_pplatform.ca_fee_project_config', 'code_path:CaFeeProjectConfigBizMapper.java:13']
+anchors:
+- ca_fee_project_config
+sources:
+- database_schema:lowcode_pplatform.ca_fee_project_config
+- code_path:CaFeeProjectConfigBizMapper.java:13
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [tenant_project, tenant_setting_config, ca_fee_project_config__charge_enabled,
-  ca_fee_project_config__supplier_annual_fee, ca_fee_project_config__core_annual_fee,
-  ca_fee_project_config__agreement_version, ca_fee_project_config__enable]
+databases:
+- lowcode_pplatform
+related:
+- tenant_project
+- tenant_setting_config
+- ca_fee_project_config__charge_enabled
+- ca_fee_project_config__enable
 ---
-
 # CA服务费项目配置
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +31,12 @@ table: ca_fee_project_config
 database: lowcode_pplatform
 desc: CA服务费项目配置
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一租户项目一行收费配置
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -43,17 +51,20 @@ fields:
 - name: charge_enabled
   type: string
   desc: 是否开启CA收费
-  dict: [N, Y]
-  written_with: [last_toggle_time]
+  dict:
+  - N
+  - Y
+  written_with:
+  - last_toggle_time
+  label:
+    N: 停用
+    Y: 启用
 - name: supplier_annual_fee
   type: number
   desc: 供应商角色年费（元）
-  dict: ['100', '60', '50', '80', '22', '98', '0', '125', '120', '101', '200', '88']
 - name: core_annual_fee
   type: number
   desc: 核心企业角色年费（元）
-  dict: ['100', '0', '60', '90', '200', '80', '50', '20', '99', '1', '12', '156',
-    '120', '40', '8']
 - name: pay_channel
   type: string
   desc: 缴费渠道JSON数组
@@ -66,11 +77,11 @@ fields:
 - name: agreement_version
   type: string
   desc: 当前绑定收费协议版本号
-  dict: [V1.0]
 - name: last_toggle_time
   type: temporal
   desc: 最近一次收费开关切换时间
-  written_with: [charge_enabled]
+  written_with:
+  - charge_enabled
 - name: code
   type: string
   desc: 编码
@@ -80,7 +91,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -170,10 +186,11 @@ authenticity_note: 新建配置写 tenant_id=项目上的租户主键。
 - [[tables/tenant_project]]
 - [[tables/tenant_setting_config]]
 
+### 概念
+
+- [[concepts/ca_charge_enabled]]
+
 ### 字典
 
 - [[dicts/ca_fee_project_config__charge_enabled]]（`ca_fee_project_config.charge_enabled`）
-- [[dicts/ca_fee_project_config__supplier_annual_fee]]（`ca_fee_project_config.supplier_annual_fee`）
-- [[dicts/ca_fee_project_config__core_annual_fee]]（`ca_fee_project_config.core_annual_fee`）
-- [[dicts/ca_fee_project_config__agreement_version]]（`ca_fee_project_config.agreement_version`）
 - [[dicts/ca_fee_project_config__enable]]（`ca_fee_project_config.enable`）

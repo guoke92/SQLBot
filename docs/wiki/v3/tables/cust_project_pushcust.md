@@ -4,15 +4,19 @@ title: 推送企业的默认项目
 page_key: cust_project_pushcust
 belong: tables
 status: draft
-anchors: [cust_project_pushcust]
-sources: ['database_schema:lowcode_pplatform.cust_project_pushcust']
+anchors:
+- cust_project_pushcust
+sources:
+- database_schema:lowcode_pplatform.cust_project_pushcust
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [tenant_project, cust_project_pushcust__source_sso_channel, cust_project_pushcust__enable]
+databases:
+- lowcode_pplatform
+related:
+- tenant_project
+- cust_project_pushcust__enable
 ---
-
 # 推送企业的默认项目
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -24,9 +28,12 @@ table: cust_project_pushcust
 database: lowcode_pplatform
 desc: 推送企业的默认项目
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 渠道对的默认推送项目（租户/渠道配置，不是企业主档）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -41,7 +48,6 @@ fields:
 - name: source_sso_channel
   type: string
   desc: 起始系统的SSO渠道
-  dict: [JHYL, hubeiliantou, dahua, ZTSJ]
 - name: target_sso_channel
   type: string
   desc: 跳转系统的SSO渠道
@@ -51,7 +57,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -124,7 +133,10 @@ cast: varchar←bigint
 
 - [[tables/tenant_project]]
 
+### 概念
+
+- [[concepts/default_push_project]]
+
 ### 字典
 
-- [[dicts/cust_project_pushcust__source_sso_channel]]（`cust_project_pushcust.source_sso_channel`）
 - [[dicts/cust_project_pushcust__enable]]（`cust_project_pushcust.enable`）

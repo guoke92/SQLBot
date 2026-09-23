@@ -4,17 +4,22 @@ title: 微企链项目企业关联运营
 page_key: wec_project_cust_operation_rel
 belong: tables
 status: draft
-anchors: [wec_project_cust_operation_rel]
-sources: ['database_schema:lowcode_pplatform.wec_project_cust_operation_rel']
+anchors:
+- wec_project_cust_operation_rel
+sources:
+- database_schema:lowcode_pplatform.wec_project_cust_operation_rel
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [wec_project_cust_operation_rel__company_type, wec_project_cust_operation_rel__op_contact_a,
-  wec_project_cust_operation_rel__verification_contact, wec_project_cust_operation_rel__risk_control_contact_a,
-  wec_project_cust_operation_rel__enable, wec_project_cust_operation_rel__top_flag]
+databases:
+- lowcode_pplatform
+related:
+- wec_project_operation_rel
+- cust_project_rel
+- wec_project_cust_operation_rel__company_type
+- wec_project_cust_operation_rel__enable
+- wec_project_cust_operation_rel__top_flag
 ---
-
 # 微企链项目企业关联运营
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +31,12 @@ table: wec_project_cust_operation_rel
 database: lowcode_pplatform
 desc: 微企链项目企业关联运营
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企微项目客户运营关系
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -43,14 +51,15 @@ fields:
 - name: company_type
   type: string
   desc: 微企链企业角色
-  dict: [ce, cpt]
+  dict:
+  - ce
+  - cpt
 - name: project_id
   type: string
   desc: 微企链项目id
 - name: op_contact_a
   type: string
   desc: 运营对接人A
-  dict: ['420', '267', '321', '293', '411', '271', '97', '454']
 - name: op_contact_b
   type: string
   desc: 运营对接人B
@@ -60,14 +69,12 @@ fields:
 - name: verification_contact
   type: string
   desc: 查验对接人
-  dict: ['454', '305', '321', '141']
 - name: verification_contact_group
   type: string
   desc: 查验组别
 - name: risk_control_contact_a
   type: string
   desc: 风控对接人A
-  dict: ['454', '271', '321', '105', '108']
 - name: risk_control_contact_b
   type: string
   desc: 风控对接人B
@@ -83,7 +90,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -131,16 +141,47 @@ fields:
 - name: top_flag
   type: string
   desc: 置顶标识
-  dict: ['0']
+  dict:
+  - '0'
+  - '1'
+  label: [否, 是]
 ```
 
+## 关联关系
+
+```ground:relation
+type: EQUI_JOIN
+left: wec_project_operation_rel.wec_project_id
+right: wec_project_cust_operation_rel.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_fk_like R→L=1; peer of cust_project_rel
+source: orphan_repair
+join_role: business_code
+priority: primary
+authenticity_note: 讯易链项目运营主档←企业运营关系
+```
+
+
+## 关联说明（非 EQUI / 对等场景）
+
+- **对等附属（非跨域企业 ID）**：对标产融 `cust_project_rel`；`company_id` / `project_id` 为**微企链命名空间**，UAT 与 `cust_company_info.id` / `tenant_project.id` 不相交，禁止跨域 EQUI_JOIN。
+- **可 JOIN**：`project_id` → `wec_project_operation_rel.wec_project_id`。
+
 ## 页面链接
+
+### 关联表
+
+- [[tables/wec_project_operation_rel]]
+- [[tables/cust_project_rel]]
+
+### 概念
+
+- [[concepts/wec_project_ops_peer]]
 
 ### 字典
 
 - [[dicts/wec_project_cust_operation_rel__company_type]]（`wec_project_cust_operation_rel.company_type`）
-- [[dicts/wec_project_cust_operation_rel__op_contact_a]]（`wec_project_cust_operation_rel.op_contact_a`）
-- [[dicts/wec_project_cust_operation_rel__verification_contact]]（`wec_project_cust_operation_rel.verification_contact`）
-- [[dicts/wec_project_cust_operation_rel__risk_control_contact_a]]（`wec_project_cust_operation_rel.risk_control_contact_a`）
 - [[dicts/wec_project_cust_operation_rel__enable]]（`wec_project_cust_operation_rel.enable`）
 - [[dicts/wec_project_cust_operation_rel__top_flag]]（`wec_project_cust_operation_rel.top_flag`）

@@ -1,0 +1,1674 @@
+generated_at: '2026-09-22T09:29:56.555782+00:00'
+wiki: docs/wiki/v3
+stats:
+  tables: 78
+  candidates: 194
+  to_validate: 194
+  accepted: 55
+  review: 57
+  rejected: 82
+note: Old L0 missed same-name keys (e.g. menu_id↔menu_id) because it only nominated
+  *_id→parent.id. Removed false friend menu.id→menu_id stays excluded.
+candidates:
+- left: tenant_project_approval.flow_code
+  right: tenant_project_approval_flow_config.flow_code
+  strategy: same_name
+  score: 19
+  reason: same column `flow_code` affinity=11
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_project_approval_flow.node_code
+  right: tenant_project_approval_flow_config.node_code
+  strategy: same_name
+  score: 19
+  reason: same column `node_code` affinity=11
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.8); same value domain /
+    business code space likely
+- left: tenant_project_approval_flow.node_code
+  right: tenant_project_approval_flow_node.node_code
+  strategy: same_name
+  score: 19
+  reason: same column `node_code` affinity=11
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_migarory_log.batch_no
+  right: tenant_migarory_log_bak.batch_no
+  strategy: same_name
+  score: 18
+  reason: same column `batch_no` affinity=10
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  strategy: same_name
+  score: 18
+  reason: same column `platform_product_code` affinity=10
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9987); consistent with
+    FK / identity reference'
+- left: tenant_product_menu.menu_id
+  right: tenant_product_menu_res.menu_id
+  strategy: same_name
+  score: 18
+  reason: same column `menu_id` affinity=10
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product_menu.product_code
+  right: tenant_product_menu_res.product_code
+  strategy: same_name
+  score: 18
+  reason: same column `product_code` affinity=10
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.product_code
+  right: platform_product_cust_role.product_code
+  strategy: same_name
+  score: 17
+  reason: same column `product_code` affinity=9
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.5, right->left=0.7903); same value domain
+    / business code space likely
+- left: tenant_project_approval_flow_config.code
+  right: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config
+  strategy: ref_column
+  score: 17
+  reason: ref stem→tenant_project_approval_flow_config.code
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_project_approval_flow_node.node_code
+  right: tenant_project_approval_flow_config.node_code
+  strategy: same_name
+  score: 16
+  reason: same column `node_code` affinity=8
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.8); same value domain /
+    business code space likely
+- left: wechat_project_approval_apply.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  strategy: same_name
+  score: 16
+  reason: same column `sp_no` affinity=8
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_company_survey_state.company_id
+  right: cust_company_survey_whitelist.company_id
+  strategy: same_name
+  score: 15
+  reason: same column `company_id` affinity=7
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_migarory_log.req_no
+  right: tenant_migarory_log_bak.req_no
+  strategy: same_name
+  score: 15
+  reason: same column `req_no` affinity=10
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  strategy: same_name
+  score: 14
+  reason: same column `platform_product_code` affinity=6
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_interworking_product.tenant_id
+  right: tenant_interworking_project.tenant_id
+  strategy: same_name
+  score: 14
+  reason: same column `tenant_id` affinity=6
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  strategy: same_name
+  score: 14
+  reason: same column `platform_product_code` affinity=6
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.tenant_id
+  right: tenant_interworking_product.tenant_id
+  strategy: same_name
+  score: 14
+  reason: same column `tenant_id` affinity=6
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.975); consistent with
+    FK / identity reference'
+- left: tenant_project.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  strategy: same_name
+  score: 14
+  reason: same column `platform_product_code` affinity=6
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_project.tenant_id
+  right: tenant_interworking_project.tenant_id
+  strategy: same_name
+  score: 14
+  reason: same column `tenant_id` affinity=6
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_setting_config.apaas_tenant_code
+  right: tenant_setting_config_share.apaas_tenant_code
+  strategy: same_name
+  score: 14
+  reason: same column `apaas_tenant_code` affinity=9
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_setting_config.dbass_app_id
+  right: tenant_setting_config_share.dbass_app_id
+  strategy: same_name
+  score: 14
+  reason: same column `dbass_app_id` affinity=9
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_setting_config.mp_dbass_app_id
+  right: tenant_setting_config_share.mp_dbass_app_id
+  strategy: same_name
+  score: 14
+  reason: same column `mp_dbass_app_id` affinity=9
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_setting_config.operator_applet_code
+  right: tenant_setting_config_share.operator_applet_code
+  strategy: same_name
+  score: 14
+  reason: same column `operator_applet_code` affinity=9
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_setting_config.operator_qr_code
+  right: tenant_setting_config_share.operator_qr_code
+  strategy: same_name
+  score: 14
+  reason: same column `operator_qr_code` affinity=9
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_setting_config.operator_wechat_code
+  right: tenant_setting_config_share.operator_wechat_code
+  strategy: same_name
+  score: 14
+  reason: same column `operator_wechat_code` affinity=9
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_setting_config.prd_mp_app_id
+  right: tenant_setting_config_share.prd_mp_app_id
+  strategy: same_name
+  score: 14
+  reason: same column `prd_mp_app_id` affinity=9
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0366, right->left=0.9259, join_hits=3)
+- left: tenant_setting_config.uat_mp_app_id
+  right: tenant_setting_config_share.uat_mp_app_id
+  strategy: same_name
+  score: 14
+  reason: same column `uat_mp_app_id` affinity=9
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.963); consistent with
+    FK / identity reference'
+- left: tenant_setting_config.uni_social_credit_code
+  right: tenant_setting_config_share.uni_social_credit_code
+  strategy: same_name
+  score: 14
+  reason: same column `uni_social_credit_code` affinity=9
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_company_info.certification_no
+  right: cust_head_company_info.certification_no
+  strategy: same_name
+  score: 13
+  reason: same column `certification_no` affinity=5
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0003, right->left=0.0716, join_hits=33)
+- left: cust_company_lifecycle_info.company_id
+  right: cust_company_survey_whitelist.company_id
+  strategy: same_name
+  score: 13
+  reason: same column `company_id` affinity=5
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_company_survey_state.company_id
+  right: cust_company_lifecycle_info.company_id
+  strategy: same_name
+  score: 13
+  reason: same column `company_id` affinity=5
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_customized_product.cust_id
+  right: cust_interworking_product.cust_id
+  strategy: same_name
+  score: 13
+  reason: same column `cust_id` affinity=5
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_project_rel.channel_code
+  right: cust_project_code_record.channel_code
+  strategy: same_name
+  score: 13
+  reason: same column `channel_code` affinity=5
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.898, right->left=0.4914, join_hits=176)
+- left: cust_project_rel.project_id
+  right: cust_project_pushcust.project_id
+  strategy: same_name
+  score: 13
+  reason: same column `project_id` affinity=5
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0027, right->left=1.0, join_hits=159)
+- left: cust_survey_answer.company_id
+  right: cust_company_survey_state.company_id
+  strategy: same_name
+  score: 13
+  reason: same column `company_id` affinity=5
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_survey_answer.company_id
+  right: cust_company_survey_whitelist.company_id
+  strategy: same_name
+  score: 13
+  reason: same column `company_id` affinity=5
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: funding_rule_detail.product_code
+  right: funding_rule_front_cfg.product_code
+  strategy: same_name
+  score: 13
+  reason: same column `product_code` affinity=5
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_rule_info.product_code
+  right: funding_rule_detail.product_code
+  strategy: same_name
+  score: 13
+  reason: same column `product_code` affinity=5
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_rule_info.product_code
+  right: funding_rule_front_cfg.product_code
+  strategy: same_name
+  score: 13
+  reason: same column `product_code` affinity=5
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_project_approval_flow_node.cc_user_id
+  right: tenant_project_approval_flow_comment.cc_user_id
+  strategy: same_name
+  score: 13
+  reason: same column `cc_user_id` affinity=8
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.7553, right->left=0.8696); same value domain
+    / business code space likely
+- left: ca_fee_company.certification_no
+  right: ca_fee_special_config.certification_no
+  strategy: same_name
+  score: 12
+  reason: same column `certification_no` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9636); consistent with
+    FK / identity reference'
+- left: ca_fee_company.tenant_id
+  right: ca_fee_project_config.tenant_id
+  strategy: same_name
+  score: 12
+  reason: same column `tenant_id` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.7738); same value domain
+    / business code space likely
+- left: ca_fee_order.certification_no
+  right: ca_fee_special_config.certification_no
+  strategy: same_name
+  score: 12
+  reason: same column `certification_no` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0298, right->left=0.4909, join_hits=47)
+- left: ca_fee_order.project_id
+  right: ca_fee_project_config.project_id
+  strategy: same_name
+  score: 12
+  reason: same column `project_id` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.0931, join_hits=1575)
+- left: ca_fee_order.project_id
+  right: ca_fee_special_config.project_id
+  strategy: same_name
+  score: 12
+  reason: same column `project_id` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.2051, right->left=0.9091, join_hits=323)
+- left: ca_fee_order.tenant_id
+  right: ca_fee_company.tenant_id
+  strategy: same_name
+  score: 12
+  reason: same column `tenant_id` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: ca_fee_order.tenant_id
+  right: ca_fee_project_config.tenant_id
+  strategy: same_name
+  score: 12
+  reason: same column `tenant_id` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.7738); same value domain
+    / business code space likely
+- left: ca_fee_project_config.project_id
+  right: ca_fee_special_config.project_id
+  strategy: same_name
+  score: 12
+  reason: same column `project_id` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9636); consistent with
+    FK / identity reference'
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.85); same value domain /
+    business code space likely
+- left: cust_interworking_product.tenant_id
+  right: tenant_interworking_product.tenant_id
+  strategy: same_name
+  score: 12
+  reason: same column `tenant_id` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.85); same value domain /
+    business code space likely
+- left: funding_rule_detail.product_code
+  right: funding_exception_resolution.product_code
+  strategy: same_name
+  score: 12
+  reason: same column `product_code` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_rule_front_cfg.product_code
+  right: funding_exception_resolution.product_code
+  strategy: same_name
+  score: 12
+  reason: same column `product_code` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: funding_rule_info.product_code
+  right: funding_exception_resolution.product_code
+  strategy: same_name
+  score: 12
+  reason: same column `product_code` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0007, right->left=0.175, join_hits=106)
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0007, right->left=0.0833, join_hits=106)
+- left: tenant_migarory_log_bak.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0041, right->left=0.175, join_hits=19)
+- left: tenant_migarory_log_bak.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0041, right->left=0.0833, join_hits=19)
+- left: tenant_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.8403, right->left=0.7999); same value domain
+    / business code space likely
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.8403, right->left=0.9106); same value domain
+    / business code space likely
+- left: tenant_product.platform_product_code
+  right: tenant_project.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product.tenant_id
+  right: tenant_interworking_project.tenant_id
+  strategy: same_name
+  score: 12
+  reason: same column `tenant_id` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product.tenant_id
+  right: tenant_project.tenant_id
+  strategy: same_name
+  score: 12
+  reason: same column `tenant_id` affinity=4
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product_menu.product_code
+  right: tenant_project_approval_business_info.product_code
+  strategy: same_name
+  score: 12
+  reason: same column `product_code` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.8629, right->left=0.1742, join_hits=2190)
+- left: tenant_product_menu_res.product_code
+  right: tenant_project_approval_business_info.product_code
+  strategy: same_name
+  score: 12
+  reason: same column `product_code` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0455, right->left=0.1742, join_hits=5)
+- left: tenant_project.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9724, right->left=0.7999); same value domain
+    / business code space likely
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  strategy: same_name
+  score: 12
+  reason: same column `platform_product_code` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9724, right->left=0.9106); same value domain
+    / business code space likely
+- left: tenant_project.tenant_id
+  right: tenant_interworking_product.tenant_id
+  strategy: same_name
+  score: 12
+  reason: same column `tenant_id` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.6991, right->left=0.925); same value domain
+    / business code space likely
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_apply.sp_no
+  strategy: same_name
+  score: 12
+  reason: same column `sp_no` affinity=4
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.4051, join_hits=510)
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  strategy: same_name
+  score: 12
+  reason: same column `sp_no` affinity=4
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.5101); same value domain
+    / business code space likely
+- left: ca_fee_company.certification_no
+  right: ca_cfca_upgrade_report.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0134, right->left=0.6118, join_hits=14)
+- left: ca_fee_order.certification_no
+  right: ca_cfca_upgrade_report.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0152, right->left=0.6118, join_hits=24)
+- left: ca_fee_order.company_id
+  right: ca_cfca_upgrade_report.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0152, right->left=0.6024, join_hits=24)
+- left: ca_fee_special_config.certification_no
+  right: ca_cfca_upgrade_report.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0545, right->left=0.0965, join_hits=3)
+- left: cust_auth_application.platform_product_code
+  right: cust_interworking_product.platform_product_code
+  strategy: same_name
+  score: 11
+  reason: same column `platform_product_code` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_build_record.cust_id
+  right: cust_auth_application_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_build_record.cust_id
+  right: cust_change_record.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0484, right->left=0.4238, join_hits=923)
+- left: cust_build_record.cust_id
+  right: cust_customized_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0005, right->left=0.64, join_hits=9)
+- left: cust_build_record.cust_id
+  right: cust_interworking_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0114, right->left=0.7895, join_hits=217)
+- left: cust_build_record.cust_id
+  right: cust_setting_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_build_record.person_id
+  right: cust_oper_change_record.person_id
+  strategy: same_name
+  score: 11
+  reason: same column `person_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0488, right->left=0.2779, join_hits=931)
+- left: cust_change_record.cust_id
+  right: cust_auth_application_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_change_record.cust_id
+  right: cust_customized_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.006, right->left=0.76, join_hits=33)
+- left: cust_change_record.cust_id
+  right: cust_interworking_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.042, right->left=0.4079, join_hits=231)
+- left: cust_change_record.cust_id
+  right: cust_setting_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_company_info.certification_no
+  right: cust_shareholder_info.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=1)
+- left: cust_company_info.channel_code
+  right: cust_project_code_record.channel_code
+  strategy: same_name
+  score: 11
+  reason: same column `channel_code` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_company_info.code
+  right: cust_company_lifecycle_info.ref_cust_company_info
+  strategy: ref_column
+  score: 11
+  reason: ref stem→cust_company_info.code
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_customized_product.cust_id
+  right: cust_auth_application_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_group_rel.cust_id
+  right: cust_auth_application_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_group_rel.cust_id
+  right: cust_build_record.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.3254, right->left=0.0094, join_hits=218)
+- left: cust_group_rel.cust_id
+  right: cust_change_record.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.309, right->left=0.0821, join_hits=207)
+- left: cust_group_rel.cust_id
+  right: cust_customized_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.003, right->left=0.08, join_hits=2)
+- left: cust_group_rel.cust_id
+  right: cust_interworking_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: false_friend
+  detail: negligible overlap on large domains (left->right=0.0045, right->left=0.0099,
+    join_hits=3, distinct L/R=571/261); not a usable equi-join
+- left: cust_group_rel.cust_id
+  right: cust_setting_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_interworking_product.cust_id
+  right: cust_auth_application_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_invite_info.channel_code
+  right: cust_company_info.channel_code
+  strategy: same_name
+  score: 11
+  reason: same column `channel_code` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_invite_info.channel_code
+  right: cust_project_code_record.channel_code
+  strategy: same_name
+  score: 11
+  reason: same column `channel_code` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.4327, right->left=0.2126, join_hits=45)
+- left: cust_invite_info.channel_code
+  right: cust_project_rel.channel_code
+  strategy: same_name
+  score: 11
+  reason: same column `channel_code` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.3942, right->left=0.5153, join_hits=41)
+- left: cust_oper_change_record.company_id
+  right: cust_company_lifecycle_info.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0206, right->left=0.4507, join_hits=91)
+- left: cust_oper_change_record.company_id
+  right: cust_company_survey_state.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0014, right->left=0.1818, join_hits=6)
+- left: cust_oper_change_record.company_id
+  right: cust_company_survey_whitelist.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0014, right->left=0.1818, join_hits=6)
+- left: cust_oper_change_record.company_id
+  right: cust_project_code_record.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0538, right->left=0.2126, join_hits=238)
+- left: cust_person_info.certification_no
+  right: cust_company_info.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: rejected
+  verdict: false_friend
+  detail: negligible overlap on large domains (left->right=0.0001, right->left=0.0,
+    join_hits=5, distinct L/R=50887/53426); not a usable equi-join
+- left: cust_person_info.certification_no
+  right: cust_head_company_info.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: rejected
+  verdict: false_friend
+  detail: negligible overlap on large domains (left->right=0.0001, right->left=0.0116,
+    join_hits=7, distinct L/R=50887/443); not a usable equi-join
+- left: cust_person_info.certification_no
+  right: cust_shareholder_info.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=2)
+- left: cust_project_code_record.company_id
+  right: cust_company_lifecycle_info.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0029, right->left=0.0986, join_hits=1)
+- left: cust_project_code_record.company_id
+  right: cust_company_survey_state.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0029, right->left=0.0909, join_hits=1)
+- left: cust_project_code_record.company_id
+  right: cust_company_survey_whitelist.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0029, right->left=0.0909, join_hits=1)
+- left: cust_project_code_record.company_id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_project_pushcust.project_id
+  right: wec_project_cust_operation_rel.project_id
+  strategy: same_name
+  score: 11
+  reason: same column `project_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_project_rel.channel_code
+  right: cust_company_info.channel_code
+  strategy: same_name
+  score: 11
+  reason: same column `channel_code` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_project_rel.project_id
+  right: wec_project_cust_operation_rel.project_id
+  strategy: same_name
+  score: 11
+  reason: same column `project_id` affinity=3
+  status: rejected
+  verdict: false_friend
+  detail: negligible overlap on large domains (left->right=0.0, right->left=0.0021,
+    join_hits=2, distinct L/R=1819/173); not a usable equi-join
+- left: cust_setting_config.cust_id
+  right: cust_auth_application_config.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_setting_config.cust_id
+  right: cust_customized_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_setting_config.cust_id
+  right: cust_interworking_product.cust_id
+  strategy: same_name
+  score: 11
+  reason: same column `cust_id` affinity=3
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_shareholder_info.certification_no
+  right: cust_head_company_info.certification_no
+  strategy: same_name
+  score: 11
+  reason: same column `certification_no` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_survey_answer.company_id
+  right: cust_company_lifecycle_info.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0146, right->left=0.0282, join_hits=6)
+- left: cust_survey_answer.company_id
+  right: cust_oper_change_record.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1463, right->left=0.019, join_hits=60)
+- left: cust_survey_answer.company_id
+  right: cust_project_code_record.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: false_friend
+  detail: negligible overlap on large domains (left->right=0.0146, right->left=0.0057,
+    join_hits=6, distinct L/R=66/263); not a usable equi-join
+- left: cust_user_rel.company_id
+  right: cust_company_lifecycle_info.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_user_rel.company_id
+  right: cust_company_survey_state.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_user_rel.company_id
+  right: cust_company_survey_whitelist.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_user_rel.company_id
+  right: cust_oper_change_record.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_user_rel.company_id
+  right: cust_project_code_record.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_user_rel.company_id
+  right: cust_survey_answer.company_id
+  strategy: same_name
+  score: 11
+  reason: same column `company_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.id
+  right: tenant_interworking_project.product_id
+  strategy: hub_id
+  score: 11
+  reason: hub map product_id→tenant_product.id
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.platform_product_id
+  right: tenant_interworking_product.platform_product_id
+  strategy: same_name
+  score: 11
+  reason: same column `platform_product_id` affinity=6
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_project.product_id
+  right: tenant_interworking_project.product_id
+  strategy: same_name
+  score: 11
+  reason: same column `product_id` affinity=6
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: ca_fee_company.certification_no
+  right: cust_head_company_info.certification_no
+  strategy: same_name
+  score: 10
+  reason: same column `certification_no` affinity=2
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: ca_fee_project_config.project_id
+  right: cust_project_pushcust.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0022, right->left=0.25, join_hits=1)
+- left: ca_fee_project_config.project_id
+  right: tenant_interworking_project.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0044, right->left=0.1667, join_hits=2)
+- left: ca_fee_project_config.project_id
+  right: wec_project_cust_operation_rel.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: ca_fee_project_config.project_id
+  right: wechat_project_approval_apply.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: ca_fee_project_config.tenant_id
+  right: tenant_interworking_project.tenant_id
+  strategy: same_name
+  score: 10
+  reason: same column `tenant_id` affinity=2
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  strategy: same_name
+  score: 10
+  reason: same column `platform_product_code` affinity=2
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_interworking_product.tenant_id
+  right: tenant_interworking_project.tenant_id
+  strategy: same_name
+  score: 10
+  reason: same column `tenant_id` affinity=2
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_project_pushcust.project_id
+  right: tenant_interworking_project.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_project_pushcust.project_id
+  right: wechat_project_approval_apply.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_project_rel.project_id
+  right: ca_fee_project_config.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.7355, right->left=0.6275); same value domain
+    / business code space likely
+- left: cust_project_rel.project_id
+  right: project_file_info.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.018, right->left=0.5789, join_hits=1079)
+- left: cust_project_rel.project_id
+  right: tenant_interworking_project.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_project_rel.project_id
+  right: wechat_project_approval_apply.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: platform_product.product_code
+  right: tenant_product_menu.product_code
+  strategy: same_name
+  score: 10
+  reason: same column `product_code` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1, right->left=0.9441, join_hits=2)
+- left: platform_product.product_code
+  right: tenant_product_menu_res.product_code
+  strategy: same_name
+  score: 10
+  reason: same column `product_code` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.05, right->left=0.0455, join_hits=1)
+- left: project_file_info.project_id
+  right: ca_fee_project_config.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1053, right->left=0.0089, join_hits=6)
+- left: project_file_info.project_id
+  right: cust_project_pushcust.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: project_file_info.project_id
+  right: tenant_interworking_project.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0175, right->left=0.0833, join_hits=1)
+- left: project_file_info.project_id
+  right: wec_project_cust_operation_rel.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1404, right->left=0.006, join_hits=8)
+- left: project_file_info.project_id
+  right: wechat_project_approval_apply.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_interworking_product.code
+  right: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
+  strategy: ref_column
+  score: 10
+  reason: ref stem→tenant_interworking_product.code
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_interworking_project.project_id
+  right: wec_project_cust_operation_rel.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_interworking_project.project_id
+  right: wechat_project_approval_apply.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: tenant_product.platform_product_code
+  right: cust_interworking_product.platform_product_code
+  strategy: same_name
+  score: 10
+  reason: same column `platform_product_code` affinity=2
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.tenant_id
+  right: cust_interworking_product.tenant_id
+  strategy: same_name
+  score: 10
+  reason: same column `tenant_id` affinity=2
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_product_menu.product_code
+  right: platform_product_cust_role.product_code
+  strategy: same_name
+  score: 10
+  reason: same column `product_code` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.2581, join_hits=2538)
+- left: tenant_product_menu_res.product_code
+  right: platform_product_cust_role.product_code
+  strategy: same_name
+  score: 10
+  reason: same column `product_code` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.1935, join_hits=110)
+- left: tenant_project.channel_code
+  right: cust_project_code_record.channel_code
+  strategy: same_name
+  score: 10
+  reason: same column `channel_code` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0273, right->left=0.75, join_hits=98)
+- left: tenant_project.channel_code
+  right: cust_project_rel.channel_code
+  strategy: same_name
+  score: 10
+  reason: same column `channel_code` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0151, right->left=0.898, join_hits=54)
+- left: tenant_project.tenant_id
+  right: ca_fee_project_config.tenant_id
+  strategy: same_name
+  score: 10
+  reason: same column `tenant_id` affinity=2
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_project.wechat_audit_no
+  right: wec_project_operation_rel.wechat_audit_no
+  strategy: same_name
+  score: 10
+  reason: same column `wechat_audit_no` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1769, right->left=0.2463, join_hits=72)
+- left: wechat_project_approval_apply.project_id
+  right: wec_project_cust_operation_rel.project_id
+  strategy: same_name
+  score: 10
+  reason: same column `project_id` affinity=2
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_auth_application.code
+  right: cust_role_info.ref_cust_auth_application
+  strategy: ref_column
+  score: 9
+  reason: ref stem→cust_auth_application.code
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_company_lifecycle_info.company_id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: same_name
+  score: 9
+  reason: same column `company_id` affinity=1
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_company_survey_state.company_id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: same_name
+  score: 9
+  reason: same column `company_id` affinity=1
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_company_survey_whitelist.company_id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: same_name
+  score: 9
+  reason: same column `company_id` affinity=1
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_oper_change_record.company_id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: same_name
+  score: 9
+  reason: same column `company_id` affinity=1
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_survey_answer.company_id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: same_name
+  score: 9
+  reason: same column `company_id` affinity=1
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_user_rel.company_id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: same_name
+  score: 9
+  reason: same column `company_id` affinity=1
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.id
+  right: cust_interworking_product.product_id
+  strategy: hub_id
+  score: 9
+  reason: hub map product_id→tenant_product.id
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_project.id
+  right: project_file_info.project_id
+  strategy: hub_id
+  score: 9
+  reason: hub map project_id→tenant_project.id
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0033, right->left=0.7719, join_hits=12)
+- left: tenant_project.id
+  right: wec_project_cust_operation_rel.project_id
+  strategy: hub_id
+  score: 9
+  reason: hub map project_id→tenant_project.id
+  status: rejected
+  verdict: false_friend
+  detail: negligible overlap on large domains (left->right=0.0006, right->left=0.0021,
+    join_hits=2, distinct L/R=3586/173); not a usable equi-join
+- left: tenant_project.id
+  right: wechat_project_approval_apply.project_id
+  strategy: hub_id
+  score: 9
+  reason: hub map project_id→tenant_project.id
+  status: rejected
+  verdict: empty_endpoint
+  detail: one side has zero usable non-null values
+- left: cust_company_info.id
+  right: wec_project_cust_operation_rel.company_id
+  strategy: hub_id
+  score: 8
+  reason: hub map company_id→cust_company_info.id
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_person_info.user_id
+  right: cust_survey_answer.user_id
+  strategy: same_name
+  score: 8
+  reason: same column `user_id` affinity=3
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9561); consistent with
+    FK / identity reference'
+- left: cust_project_rel.product_id
+  right: cust_interworking_product.product_id
+  strategy: same_name
+  score: 8
+  reason: same column `product_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_role_info.platform_cust_id
+  right: cust_company_info.platform_cust_id
+  strategy: same_name
+  score: 8
+  reason: same column `platform_cust_id` affinity=3
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.2005, right->left=0.8033, join_hits=5819)
+- left: cust_user_rel.user_id
+  right: cust_person_info.user_id
+  strategy: same_name
+  score: 8
+  reason: same column `user_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_user_rel.user_id
+  right: cust_survey_answer.user_id
+  strategy: same_name
+  score: 8
+  reason: same column `user_id` affinity=3
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.code
+  right: platform_product.product_code
+  strategy: hub_code
+  score: 8
+  reason: hub code map product_code→tenant_product.code
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_product.code
+  right: platform_product_cust_role.product_code
+  strategy: hub_code
+  score: 8
+  reason: hub code map product_code→tenant_product.code
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_company_info.id
+  right: ca_cfca_upgrade_report.company_id
+  strategy: hub_id
+  score: 7
+  reason: hub map company_id→cust_company_info.id
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9835); consistent with
+    FK / identity reference'
+- left: cust_company_info.id
+  right: gpt_learn_poster_log.company_id
+  strategy: hub_id
+  score: 7
+  reason: hub map company_id→cust_company_info.id
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_interworking_product.product_id
+  right: tenant_interworking_project.product_id
+  strategy: same_name
+  score: 7
+  reason: same column `product_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0789, right->left=0.5, join_hits=24)
+- left: cust_project_rel.product_id
+  right: tenant_interworking_project.product_id
+  strategy: same_name
+  score: 7
+  reason: same column `product_id` affinity=2
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: open_sso_channel.app_id
+  right: cust_app_channel_config.app_id
+  strategy: same_name
+  score: 7
+  reason: same column `app_id` affinity=2
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.5); same value domain /
+    business code space likely
+- left: platform_product_client.platform_product_id
+  right: tenant_interworking_product.platform_product_id
+  strategy: same_name
+  score: 7
+  reason: same column `platform_product_id` affinity=2
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.4615, right->left=0.175, join_hits=12)
+- left: tenant_product.platform_product_id
+  right: platform_product_client.platform_product_id
+  strategy: same_name
+  score: 7
+  reason: same column `platform_product_id` affinity=2
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9701, right->left=0.5); same value domain
+    / business code space likely
+- left: tenant_project.id
+  right: ca_fee_special_config.project_id
+  strategy: hub_id
+  score: 7
+  reason: hub map project_id→tenant_project.id
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: tenant_project.product_id
+  right: cust_project_rel.product_id
+  strategy: same_name
+  score: 7
+  reason: same column `product_id` affinity=2
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9946); consistent with
+    FK / identity reference'
+- left: tenant_setting_config.id
+  right: cust_interworking_product.tenant_id
+  strategy: hub_id
+  score: 7
+  reason: hub map tenant_id→tenant_setting_config.id
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: platform_product.code
+  right: tenant_project.ref_tenant_project_platform_product
+  strategy: ref_column
+  score: 6
+  reason: ref stem→platform_product.code
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9994); consistent with
+    FK / identity reference'
+- left: tenant_project.code
+  right: platform_product.project_code
+  strategy: hub_code
+  score: 6
+  reason: hub code map project_code→tenant_project.code
+  status: rejected
+  verdict: impossible
+  detail: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'

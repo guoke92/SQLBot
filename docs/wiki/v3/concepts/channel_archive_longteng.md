@@ -14,7 +14,7 @@ updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info, cust_access_secret, open_sso_channel]
 also_confused_with: [invite_customer_entry, default_push_project, open_sso_channel_term,
-  channel_code_term, app_channel_config_term, tenant_code_vs_db_tenant]
+  channel_code_term, app_channel_config_term, tenant_code_vs_db_tenant, channel_code_homonym_bundle]
 adjudication: boundary
 ---
 

@@ -4,14 +4,18 @@ title: 企业信息配置表
 page_key: cust_config_mapping
 belong: tables
 status: draft
-anchors: [cust_config_mapping]
-sources: ['database_schema:lowcode_pplatform.cust_config_mapping', 'code_path:CustConfigMappingDaoImpl.java:48']
+anchors:
+- cust_config_mapping
+sources:
+- database_schema:lowcode_pplatform.cust_config_mapping
+- code_path:CustConfigMappingDaoImpl.java:48
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_config_mapping__outer_channel, cust_config_mapping__inner_code, cust_config_mapping__outer_code,
-  cust_config_mapping__type, cust_config_mapping__groups, cust_config_mapping__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_config_mapping__enable
 ---
 
 # 企业信息配置表
@@ -25,9 +29,16 @@ table: cust_config_mapping
 database: lowcode_pplatform
 desc: 企业信息配置表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 内外渠道字段映射配置，无企业 FK
-name_anchors: [code, name, inner_code, inner_name, outer_code, outer_name]
+name_anchors:
+- code
+- name
+- inner_code
+- inner_name
+- outer_code
+- outer_name
 fields:
 - name: id
   type: number
@@ -42,37 +53,90 @@ fields:
 - name: outer_channel
   type: string
   desc: 外部渠道
-  dict: [ACFLOW, ORDER, SELF, OPS]
+  dict:
+  - ACFLOW
+  - ORDER
+  - SELF
+  - OPS
 - name: inner_code
   type: string
   desc: 内部编码
-  dict: [CORE_FUNCTIONAL_DEPARTMENT, SUPPLIER, CORE, PLATFORM_OPREATOR_COMPANY, DEALER,
-    CORE_MANAGER, CORE_BRANCH, PROJECT_COMPANY, FINANCE, CORE_SUB, A0007, A0002, A0037,
-    HEAD_COMPANY_LEGAL, A0012, COMPANY_LEGAL, A0008, COMPANY, A0004, A0038, HEAD_COMPANY_LEGAL_CE_PERIOD,
-    A0035, COMPANY_MANAGER_CE_PERIOD, A0011, COMPANY_AUTH_AGGREMENT]
+  dict:
+  - CORE_FUNCTIONAL_DEPARTMENT
+  - SUPPLIER
+  - CORE
+  - PLATFORM_OPREATOR_COMPANY
+  - DEALER
+  - CORE_MANAGER
+  - CORE_BRANCH
+  - PROJECT_COMPANY
+  - FINANCE
+  - CORE_SUB
+  - A0007
+  - A0002
+  - A0037
+  - HEAD_COMPANY_LEGAL
+  - A0012
+  - COMPANY_LEGAL
+  - A0008
+  - COMPANY
+  - A0004
+  - A0038
+  - HEAD_COMPANY_LEGAL_CE_PERIOD
+  - A0035
+  - COMPANY_MANAGER_CE_PERIOD
+  - A0011
+  - COMPANY_AUTH_AGGREMENT
 - name: inner_name
   type: string
   desc: 内部名称
 - name: outer_code
   type: string
   desc: 外部编码
-  dict: [CE, PROJ, SPY, CPT, OPE, A0004, A0037, UN0001, A0011, UN0014, A0002, UN0005,
-    A0008, A0035, A0038, UN0002, A0012, UN0008, A0007, UN0011]
+  dict:
+  - CE
+  - PROJ
+  - SPY
+  - CPT
+  - OPE
+  - A0004
+  - A0037
+  - UN0001
+  - A0011
+  - UN0014
+  - A0002
+  - UN0005
+  - A0008
+  - A0035
+  - A0038
+  - UN0002
+  - A0012
+  - UN0008
+  - A0007
+  - UN0011
 - name: outer_name
   type: string
   desc: 外部名称
 - name: type
   type: string
   desc: 类型
-  dict: [COMPANY_TYPE_MAPPING, COMPANY_MEDIA, CHANGE_ITEM]
+  dict:
+  - COMPANY_TYPE_MAPPING
+  - COMPANY_MEDIA
+  - CHANGE_ITEM
 - name: groups
   type: string
   desc: 分组
-  dict: [BRANCH_COMPANY, HEAD_COMPANY]
+  dict:
+  - BRANCH_COMPANY
+  - HEAD_COMPANY
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark

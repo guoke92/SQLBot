@@ -1,0 +1,176 @@
+# JOIN re-extract (2026-09-22T09:29:56.555782+00:00)
+
+- tables: 78
+- stats: `{'tables': 78, 'candidates': 194, 'to_validate': 194, 'accepted': 55, 'review': 57, 'rejected': 82}`
+- note: Old L0 missed same-name keys (e.g. menu_id↔menu_id) because it only nominated *_id→parent.id. Removed false friend menu.id→menu_id stays excluded.
+
+## Accepted (live fk_like / shared_domain)
+
+- `tenant_project_approval_flow.node_code` → `tenant_project_approval_flow_config.node_code`  _same_name_ score=19  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.8); same value domain / business code space likely
+- `tenant_project_approval_flow.node_code` → `tenant_project_approval_flow_node.node_code`  _same_name_ score=19  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_migarory_log.platform_product_code` → `tenant_migarory_log_bak.platform_product_code`  _same_name_ score=18  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.9987); consistent with FK / identity reference
+- `tenant_product_menu.menu_id` → `tenant_product_menu_res.menu_id`  _same_name_ score=18  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_product_menu.product_code` → `tenant_product_menu_res.product_code`  _same_name_ score=18  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `platform_product.product_code` → `platform_product_cust_role.product_code`  _same_name_ score=17  verdict=`shared_domain` — two-way overlap (left->right=0.5, right->left=0.7903); same value domain / business code space likely
+- `tenant_project_approval_flow_node.node_code` → `tenant_project_approval_flow_config.node_code`  _same_name_ score=16  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.8); same value domain / business code space likely
+- `wechat_project_approval_apply.sp_no` → `wechat_project_approval_field_history.sp_no`  _same_name_ score=16  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `cust_company_survey_state.company_id` → `cust_company_survey_whitelist.company_id`  _same_name_ score=15  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_interworking_product.platform_product_code` → `tenant_interworking_project.platform_product_code`  _same_name_ score=14  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_interworking_product.tenant_id` → `tenant_interworking_project.tenant_id`  _same_name_ score=14  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_product.tenant_id` → `tenant_interworking_product.tenant_id`  _same_name_ score=14  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.975); consistent with FK / identity reference
+- `tenant_project.tenant_id` → `tenant_interworking_project.tenant_id`  _same_name_ score=14  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_setting_config.dbass_app_id` → `tenant_setting_config_share.dbass_app_id`  _same_name_ score=14  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_setting_config.uat_mp_app_id` → `tenant_setting_config_share.uat_mp_app_id`  _same_name_ score=14  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.963); consistent with FK / identity reference
+- `funding_rule_detail.product_code` → `funding_rule_front_cfg.product_code`  _same_name_ score=13  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `funding_rule_info.product_code` → `funding_rule_detail.product_code`  _same_name_ score=13  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `funding_rule_info.product_code` → `funding_rule_front_cfg.product_code`  _same_name_ score=13  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_project_approval_flow_node.cc_user_id` → `tenant_project_approval_flow_comment.cc_user_id`  _same_name_ score=13  verdict=`shared_domain` — two-way overlap (left->right=0.7553, right->left=0.8696); same value domain / business code space likely
+- `ca_fee_company.certification_no` → `ca_fee_special_config.certification_no`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.9636); consistent with FK / identity reference
+- `ca_fee_company.tenant_id` → `ca_fee_project_config.tenant_id`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.7738); same value domain / business code space likely
+- `ca_fee_order.tenant_id` → `ca_fee_company.tenant_id`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `ca_fee_order.tenant_id` → `ca_fee_project_config.tenant_id`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.7738); same value domain / business code space likely
+- `ca_fee_project_config.project_id` → `ca_fee_special_config.project_id`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.9636); consistent with FK / identity reference
+- `cust_interworking_product.platform_product_code` → `tenant_interworking_product.platform_product_code`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.85); same value domain / business code space likely
+- `cust_interworking_product.tenant_id` → `tenant_interworking_product.tenant_id`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.85); same value domain / business code space likely
+- `funding_rule_detail.product_code` → `funding_exception_resolution.product_code`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `funding_rule_front_cfg.product_code` → `funding_exception_resolution.product_code`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `funding_rule_info.product_code` → `funding_exception_resolution.product_code`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_product.platform_product_code` → `tenant_migarory_log.platform_product_code`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=0.8403, right->left=0.7999); same value domain / business code space likely
+- `tenant_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=0.8403, right->left=0.9106); same value domain / business code space likely
+- `tenant_product.platform_product_code` → `tenant_project.platform_product_code`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_product.tenant_id` → `tenant_interworking_project.tenant_id`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_product.tenant_id` → `tenant_project.tenant_id`  _same_name_ score=12  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_project.platform_product_code` → `tenant_migarory_log.platform_product_code`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=0.9724, right->left=0.7999); same value domain / business code space likely
+- `tenant_project.platform_product_code` → `tenant_migarory_log_bak.platform_product_code`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=0.9724, right->left=0.9106); same value domain / business code space likely
+- `tenant_project.tenant_id` → `tenant_interworking_product.tenant_id`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=0.6991, right->left=0.925); same value domain / business code space likely
+- `tenant_project_approval.sp_no` → `wechat_project_approval_field_history.sp_no`  _same_name_ score=12  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.5101); same value domain / business code space likely
+- `ca_fee_project_config.tenant_id` → `tenant_interworking_project.tenant_id`  _same_name_ score=10  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `cust_interworking_product.platform_product_code` → `tenant_interworking_project.platform_product_code`  _same_name_ score=10  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `cust_interworking_product.tenant_id` → `tenant_interworking_project.tenant_id`  _same_name_ score=10  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `cust_project_rel.project_id` → `ca_fee_project_config.project_id`  _same_name_ score=10  verdict=`shared_domain` — two-way overlap (left->right=0.7355, right->left=0.6275); same value domain / business code space likely
+- `cust_project_rel.project_id` → `tenant_interworking_project.project_id`  _same_name_ score=10  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_interworking_product.code` → `cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product`  _ref_column_ score=10  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_product.tenant_id` → `cust_interworking_product.tenant_id`  _same_name_ score=10  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_project.tenant_id` → `ca_fee_project_config.tenant_id`  _same_name_ score=10  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `cust_person_info.user_id` → `cust_survey_answer.user_id`  _same_name_ score=8  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.9561); consistent with FK / identity reference
+- `cust_company_info.id` → `ca_cfca_upgrade_report.company_id`  _hub_id_ score=7  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.9835); consistent with FK / identity reference
+- `cust_company_info.id` → `gpt_learn_poster_log.company_id`  _hub_id_ score=7  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `open_sso_channel.app_id` → `cust_app_channel_config.app_id`  _same_name_ score=7  verdict=`shared_domain` — two-way overlap (left->right=1.0, right->left=0.5); same value domain / business code space likely
+- `tenant_product.platform_product_id` → `platform_product_client.platform_product_id`  _same_name_ score=7  verdict=`shared_domain` — two-way overlap (left->right=0.9701, right->left=0.5); same value domain / business code space likely
+- `tenant_project.id` → `ca_fee_special_config.project_id`  _hub_id_ score=7  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `tenant_project.product_id` → `cust_project_rel.product_id`  _same_name_ score=7  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.9946); consistent with FK / identity reference
+- `tenant_setting_config.id` → `cust_interworking_product.tenant_id`  _hub_id_ score=7  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+- `platform_product.code` → `tenant_project.ref_tenant_project_platform_product`  _ref_column_ score=6  verdict=`fk_like` — >=95% of right-side rows resolve on left (ratio=0.9994); consistent with FK / identity reference
+
+## Review (weak_overlap)
+
+- `tenant_setting_config.prd_mp_app_id` → `tenant_setting_config_share.prd_mp_app_id`  _same_name_ score=14  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0366, right->left=0.9259, join_hits=3)
+- `cust_company_info.certification_no` → `cust_head_company_info.certification_no`  _same_name_ score=13  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0003, right->left=0.0716, join_hits=33)
+- `cust_project_rel.channel_code` → `cust_project_code_record.channel_code`  _same_name_ score=13  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.898, right->left=0.4914, join_hits=176)
+- `cust_project_rel.project_id` → `cust_project_pushcust.project_id`  _same_name_ score=13  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0027, right->left=1.0, join_hits=159)
+- `ca_fee_order.certification_no` → `ca_fee_special_config.certification_no`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0298, right->left=0.4909, join_hits=47)
+- `ca_fee_order.project_id` → `ca_fee_project_config.project_id`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=1.0, right->left=0.0931, join_hits=1575)
+- `ca_fee_order.project_id` → `ca_fee_special_config.project_id`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.2051, right->left=0.9091, join_hits=323)
+- `tenant_migarory_log.platform_product_code` → `tenant_interworking_product.platform_product_code`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0007, right->left=0.175, join_hits=106)
+- `tenant_migarory_log.platform_product_code` → `tenant_interworking_project.platform_product_code`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0007, right->left=0.0833, join_hits=106)
+- `tenant_migarory_log_bak.platform_product_code` → `tenant_interworking_product.platform_product_code`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0041, right->left=0.175, join_hits=19)
+- `tenant_migarory_log_bak.platform_product_code` → `tenant_interworking_project.platform_product_code`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0041, right->left=0.0833, join_hits=19)
+- `tenant_product_menu.product_code` → `tenant_project_approval_business_info.product_code`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.8629, right->left=0.1742, join_hits=2190)
+- `tenant_product_menu_res.product_code` → `tenant_project_approval_business_info.product_code`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0455, right->left=0.1742, join_hits=5)
+- `tenant_project_approval.sp_no` → `wechat_project_approval_apply.sp_no`  _same_name_ score=12  verdict=`weak_overlap` — non-empty but thin overlap (left->right=1.0, right->left=0.4051, join_hits=510)
+- `ca_fee_company.certification_no` → `ca_cfca_upgrade_report.certification_no`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0134, right->left=0.6118, join_hits=14)
+- `ca_fee_order.certification_no` → `ca_cfca_upgrade_report.certification_no`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0152, right->left=0.6118, join_hits=24)
+- `ca_fee_order.company_id` → `ca_cfca_upgrade_report.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0152, right->left=0.6024, join_hits=24)
+- `ca_fee_special_config.certification_no` → `ca_cfca_upgrade_report.certification_no`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0545, right->left=0.0965, join_hits=3)
+- `cust_build_record.cust_id` → `cust_change_record.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0484, right->left=0.4238, join_hits=923)
+- `cust_build_record.cust_id` → `cust_customized_product.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0005, right->left=0.64, join_hits=9)
+- `cust_build_record.cust_id` → `cust_interworking_product.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0114, right->left=0.7895, join_hits=217)
+- `cust_build_record.person_id` → `cust_oper_change_record.person_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0488, right->left=0.2779, join_hits=931)
+- `cust_change_record.cust_id` → `cust_customized_product.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.006, right->left=0.76, join_hits=33)
+- `cust_change_record.cust_id` → `cust_interworking_product.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.042, right->left=0.4079, join_hits=231)
+- `cust_company_info.certification_no` → `cust_shareholder_info.certification_no`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=1)
+- `cust_group_rel.cust_id` → `cust_build_record.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.3254, right->left=0.0094, join_hits=218)
+- `cust_group_rel.cust_id` → `cust_change_record.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.309, right->left=0.0821, join_hits=207)
+- `cust_group_rel.cust_id` → `cust_customized_product.cust_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.003, right->left=0.08, join_hits=2)
+- `cust_invite_info.channel_code` → `cust_project_code_record.channel_code`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.4327, right->left=0.2126, join_hits=45)
+- `cust_invite_info.channel_code` → `cust_project_rel.channel_code`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.3942, right->left=0.5153, join_hits=41)
+- `cust_oper_change_record.company_id` → `cust_company_lifecycle_info.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0206, right->left=0.4507, join_hits=91)
+- `cust_oper_change_record.company_id` → `cust_company_survey_state.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0014, right->left=0.1818, join_hits=6)
+- `cust_oper_change_record.company_id` → `cust_company_survey_whitelist.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0014, right->left=0.1818, join_hits=6)
+- `cust_oper_change_record.company_id` → `cust_project_code_record.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0538, right->left=0.2126, join_hits=238)
+- `cust_person_info.certification_no` → `cust_shareholder_info.certification_no`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=2)
+- `cust_project_code_record.company_id` → `cust_company_lifecycle_info.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0029, right->left=0.0986, join_hits=1)
+- `cust_project_code_record.company_id` → `cust_company_survey_state.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0029, right->left=0.0909, join_hits=1)
+- `cust_project_code_record.company_id` → `cust_company_survey_whitelist.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0029, right->left=0.0909, join_hits=1)
+- `cust_survey_answer.company_id` → `cust_company_lifecycle_info.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0146, right->left=0.0282, join_hits=6)
+- `cust_survey_answer.company_id` → `cust_oper_change_record.company_id`  _same_name_ score=11  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.1463, right->left=0.019, join_hits=60)
+- `ca_fee_project_config.project_id` → `cust_project_pushcust.project_id`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0022, right->left=0.25, join_hits=1)
+- `ca_fee_project_config.project_id` → `tenant_interworking_project.project_id`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0044, right->left=0.1667, join_hits=2)
+- `cust_project_rel.project_id` → `project_file_info.project_id`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.018, right->left=0.5789, join_hits=1079)
+- `platform_product.product_code` → `tenant_product_menu.product_code`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.1, right->left=0.9441, join_hits=2)
+- `platform_product.product_code` → `tenant_product_menu_res.product_code`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.05, right->left=0.0455, join_hits=1)
+- `project_file_info.project_id` → `ca_fee_project_config.project_id`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.1053, right->left=0.0089, join_hits=6)
+- `project_file_info.project_id` → `tenant_interworking_project.project_id`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0175, right->left=0.0833, join_hits=1)
+- `project_file_info.project_id` → `wec_project_cust_operation_rel.project_id`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.1404, right->left=0.006, join_hits=8)
+- `tenant_product_menu.product_code` → `platform_product_cust_role.product_code`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=1.0, right->left=0.2581, join_hits=2538)
+- `tenant_product_menu_res.product_code` → `platform_product_cust_role.product_code`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=1.0, right->left=0.1935, join_hits=110)
+- `tenant_project.channel_code` → `cust_project_code_record.channel_code`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0273, right->left=0.75, join_hits=98)
+- `tenant_project.channel_code` → `cust_project_rel.channel_code`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0151, right->left=0.898, join_hits=54)
+- `tenant_project.wechat_audit_no` → `wec_project_operation_rel.wechat_audit_no`  _same_name_ score=10  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.1769, right->left=0.2463, join_hits=72)
+- `tenant_project.id` → `project_file_info.project_id`  _hub_id_ score=9  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0033, right->left=0.7719, join_hits=12)
+- `cust_role_info.platform_cust_id` → `cust_company_info.platform_cust_id`  _same_name_ score=8  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.2005, right->left=0.8033, join_hits=5819)
+- `cust_interworking_product.product_id` → `tenant_interworking_project.product_id`  _same_name_ score=7  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.0789, right->left=0.5, join_hits=24)
+- `platform_product_client.platform_product_id` → `tenant_interworking_product.platform_product_id`  _same_name_ score=7  verdict=`weak_overlap` — non-empty but thin overlap (left->right=0.4615, right->left=0.175, join_hits=12)
+
+## Rejected sample
+
+- `tenant_project_approval.flow_code` → `tenant_project_approval_flow_config.flow_code`  _same_name_ — one side has zero usable non-null values
+- `tenant_migarory_log.batch_no` → `tenant_migarory_log_bak.batch_no`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `tenant_project_approval_flow_config.code` → `tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config`  _ref_column_ — one side has zero usable non-null values
+- `tenant_migarory_log.req_no` → `tenant_migarory_log_bak.req_no`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `tenant_product.platform_product_code` → `tenant_interworking_product.platform_product_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `tenant_project.platform_product_code` → `tenant_interworking_project.platform_product_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `tenant_setting_config.apaas_tenant_code` → `tenant_setting_config_share.apaas_tenant_code`  _same_name_ — one side has zero usable non-null values
+- `tenant_setting_config.mp_dbass_app_id` → `tenant_setting_config_share.mp_dbass_app_id`  _same_name_ — one side has zero usable non-null values
+- `tenant_setting_config.operator_applet_code` → `tenant_setting_config_share.operator_applet_code`  _same_name_ — one side has zero usable non-null values
+- `tenant_setting_config.operator_qr_code` → `tenant_setting_config_share.operator_qr_code`  _same_name_ — one side has zero usable non-null values
+- `tenant_setting_config.operator_wechat_code` → `tenant_setting_config_share.operator_wechat_code`  _same_name_ — one side has zero usable non-null values
+- `tenant_setting_config.uni_social_credit_code` → `tenant_setting_config_share.uni_social_credit_code`  _same_name_ — one side has zero usable non-null values
+- `cust_company_lifecycle_info.company_id` → `cust_company_survey_whitelist.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_company_survey_state.company_id` → `cust_company_lifecycle_info.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_customized_product.cust_id` → `cust_interworking_product.cust_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_survey_answer.company_id` → `cust_company_survey_state.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_survey_answer.company_id` → `cust_company_survey_whitelist.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `tenant_product.platform_product_code` → `tenant_interworking_project.platform_product_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `tenant_project.platform_product_code` → `tenant_interworking_product.platform_product_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_auth_application.platform_product_code` → `cust_interworking_product.platform_product_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_build_record.cust_id` → `cust_auth_application_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_build_record.cust_id` → `cust_setting_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_change_record.cust_id` → `cust_auth_application_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_change_record.cust_id` → `cust_setting_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_company_info.channel_code` → `cust_project_code_record.channel_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_company_info.code` → `cust_company_lifecycle_info.ref_cust_company_info`  _ref_column_ — one side has zero usable non-null values
+- `cust_customized_product.cust_id` → `cust_auth_application_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_group_rel.cust_id` → `cust_auth_application_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_group_rel.cust_id` → `cust_interworking_product.cust_id`  _same_name_ — negligible overlap on large domains (left->right=0.0045, right->left=0.0099, join_hits=3, distinct L/R=571/261); not a usable equi-join
+- `cust_group_rel.cust_id` → `cust_setting_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_interworking_product.cust_id` → `cust_auth_application_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_invite_info.channel_code` → `cust_company_info.channel_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_person_info.certification_no` → `cust_company_info.certification_no`  _same_name_ — negligible overlap on large domains (left->right=0.0001, right->left=0.0, join_hits=5, distinct L/R=50887/53426); not a usable equi-join
+- `cust_person_info.certification_no` → `cust_head_company_info.certification_no`  _same_name_ — negligible overlap on large domains (left->right=0.0001, right->left=0.0116, join_hits=7, distinct L/R=50887/443); not a usable equi-join
+- `cust_project_code_record.company_id` → `wec_project_cust_operation_rel.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_project_pushcust.project_id` → `wec_project_cust_operation_rel.project_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_project_rel.channel_code` → `cust_company_info.channel_code`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_project_rel.project_id` → `wec_project_cust_operation_rel.project_id`  _same_name_ — negligible overlap on large domains (left->right=0.0, right->left=0.0021, join_hits=2, distinct L/R=1819/173); not a usable equi-join
+- `cust_setting_config.cust_id` → `cust_auth_application_config.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_setting_config.cust_id` → `cust_customized_product.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_setting_config.cust_id` → `cust_interworking_product.cust_id`  _same_name_ — one side has zero usable non-null values
+- `cust_shareholder_info.certification_no` → `cust_head_company_info.certification_no`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_survey_answer.company_id` → `cust_project_code_record.company_id`  _same_name_ — negligible overlap on large domains (left->right=0.0146, right->left=0.0057, join_hits=6, distinct L/R=66/263); not a usable equi-join
+- `cust_user_rel.company_id` → `cust_company_lifecycle_info.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_user_rel.company_id` → `cust_company_survey_state.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_user_rel.company_id` → `cust_company_survey_whitelist.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_user_rel.company_id` → `cust_oper_change_record.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_user_rel.company_id` → `cust_project_code_record.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `cust_user_rel.company_id` → `cust_survey_answer.company_id`  _same_name_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)
+- `tenant_product.id` → `tenant_interworking_project.product_id`  _hub_id_ — no shared values: join_hits=0 and both inclusion counts are 0 (cannot be an equi-join / same business key in this DB)

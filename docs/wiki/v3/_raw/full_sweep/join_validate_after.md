@@ -1,0 +1,595 @@
+# JOIN live validation (lowcode_pplatform)
+
+- generated_at: `2026-09-23T04:08:18.245246+00:00`
+- edges: 116
+- by_verdict: `{'fk_like': 86, 'shared_domain': 8, 'empty_endpoint': 12, 'weak_overlap': 10}`
+
+## empty_endpoint (12)
+
+- `open_sso_channel.app_id` → `cust_app_channel_config.app_id` (host=`open_sso_channel`, wiki trust=`confirmed`/`likely`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/1 (None) | right_in_left=None/0 (None)
+- `cust_auth_application.code` → `cust_role_info.ref_cust_auth_application` (host=`cust_auth_application`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/8376 (None) | right_in_left=None/0 (None)
+- `cust_company_info.code` → `cust_shareholder_info.ref_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/6943 (None) | right_in_left=None/0 (None)
+- `cust_company_info.id` → `cust_user_rel.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/6944 (None) | right_in_left=None/0 (None)
+- `open_sso_channel.channel_code` → `cust_company_info.channel_code` (host=`open_sso_channel`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/1 (None) | right_in_left=None/0 (None)
+- `cust_company_info.code` → `cust_customized_product.ref_cust_customized_product_cust_company_info` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/6943 (None) | right_in_left=None/0 (None)
+- `platform_product.id` → `platform_product_client.platform_product_id` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/13 (None) | right_in_left=None/0 (None)
+- `tenant_product_menu.menu_id` → `tenant_product_menu_res.menu_id` (host=`tenant_product_menu`, wiki trust=`confirmed`/`likely`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/1085 (None) | right_in_left=None/0 (None)
+- `tenant_product_menu.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu`, wiki trust=`confirmed`/`likely`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/1085 (None) | right_in_left=None/0 (None)
+- `tenant_project_approval.id` → `tenant_project.project_approval_id` (host=`tenant_project_approval`, wiki trust=`confirmed`/`likely`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/102 (None) | right_in_left=None/0 (None)
+- `tenant_project_approval_flow_config.flow_code` → `tenant_project_approval.flow_code` (host=`tenant_project_approval_flow_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/15 (None) | right_in_left=None/0 (None)
+- `tenant_project_approval_flow_config.code` → `tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config` (host=`tenant_project_approval_flow_config`, wiki trust=`proposed`/`unknown`)
+  - reason: one side has zero usable non-null values
+  - join_hits=None | left_in_right=None/0 (None) | right_in_left=None/0 (None)
+
+## weak_overlap (10)
+
+- `cust_company_info.code` → `cust_certification_info.ref_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.1132, right->left=0.9442, join_hits=786)
+  - join_hits=786 | left_in_right=786/6943 (0.1132) | right_in_left=3011/3189 (0.9442)
+  - intersection sample: ['001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '005288badfcd4b4cab00635c2838221f', '00bca0724143460c9da177443062be5a', '0100c5819bb54d80b82be4bfff601dd9', '0158b6b43ab2414793d595f25fc04f37', '019f0617322f4e38b43522d8f3de0540', '01ca559b0aac41969c5408da26707b7f']
+  - left-only sample: ['000ba01c643f4d398a98618fcce6914b', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005531408c5249c288f6cc27fc5477d0', '006fbd766e5c4742b8aa31ad439c2f2d', '007335e9df00457eac4ed05fccdc3349', '00839b23db6348a0935364e1441e311c']
+  - right-only sample: ['d9087abbed89420aaa8d599869e53b8d', '7e240d2624b84753bbcb68e729530351', 'b44e85bf1e4448fba7a8183d6d23ab5e', 'b94982d3bfae4074a2f0d6710380978b', 'e279e2a1eb7a4be093487950c7d4237e', 'ff8a237cdc35425e8ccae07ef68b9a88', '04167f035b1941fabb2a55a0fed2ac45', '43184d8eff70474f8d360b630007dce6']
+- `cust_company_info.id` → `cust_company_survey_state.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.0004, right->left=1.0, join_hits=3)
+  - join_hits=3 | left_in_right=3/6944 (0.0004) | right_in_left=3/3 (1.0)
+  - intersection sample: ['2054756667795542017', '2059215426912694274', '1990312127276859394']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.id` → `cust_company_survey_whitelist.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.0004, right->left=1.0, join_hits=3)
+  - join_hits=3 | left_in_right=3/6944 (0.0004) | right_in_left=3/3 (1.0)
+  - intersection sample: ['1990312127276859394', '2054756667795542017', '2059215426912694274']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `tenant_interworking_product.id` → `tenant_interworking_project.product_id` (host=`tenant_interworking_product`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.0333, right->left=1.0, join_hits=1)
+  - join_hits=1 | left_in_right=1/30 (0.0333) | right_in_left=1/1 (1.0)
+  - intersection sample: ['1881602583341228033']
+  - left-only sample: ['1927641161237921793', '1927641099082530818', '1881602756515651586', '1881904510483730433', '1881999947661385730', '1901558258419777537', '1932640163237298178', '1952195235482439681']
+- `tenant_interworking_product.code` → `tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product` (host=`tenant_interworking_product`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.0333, right->left=1.0, join_hits=1)
+  - join_hits=1 | left_in_right=1/30 (0.0333) | right_in_left=1/1 (1.0)
+  - intersection sample: ['2c454e3da9d145d7b13c33a551653223']
+  - left-only sample: ['733315c434694ed4969b9adc9b5f48f9', '051f3a80970543909d9633df5467fc9c', '47559d2b80924b51a58b954aeb13ddf4', '399cbc6f2cbb4afe996c85ed6c147330', '6a885b89ac4c44a2bb7f2be56dcb98c7', '44de76148676490fad881c8f678a8996', '728ef6a3c8d24dc78ac8b4a2c05444b5', '377d1c157bae4ef9bcc1723f094f7a29']
+- `tenant_interworking_product.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_product`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.3333, right->left=1.0, join_hits=10)
+  - join_hits=10 | left_in_right=10/30 (0.3333) | right_in_left=1/1 (1.0)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP2', 'HTCP1', 'HTCP3', 'HTCP4']
+- `tenant_project.id` → `tenant_interworking_project.project_id` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.0003, right->left=1.0, join_hits=1)
+  - join_hits=1 | left_in_right=1/3955 (0.0003) | right_in_left=1/1 (1.0)
+  - intersection sample: ['1834529026418270209']
+  - left-only sample: ['7040501466974679040', '7201163812199690240', '7013832178061910016', '7150312967585423360', '2029381519250370561', '2029507051112419329', '6772446681310121984', '7170969840847376384']
+- `tenant_setting_config.id` → `tenant_interworking_project.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.0035, right->left=1.0, join_hits=1)
+  - join_hits=1 | left_in_right=1/282 (0.0035) | right_in_left=1/1 (1.0)
+  - intersection sample: ['1834486698301034497']
+  - left-only sample: ['110', '124', '6943081066229796864', '6955030843458985984', '6971285050377105408', '6998543733351383040', '7004329482380849152', '7014170378068402176']
+- `tenant_setting_config.code` → `tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config` (host=`tenant_setting_config`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0035, right->left=1.0, join_hits=1)
+  - join_hits=1 | left_in_right=1/282 (0.0035) | right_in_left=1/1 (1.0)
+  - intersection sample: ['a5c1931c98b24d24a3d67d4d4d7104c8']
+  - left-only sample: ['002d9a13362d487b91f61b0635a5c1af', '00eca9456b3044a0853af8e783fd94c0', '01084cb262c94144b020f72d3cceb2de', '018507a1bc2446508a42847f5722e6dc', '027c1a1d63444f2eb698e445750c9112', '046bdd40b17d47098061f2606c777a95', '05a6b1301e9542bfa8dc48d8fcfcf4f6', '0773f70ab00f4310b6422dc13047035d']
+- `tenant_project.code` → `tenant_project_approval.ref_tenant_project_approval_tenant_project` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: non-empty but thin overlap (left->right=0.0185, right->left=0.9216, join_hits=73)
+  - join_hits=73 | left_in_right=73/3955 (0.0185) | right_in_left=94/102 (0.9216)
+  - intersection sample: ['02d9253adebf4c878dcf160585a59658', '0d0938b2f37242db8aad292e06cb2fd1', '114d5389d2b54ef59f167034bbf30bbe', '13d860c32fdd4fc0ab1cba6ee7d93074', '17dc5c0496e1493999e8c604be31e83f', '18ac85c8fb66463aa32bb0324415a876', '1c33594258dc43099489fce796232805', '1d8bd073fa4f4d159a82e240e27a91c8']
+  - left-only sample: ['00012c8add6239834de1abe8610b04b4', '000735bc45776c496d017e3678e03494', '00361587e32e59d9dd2fd9c3fb9558b8', '003a5cba3b9f69432d7306893269dc9f', '003ca37e65c04bf9831324c85f1ecad4', '0041536ab2f74c3c963aa814001c0ed8', '0044b7ceeba9019d45aa773003a5778d', '0073dde72465c9e529d17490920cf72f']
+  - right-only sample: ['21a7acada0c9442083492c7dece3b9ba', '30a58de470d947a8873c356413037f60', '3fb191c04e1b4e5786da98b6e0ec6b19', 'bb45dc5b76e0482cbd611dfa2a36025c', 'e725a39f3d4a4ebfb253b46ab723ea11', 'fc749739d738476cab00e1bf755de325']
+
+## shared_domain (8)
+
+- `authorization_agreement.platform_product_code` → `cust_auth_application.platform_product_code` (host=`authorization_agreement`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=0.6364, right->left=0.9241); same value domain / business code space likely
+  - join_hits=4753 | left_in_right=4753/7468 (0.6364) | right_in_left=7740/8376 (0.9241)
+  - intersection sample: ['RVSFACTOR_PC', 'ACFLOW', 'ORDER', 'STORAGE']
+  - left-only sample: ['PLATFORM']
+  - right-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT']
+- `authorization_agreement.platform_product_code` → `tenant_product.platform_product_code` (host=`authorization_agreement`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=0.6364, right->left=0.8557); same value domain / business code space likely
+  - join_hits=4753 | left_in_right=4753/7468 (0.6364) | right_in_left=332/388 (0.8557)
+  - intersection sample: ['RVSFACTOR_PC', 'ACFLOW', 'ORDER', 'STORAGE']
+  - left-only sample: ['PLATFORM']
+  - right-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT']
+- `cust_change_cfg.id` → `cust_change_record.alter_type_id` (host=`cust_change_cfg`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=0.5143, right->left=0.9377); same value domain / business code space likely
+  - join_hits=72 | left_in_right=72/140 (0.5143) | right_in_left=1068/1139 (0.9377)
+  - intersection sample: ['165', '151', '157', '159', '152', '163', '175', '172']
+  - left-only sample: ['110', '111', '112', '114', '115', '116', '117', '118']
+  - right-only sample: ['158,159,160,161,162', '159,160', '120', '174,175,176', '156', '146,148,149', '177,180', '172,173,181']
+- `funding_rule_info.product_code` → `funding_exception_resolution.product_code` (host=`funding_rule_info`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain / business code space likely
+  - join_hits=7 | left_in_right=7/7 (1.0) | right_in_left=3/3 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_detail.product_code` → `funding_exception_resolution.product_code` (host=`funding_rule_detail`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain / business code space likely
+  - join_hits=210 | left_in_right=210/210 (1.0) | right_in_left=3/3 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_front_cfg.product_code` → `funding_exception_resolution.product_code` (host=`funding_rule_front_cfg`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain / business code space likely
+  - join_hits=47 | left_in_right=47/47 (1.0) | right_in_left=3/3 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_info.id` → `funding_rule_detail.rule_info_id` (host=`funding_rule_info`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.7048); same value domain / business code space likely
+  - join_hits=7 | left_in_right=7/7 (1.0) | right_in_left=148/210 (0.7048)
+  - intersection sample: ['2069597579943972866', '2092548492781105154', '2054499395685158914', '2054466982577803265', '2092501419130040322', '2054106713562079234', '2094343485646241794']
+  - right-only sample: ['2054031989814272001', '2054034858646904834', '2069253616527577090', '2069695189325287426']
+- `funding_rule_info.code` → `funding_rule_detail.fund_rule_code_ref` (host=`funding_rule_info`, wiki trust=`confirmed`/`likely`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.7048); same value domain / business code space likely
+  - join_hits=7 | left_in_right=7/7 (1.0) | right_in_left=148/210 (0.7048)
+  - intersection sample: ['9127d6cc072b89d6cc23174be93fa95f', '24efacb07db0363e5b875c08efd700c7', 'aff6c785cb2188251c367f1b6b13e3c6', '5586278598ac4d0b4bf070bbb9e3f7e0', 'cea0b8623908a1ad3c5e9b5d7ca66627', 'e3bbdc3dc139ebcb0ffc5316d8ee6cfc', 'ef81f8e7e28187df50c32df8b022ef96']
+  - right-only sample: ['64ea4312a885fde3c310c958ea17a314', 'a7a20a3b2c7c62485b54fd8c2bca94c5', 'd2645f61b163990f0ffd763aadd3fec6', 'efb23e27a1480dae673344a68a4b34e2']
+
+## fk_like (86)
+
+- `cust_company_info.id` → `argeement_migratory_record.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9659); consistent with FK / identity reference
+  - join_hits=4422 | left_in_right=4422/6944 (0.6368) | right_in_left=23900/24745 (0.9659)
+  - intersection sample: ['1911756589664497665', '1911755363692126209', '1945812705981009921', '1911766588411277313', '1911754985533677570', '1911764484168425474', '1946027817796939778', '1946025041083805698']
+  - left-only sample: ['1787385139422498817', '2079488028335845378', '2069299454190993409', '1938516931319115778', '1783675878140190722', '1900463248852353026', '1953282069382307842', '1950150439090098178']
+  - right-only sample: ['1911753934376464386', '1911754249683267585', '1911754512376721409', '1911754552547287042', '1911754613842845698', '1911754791828135938', '1911754795447820290', '1911754801238437890']
+- `cust_company_info.id` → `authorization_agreement.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9798); consistent with FK / identity reference
+  - join_hits=6542 | left_in_right=6542/6944 (0.9421) | right_in_left=7317/7468 (0.9798)
+  - intersection sample: ['999999999', '1769643061090951169', '1780135817332989953', '1780439039931891713', '1780439608255889409', '1780494907582767106', '1780520576823910402', '1780524114991964162']
+  - left-only sample: ['1787385139422498817', '1900463248852353026', '1904179267850670082', '2079841489887232001', '2048639191955972098', '1946025401420656641', '1952298365217972226', '1937024518959509505']
+  - right-only sample: ['1834422377406496769', '1911755448287043585', '1911757889183227906', '1911761398668914689', '1911764928173252609', '1911765078705106945', '1911765328039702529', '1911765678915919874']
+- `cust_company_info.id` → `ca_certification_info.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9889); consistent with FK / identity reference
+  - join_hits=385 | left_in_right=385/6944 (0.0554) | right_in_left=535/541 (0.9889)
+  - intersection sample: ['1780135817332989953', '1780439039931891713', '1780439608255889409', '1783675878140190722', '1787391909452779521', '1800730276048891906', '1801501334283468802', '1803266206478225410']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1911766588411277313']
+  - right-only sample: ['2059892245314641921', '2059957698836643842', '2071554135783940097']
+- `cust_company_info.id` → `ca_cfca_upgrade_report.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=12 | left_in_right=12/6944 (0.0017) | right_in_left=54/54 (1.0)
+  - intersection sample: ['1990312492938608642', '1911763720102932482', '1911756022103863298', '2000863654310772738', '2018232423267807234', '1911759737556758529', '1911759762648801281', '1911760388764397570']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.certification_no` → `ca_cfca_upgrade_report.certification_no` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=14 | left_in_right=14/6903 (0.002) | right_in_left=54/54 (1.0)
+  - intersection sample: ['9154295713WK31PJUN', '328490324938401824', '914403003600171143', '91110108558521630L', '81110000RXYGTERP4T', '91110112772574792H', '12440300G347861750', '91440101231240000A']
+  - left-only sample: ['00010100101010', '0111010599356423X1', '012345678912345678', '01420106597948717P', '01837063194096847W', '023539665597832220', '02424529364322334N', '02666518730667982R']
+- `cust_company_info.certification_no` → `ca_fee_company.certification_no` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9903); consistent with FK / identity reference
+  - join_hits=350 | left_in_right=350/6903 (0.0507) | right_in_left=306/309 (0.9903)
+  - intersection sample: ['91597945Y0J74B148W', '91719824744H34MWYR', '91866456DKJWKNGL7Y', '91542017PN4W8752XF', '91110302089670122N', '511423405252476639', '991000003LFR9WH76L', '91110108551385082Q']
+  - left-only sample: ['00010100101010', '0111010599356423X1', '012345678912345678', '01420106597948717P', '01837063194096847W', '023539665597832220', '02424529364322334N', '02666518730667982R']
+  - right-only sample: ['795608703020758163', '91310000631189305E', '91310106MA1FY1EK3K']
+- `tenant_project.id` → `ca_fee_company.source_project_id` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=20 | left_in_right=20/3955 (0.0051) | right_in_left=302/302 (1.0)
+  - intersection sample: ['2071776024215285762', '1999360669689671682', '2000809635448430593', '2079758199390646273', '1834469788501377025', '2076865658692407297', '7108364188005183488', '2081554793423179777']
+  - left-only sample: ['7040501466974679040', '7201163812199690240', '7013832178061910016', '7150312967585423360', '2029381519250370561', '2029507051112419329', '6772446681310121984', '7170969840847376384']
+- `tenant_setting_config.id` → `ca_fee_company.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=4 | left_in_right=4/282 (0.0142) | right_in_left=290/290 (1.0)
+  - intersection sample: ['143', '1834486698301034497', '7234033208120963072', '7298250166663663616']
+  - left-only sample: ['110', '124', '6943081066229796864', '6955030843458985984', '6971285050377105408', '6998543733351383040', '7004329482380849152', '7014170378068402176']
+- `ca_fee_company.certification_no` → `ca_fee_order.certification_no` (host=`ca_fee_company`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=302 | left_in_right=302/309 (0.9773) | right_in_left=520/520 (1.0)
+  - intersection sample: ['91597945Y0J74B148W', '91719824744H34MWYR', '91866456DKJWKNGL7Y', '91542017PN4W8752XF', '91110302089670122N', '511423405252476639', '991000003LFR9WH76L', '91110108551385082Q']
+  - left-only sample: ['795608703020758163', '91350900587527783P', '91310000631189305E', '91310106MA1FY1EK3K', '91340111MA2R95NL69', '9152000071430580XT', '91420106441363050F']
+- `tenant_project.id` → `ca_fee_order.project_id` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=20 | left_in_right=20/3955 (0.0051) | right_in_left=520/520 (1.0)
+  - intersection sample: ['2071776024215285762', '2000809635448430593', '2076865658692407297', '7108364188005183488', '2079758199390646273', '2081554793423179777', '1904817354385862657', '1834469788501377025']
+  - left-only sample: ['7040501466974679040', '7201163812199690240', '7013832178061910016', '7150312967585423360', '2029381519250370561', '2029507051112419329', '6772446681310121984', '7170969840847376384']
+- `tenant_setting_config.id` → `ca_fee_order.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=4 | left_in_right=4/282 (0.0142) | right_in_left=520/520 (1.0)
+  - intersection sample: ['143', '1834486698301034497', '7234033208120963072', '7298250166663663616']
+  - left-only sample: ['110', '124', '6943081066229796864', '6955030843458985984', '6971285050377105408', '6998543733351383040', '7004329482380849152', '7014170378068402176']
+- `cust_company_info.id` → `ca_fee_order.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9923); consistent with FK / identity reference
+  - join_hits=302 | left_in_right=302/6944 (0.0435) | right_in_left=516/520 (0.9923)
+  - intersection sample: ['2071778374458855425', '2071794858904047618', '2071856567116484609', '2071881818694406145', '1999372082828382210', '1861605368036356098', '2060592069239762945', '1911755193030090754']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+  - right-only sample: ['2076858918786867201', '2081637009689858049', '2081995125993312257']
+- `cust_company_info.certification_no` → `ca_fee_order.certification_no` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=343 | left_in_right=343/6903 (0.0497) | right_in_left=520/520 (1.0)
+  - intersection sample: ['91597945Y0J74B148W', '91719824744H34MWYR', '91866456DKJWKNGL7Y', '91542017PN4W8752XF', '91110302089670122N', '511423405252476639', '991000003LFR9WH76L', '91110108551385082Q']
+  - left-only sample: ['00010100101010', '0111010599356423X1', '012345678912345678', '01420106597948717P', '01837063194096847W', '023539665597832220', '02424529364322334N', '02666518730667982R']
+- `tenant_project.id` → `ca_fee_project_config.project_id` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9591); consistent with FK / identity reference
+  - join_hits=328 | left_in_right=328/3955 (0.0829) | right_in_left=328/342 (0.9591)
+  - intersection sample: ['2071526691993108482', '2071482109157093378', '2071522243864866818', '2071773064725970945', '2071776024215285762', '2071782546324451329', '2071503665673449473', '1959800725843472386']
+  - left-only sample: ['7040501466974679040', '7201163812199690240', '7013832178061910016', '7150312967585423360', '2029381519250370561', '2029507051112419329', '6772446681310121984', '7170969840847376384']
+  - right-only sample: ['2074043646053900290', '2084458895555211266', '2084558607968051202', '2084554221978488833', '2084576035861532674', '2085248298718777346', '2085249454379552770', '2085253688579772417']
+- `tenant_setting_config.id` → `ca_fee_project_config.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=28 | left_in_right=28/282 (0.0993) | right_in_left=342/342 (1.0)
+  - intersection sample: ['143', '7076752675384528896', '2074023750821793793', '101', '2066405606064201729', '7234033208120963072', '142', '122']
+  - left-only sample: ['110', '124', '6943081066229796864', '6955030843458985984', '6971285050377105408', '6998543733351383040', '7004329482380849152', '7014170378068402176']
+- `cust_company_info.code` → `cust_account_info.ref_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.979); consistent with FK / identity reference
+  - join_hits=1916 | left_in_right=1916/6943 (0.276) | right_in_left=1954/1996 (0.979)
+  - intersection sample: ['268ab9b1cace4bafab90ab7a66bb182a', '74a692b4c8b840f69845d271367a546a', '0c0cf1d3425946c0b45d277b3b74908e', '8647176561994008ad3404ab0eaf443f', '9f49212769944040b0c4950e33d09169', 'fc4e02b72f41409ca80abdbdf5b399e2', '7b2aa44537854eac8cf73aa62cbddb9d', '9805a4226b794e1c8610472d01c89e00']
+  - left-only sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0', '006fbd766e5c4742b8aa31ad439c2f2d']
+  - right-only sample: ['d9087abbed89420aaa8d599869e53b8d', '7e240d2624b84753bbcb68e729530351', 'b44e85bf1e4448fba7a8183d6d23ab5e', 'd61e82dfdef042cb9390c6cc269f9897', '552d0b6554b041f2ad90eb3bc5b6dc08', '8674bb9200814d7a88572b45fb12126a', 'b345a550569848438063e85baa66f034', 'c5d05dfc1c824dbdaa7e80d06646e167']
+- `cust_company_info.code` → `cust_auth_application.ref_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9747); consistent with FK / identity reference
+  - join_hits=6566 | left_in_right=6566/6943 (0.9457) | right_in_left=8164/8376 (0.9747)
+  - intersection sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0']
+  - left-only sample: ['008bed9e28434071a954ae6d24459478', '009c0a43cd7046fe8291a6af3474c59e', '017497112f8e4ab28d87ddfbbe2f3557', '019ce16d458045e49ffb65294717f8c8', '01eb593dcd7e47a2b2c479b9cc222e2a', '040e26c08c964bcf8b6d45ba1d629d59', '043796cf714244c996b0df05e6e6c879', '045d79138c02489fbc3b6dd0cfe6848f']
+  - right-only sample: ['026a6d107f554160a3261264bad5d3fb', '0274940fd9764b518d0fe2fa15f9a417', '04af0782f89b46aeb3916847a8a432d2', '055d766c79344fc496d0d0a37c4c3417', '0c8fa094e2d64c1884111e063f7a210e', '104f3c854b8d4de99b7a65275a5c0cce', '119d56712a524d519be7f3d45ccf94b9', '11d7c9df2d4345968c573ff12dd2c186']
+- `cust_auth_application.platform_product_code` → `tenant_product.platform_product_code` (host=`cust_auth_application`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=8376 | left_in_right=8376/8376 (1.0) | right_in_left=388/388 (1.0)
+  - intersection sample: ['RVSFACTOR_PC', 'ACFLOW', 'BEECREDIT', 'ORDER', 'STORAGE', 'VOUCHER', 'DRAFT']
+- `tenant_product.code` → `cust_auth_application.ref_cust_auth_application_tenant_product` (host=`tenant_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9993); consistent with FK / identity reference
+  - join_hits=217 | left_in_right=217/388 (0.5593) | right_in_left=8370/8376 (0.9993)
+  - intersection sample: ['00343497fb824960ac930eca5cbf6f86', '00f8c0adc7c646ca9e6902a1298559bb', '01938b7506724987b0bc678aed2b0445', '01d3a5eab4f941059142665799c5655f', '0204d91f86fb4de6bf6c621f601523fa', '02104322b1df4f26965ca336703014b7', '027289c536844aa681958e579912d512', '028f49a112854e02bd09df65c8d8dfde']
+  - left-only sample: ['006a8312406143cc9e2c581bc600efe9', '0361ed97a5354ba8860fe384fb39cd55', '04907460b46c4fb2a847a66e2ab97ce7', '04fe7f548e6b4f70acdfa562bed5f76a', '0603ae6014ba481080af7420247acf21', '06cc45d757c94d21b20ed6fb68399211', '072a581a46e44d988b9f73bfcb3704f7', '08172127df524dc78b6b364d318e6d32']
+  - right-only sample: ['6523409e550f4da49f5a58ce5dea0ac9', '3d75d7ad258d445c80504679cad59242', 'a7535b2377a5410da18b1027fc1b5699', 'cf3baa0707d3452f84ed68ba35be6df1', 'da1e3038ba994de3aba89777ce4bfc87', 'fb41b37d5f304bfb882f3f128c2f352a']
+- `cust_company_info.id` → `cust_auth_application.main_data_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9746); consistent with FK / identity reference
+  - join_hits=6565 | left_in_right=6565/6944 (0.9454) | right_in_left=8163/8376 (0.9746)
+  - intersection sample: ['1911764211331428353', '1911764627932389377', '1911765197202583554', '1911765325619589122', '1911765499888726017', '1911765597301436418', '1911765651631972353', '1911765825020305410']
+  - left-only sample: ['1787385139422498817', '1900463248852353026', '1950150439090098178', '1904179267850670082', '1839241780684365826', '2079841489887232001', '1952298365217972226', '1946042010986131458']
+  - right-only sample: ['1834422377406496769', '1849375432775680001', '1911755448287043585', '1911757889183227906', '1911761398668914689', '1911764928173252609', '1911765078705106945', '1911765328039702529']
+- `cust_company_info.code` → `cust_auth_application.ref_parent_company` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9747); consistent with FK / identity reference
+  - join_hits=6566 | left_in_right=6566/6943 (0.9457) | right_in_left=8164/8376 (0.9747)
+  - intersection sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0']
+  - left-only sample: ['008bed9e28434071a954ae6d24459478', '009c0a43cd7046fe8291a6af3474c59e', '017497112f8e4ab28d87ddfbbe2f3557', '019ce16d458045e49ffb65294717f8c8', '01eb593dcd7e47a2b2c479b9cc222e2a', '040e26c08c964bcf8b6d45ba1d629d59', '043796cf714244c996b0df05e6e6c879', '045d79138c02489fbc3b6dd0cfe6848f']
+  - right-only sample: ['b44e85bf1e4448fba7a8183d6d23ab5e', '42cbfe81936844b08bb0dce40e27a734', '9490e93190a140ad8d73e4168ba0752f', '45e99a75058c4d249b54fdaa719f64a6', 'd61e82dfdef042cb9390c6cc269f9897', 'e25a780a83d64f25ab5a32f2814ae553', 'e9ec701becff42198af3a4a0298a0b01', '2a6c3677529142cea4bc544e99e9cdf3']
+- `cust_company_info.id` → `cust_build_record.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9874); consistent with FK / identity reference
+  - join_hits=1405 | left_in_right=1405/6944 (0.2023) | right_in_left=1483/1502 (0.9874)
+  - intersection sample: ['1899364997945552897', '1899667841164701698', '1899703144364388353', '1899728530734022658', '1900002649450442754', '1900013818595553282', '1900058843408805890', '1900069775267840001']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '1911755363692126209', '1945812705981009921', '1783675878140190722', '1911766588411277313', '1911754985533677570', '1911764484168425474']
+  - right-only sample: ['1898994850742259714', '1900426130292801537', '1904135889732468737', '1910301626588418050', '1914878913860710401', '1914976240532881409', '1920659677167566849', '1921752633752502273']
+- `cust_person_info.id` → `cust_build_record.person_id` (host=`cust_person_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9867); consistent with FK / identity reference
+  - join_hits=1407 | left_in_right=1407/9750 (0.1443) | right_in_left=1482/1502 (0.9867)
+  - intersection sample: ['1899364998788608002', '1899667842003562497', '1899703144657989633', '1899728531577077762', '1900002649769209857', '1900013819438608386', '1900058844247666690', '1900069776110895105']
+  - left-only sample: ['1834527005053149186', '1834864889553027074', '1846951584015192066', '1851199159440117761', '1854079664449634306', '1856168848560066561', '1861616829104721922', '1861616889301372929']
+  - right-only sample: ['1898994851581120513', '1904135890575523842', '1910301627137871873', '1914878914703765505', '1914976240826482689', '1919998036603748353', '1920659678006427649', '1921752634591363074']
+- `cust_company_info.id` → `cust_change_record.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9965); consistent with FK / identity reference
+  - join_hits=565 | left_in_right=565/6944 (0.0814) | right_in_left=1135/1139 (0.9965)
+  - intersection sample: ['1834468222030020609', '1834429994115137537', '1834478427912474625', '1834436576525811713', '1834781510535827458', '1834533601850679298', '1836361101133295618', '1836324196752494594']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1911766588411277313']
+  - right-only sample: ['1914976240532881409', '1921752633752502273', '2016077865022197762']
+- `cust_company_info.id` → `cust_company_lifecycle_info.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=28 | left_in_right=28/6944 (0.004) | right_in_left=51/51 (1.0)
+  - intersection sample: ['1957319438236942337', '1957327434434859009', '1957325571711569921', '1957322176103714817', '1957384995903479810', '1957331382031822850', '1957689997985447938', '1955098328314822657']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.id` → `cust_customized_product.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=15 | left_in_right=15/6944 (0.0022) | right_in_left=18/18 (1.0)
+  - intersection sample: ['1861692098431750145', '1861697910573993986', '1867021996592672770', '1867035790625591297', '1881608748612313089', '1854484874144432130', '1900118725856112642', '1911761003743354881']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.id` → `cust_group_rel.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=120 | left_in_right=120/6944 (0.0173) | right_in_left=140/140 (1.0)
+  - intersection sample: ['1769643061090951169', '1780439039931891713', '1787391909452779521', '1813480526784098305', '1834425656563073025', '1834436576525811713', '1834533601850679298', '1834539392909041666']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.code` → `cust_head_company_info.ref_cust_head_company_info_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9708); consistent with FK / identity reference
+  - join_hits=131 | left_in_right=131/6943 (0.0189) | right_in_left=133/137 (0.9708)
+  - intersection sample: ['03bc4fbcf1d547909f0642509c09337f', '7a9c60f1e56d4725a0e9fae4d3214431', '0a8a6ab519bb4301b150e3b1b8a08859', 'c67cb231a6524600be7f851311c35188', '0db47796b3704821b9fc7deecf10d1b6', '7f09be1c885a4437ae6437d582672ec8', 'dada5b83157846bc81a838ef9160a29d', '9ed5499e38434dea80c5c51ebc0660b6']
+  - left-only sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0']
+  - right-only sample: ['e39e6f11735b42a3a977a169ca4e95e7', '62e37203150e4101b6996af6830029ef', 'e5fca27dadfa4bb1bb72cf8e10ab4258', '22626ecb163e418496e05d7b7b39b309']
+- `cust_company_info.id` → `cust_interworking_product.cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=15 | left_in_right=15/6944 (0.0022) | right_in_left=17/17 (1.0)
+  - intersection sample: ['1854498944079298562', '1909151263235039233', '1935587280983818242', '1935599138390638594', '1935610556024324097', '1935693111307616257', '1948212701913915393', '1948212716480733185']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.code` → `cust_interworking_product.ref_cust_interworking_product_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=15 | left_in_right=15/6943 (0.0022) | right_in_left=17/17 (1.0)
+  - intersection sample: ['0922ed9daa38486ebd199b411d6e4b9b', '1f4572bbbe2c443d852aecc40ccf8826', '3046db1acd104e8d8f6d8f615558ef93', '399a75caf5bd42d9ac91e0fc8034ddbb', '44a5872baeca4d379129411d0a55d1e9', '4a9edb54a468445890629287186f9f7c', '523768aa8d2f495497a6b7a1e857f624', '7ef054e12d2f4d70b732c8f9c634e21d']
+  - left-only sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0']
+- `cust_company_info.id` → `cust_invite_info.invite_cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=23 | left_in_right=23/6944 (0.0033) | right_in_left=43/43 (1.0)
+  - intersection sample: ['1834468222030020609', '1837098042278023170', '1836644953363738625', '1851864529549328386', '1839218747602853889', '1854839601322176514', '1900118725856112642', '1902256134403309570']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.id` → `cust_oper_change_record.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.984); consistent with FK / identity reference
+  - join_hits=72 | left_in_right=72/6944 (0.0104) | right_in_left=184/187 (0.984)
+  - intersection sample: ['1813480526784098305', '1920408388755787777', '1999372082828382210', '2036733467928424449', '2036271390816673794', '2001172746350821378', '1990312127276859394', '1911753978156609538']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1911766588411277313']
+  - right-only sample: ['1911758305772367873', '1911754795447820290']
+- `cust_company_info.code` → `cust_oper_change_record.company_code` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=74 | left_in_right=74/6943 (0.0107) | right_in_left=187/187 (1.0)
+  - intersection sample: ['d5006835a14644b0b49ef8fca1e7da27', 'e9de2ded0d17435695978b26af5cc673', '02d68b6c07e04a3a82042d4f2c5810c4', '49ae711e27a74e4391416d8dd8416233', '14f4a32fd41544deae2f7058ed0368cd', '350987e739864050ad8657350eb0c829', 'e6686449d7364a3b8b2658e1fb696910', '6bc87c8af1ad4c9894208a82d62ed47f']
+  - left-only sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005531408c5249c288f6cc27fc5477d0', '006fbd766e5c4742b8aa31ad439c2f2d']
+- `cust_company_info.code` → `cust_person_info.ref_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9876); consistent with FK / identity reference
+  - join_hits=6860 | left_in_right=6860/6943 (0.988) | right_in_left=9629/9750 (0.9876)
+  - intersection sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0']
+  - left-only sample: ['040e26c08c964bcf8b6d45ba1d629d59', '0495466adb7f421c862783091d6f45b9', '06467a18cc0e44adbef423852ad66c0b', '0f80f631a4b940f28b52d49a367298ea', '10cea0191f984c3f8d0ec4e8ff1acefa', '1254050fc8cc49ee9a7faa51d4db5752', '13418269385041aebe03b0f4634d2cab', '1352285a813e4aa2a2fe8e084aa86cd1']
+  - right-only sample: ['026a6d107f554160a3261264bad5d3fb', '0274940fd9764b518d0fe2fa15f9a417', '0c8fa094e2d64c1884111e063f7a210e', '104f3c854b8d4de99b7a65275a5c0cce', '119d56712a524d519be7f3d45ccf94b9', '11d7c9df2d4345968c573ff12dd2c186', '12ade264b9bc43b98d2a96b0ec0f8e1b', '151d432f4bc048f6a29d55fd3566350e']
+- `cust_company_info.id` → `cust_person_info.cust_company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9791); consistent with FK / identity reference
+  - join_hits=6785 | left_in_right=6785/6944 (0.9771) | right_in_left=9437/9638 (0.9791)
+  - intersection sample: ['999999999', '1769643061090951169', '1780135817332989953', '1780439039931891713', '1780439608255889409', '1780525610542358529', '1783675878140190722', '1787391909452779521']
+  - left-only sample: ['1787385139422498817', '1900463248852353026', '1952298365217972226', '2092539359517196290', '1830908040119492609', '1965654688495235073', '1905527420926767106', '2048679688956391425']
+  - right-only sample: ['1836334141573107713', '1846884365676269569', '1857257597072338946', '1857257626440855554', '1857257654063820802', '1900426130292801537', '1900467934198820866', '1904720909614649345']
+- `cust_company_info.id` → `cust_project_code_record.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9901); consistent with FK / identity reference
+  - join_hits=164 | left_in_right=164/6944 (0.0236) | right_in_left=201/203 (0.9901)
+  - intersection sample: ['1834539392909041666', '1834785760516902913', '1838203438238978050', '1850796605225103361', '1849347292785209345', '1859525729083740161', '1861978799291531265', '1872095976295616513']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+  - right-only sample: ['1849375432775680001', '1910301626588418050']
+- `cust_company_info.code` → `cust_project_rel.ref_cust_project_rel_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9881); consistent with FK / identity reference
+  - join_hits=6655 | left_in_right=6655/6943 (0.9585) | right_in_left=15832/16022 (0.9881)
+  - intersection sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0']
+  - left-only sample: ['009c0a43cd7046fe8291a6af3474c59e', '017497112f8e4ab28d87ddfbbe2f3557', '019ce16d458045e49ffb65294717f8c8', '01eb593dcd7e47a2b2c479b9cc222e2a', '04015f43358d477192531270d4a99b46', '043796cf714244c996b0df05e6e6c879', '0495466adb7f421c862783091d6f45b9', '05d823fab124496a85304b250e993cd8']
+  - right-only sample: ['026a6d107f554160a3261264bad5d3fb', '0274940fd9764b518d0fe2fa15f9a417', '055d766c79344fc496d0d0a37c4c3417', '0c8fa094e2d64c1884111e063f7a210e', '104f3c854b8d4de99b7a65275a5c0cce', '119d56712a524d519be7f3d45ccf94b9', '11d7c9df2d4345968c573ff12dd2c186', '12ade264b9bc43b98d2a96b0ec0f8e1b']
+- `cust_company_info.code` → `cust_role_info.ref_cust_company_info` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.977); consistent with FK / identity reference
+  - join_hits=6840 | left_in_right=6840/6943 (0.9852) | right_in_left=7211/7381 (0.977)
+  - intersection sample: ['000ba01c643f4d398a98618fcce6914b', '001331b8fd214bda9cd2c849cc2d1950', '0013a1830f7640bb8cce61f83df7f4e9', '0035a396ea45469ba25e9c8c15d06db3', '003a42f8e26b40ee8deb47a049aa94c5', '0040da4bfef04b168fd678952b01ba5e', '005288badfcd4b4cab00635c2838221f', '005531408c5249c288f6cc27fc5477d0']
+  - left-only sample: ['0495466adb7f421c862783091d6f45b9', '06467a18cc0e44adbef423852ad66c0b', '0f80f631a4b940f28b52d49a367298ea', '10cea0191f984c3f8d0ec4e8ff1acefa', '1254050fc8cc49ee9a7faa51d4db5752', '13418269385041aebe03b0f4634d2cab', '1352285a813e4aa2a2fe8e084aa86cd1', '147049f5898648d7bd8a8ecf72dd10a0']
+  - right-only sample: ['006fe78249c944eaad60eaf65b602217', '026a6d107f554160a3261264bad5d3fb', '0274940fd9764b518d0fe2fa15f9a417', '04f77d20fd3d4881a994de919524ada8', '055d766c79344fc496d0d0a37c4c3417', '057a166f5a234965942bc0ab18676815', '0c8fa094e2d64c1884111e063f7a210e', '104f3c854b8d4de99b7a65275a5c0cce']
+- `cust_company_info.id` → `cust_survey_answer.company_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9774); consistent with FK / identity reference
+  - join_hits=44 | left_in_right=44/6944 (0.0063) | right_in_left=303/310 (0.9774)
+  - intersection sample: ['2071546339814318081', '2071935290058080258', '2001172746350821378', '2071881818694406145', '2068985848691527682', '1920408388755787777', '1999372082828382210', '1780135817332989953']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722', '1911766588411277313']
+  - right-only sample: ['1911754795447820290']
+- `cust_company_info.id` → `cust_group_rel.parent_cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=46 | left_in_right=46/6944 (0.0066) | right_in_left=89/89 (1.0)
+  - intersection sample: ['1834539392909041666', '1965330436031328257', '1834436576525811713', '1965332272721244162', '1965654687534739457', '1965654688495235073', '1965654689376038914', '1965979723597365250']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `cust_company_info.id` → `cust_group_rel.root_cust_id` (host=`cust_company_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=51 | left_in_right=51/6944 (0.0073) | right_in_left=140/140 (1.0)
+  - intersection sample: ['1834539392909041666', '1965330436031328257', '1965332272721244162', '1911759518485782529', '1965654687534739457', '1965959866540949505', '1962409679496609794', '1965974881130815490']
+  - left-only sample: ['1787385139422498817', '1911756589664497665', '2079488028335845378', '2069299454190993409', '1911755363692126209', '1938516931319115778', '1945812705981009921', '1783675878140190722']
+- `tenant_interworking_product.code` → `cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product` (host=`tenant_interworking_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=8 | left_in_right=8/30 (0.2667) | right_in_left=17/17 (1.0)
+  - intersection sample: ['733315c434694ed4969b9adc9b5f48f9', '2c454e3da9d145d7b13c33a551653223', '18ac1b9961964a4898f77004e469465a', '582db243273646a2a8ce30a346b98591', '78a28f8245e346a0a6438d14db7d5983', '6a3c8dc2aeb4480ca34630ab9de17104', 'bf07850eead5483b8b367fc9e8cb7942', 'b6b4ead7abc64c4487404cbd472c69a1']
+  - left-only sample: ['051f3a80970543909d9633df5467fc9c', '47559d2b80924b51a58b954aeb13ddf4', '399cbc6f2cbb4afe996c85ed6c147330', '6a885b89ac4c44a2bb7f2be56dcb98c7', '44de76148676490fad881c8f678a8996', '728ef6a3c8d24dc78ac8b4a2c05444b5', '377d1c157bae4ef9bcc1723f094f7a29', '07eb21ee56d041b4baeecf4673f3235f']
+- `tenant_setting_config.id` → `cust_interworking_product.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=4 | left_in_right=4/282 (0.0142) | right_in_left=17/17 (1.0)
+  - intersection sample: ['1834486698301034497', '7122045010124296192', '7080139612656947200', '7189154926629466112']
+  - left-only sample: ['110', '124', '6943081066229796864', '6955030843458985984', '6971285050377105408', '6998543733351383040', '7004329482380849152', '7014170378068402176']
+- `cust_interworking_product.platform_product_code` → `tenant_interworking_product.platform_product_code` (host=`cust_interworking_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=17 | left_in_right=17/17 (1.0) | right_in_left=30/30 (1.0)
+  - intersection sample: ['HTCP2', 'AMS', 'HTCP3', 'HTCP1', 'HTCP4']
+- `cust_person_info.id` → `cust_oper_change_record.person_id` (host=`cust_person_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9947); consistent with FK / identity reference
+  - join_hits=138 | left_in_right=138/9750 (0.0142) | right_in_left=186/187 (0.9947)
+  - intersection sample: ['1911761993106649089', '1911761993291198466', '1911761993408638978', '1911761993521885186', '2036025669370589186', '2036034306700816385', '2008823715076374530', '2036733468352049153']
+  - left-only sample: ['1834527005053149186', '1834864889553027074', '1846951584015192066', '1851199159440117761', '1854079664449634306', '1856168848560066561', '1861616829104721922', '1861616889301372929']
+  - right-only sample: ['2077683121800998914']
+- `tenant_project.id` → `cust_project_pushcust.project_id` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=12 | left_in_right=12/3955 (0.003) | right_in_left=12/12 (1.0)
+  - intersection sample: ['7238832408083255296', '7306142998916956160', '7215893370650861568', '7190598581131128832', '7216287813483081728', '7011961158736658432', '7250746284791373824', '7307722381512212480']
+  - left-only sample: ['7040501466974679040', '7201163812199690240', '7013832178061910016', '7150312967585423360', '2029381519250370561', '2029507051112419329', '6772446681310121984', '7170969840847376384']
+- `tenant_project.id` → `cust_project_rel.project_id` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9999); consistent with FK / identity reference
+  - join_hits=2660 | left_in_right=2660/3955 (0.6726) | right_in_left=15978/15979 (0.9999)
+  - intersection sample: ['1186366127811330095', '1187738110402756683', '1195754273753796674', '1262081959195054097', '1286328449123745844', '1834436660185497601', '1834465669715820546', '1834469788501377025']
+  - left-only sample: ['2029381519250370561', '2029507051112419329', '7170969840847376384', '7250845681218822144', '7217050440183128064', '7140287541082546176', '1963122993529491458', '7150332369202601984']
+  - right-only sample: ['1943246702275346434']
+- `platform_product.code` → `cust_project_rel.ref_cust_project_rel_platform_product` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.998); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/13 (0.5385) | right_in_left=2999/3005 (0.998)
+  - intersection sample: ['f285fa5cf17f4a8f9eefe93d3a513a6b', 'f285fa5cf17f4a8f9eefe93d3a513a61', 'f285fa5cf17f4a8f9eefe93d3a513a64', 'f285fa5cf17f4a8f9eefe93d3a513a63', '007142024a5c425bb3673f753060e533', 'b8468d68ba0a4762bda0f7b9164e4f6a', '007142024a5c425bb3673f753060e534']
+  - left-only sample: ['f285fa5cf17f4a8f9eefe93d3a513a6e', 'f285fa5cf17f4a8f9eefe93d3a513a65', '0621bc920a7e41db856a435d5b64933c', '0621bc920a7e41db856a435d5b64934c', '0621bc920a7e41db856a435d5b64932c', '86a5bebc474449d4abc02bb896723ef6']
+  - right-only sample: ['ACFLOW']
+- `tenant_product.id` → `cust_project_rel.product_id` (host=`tenant_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9998); consistent with FK / identity reference
+  - join_hits=136 | left_in_right=136/388 (0.3505) | right_in_left=15990/15993 (0.9998)
+  - intersection sample: ['1834422381302976514', '1834425570605105153', '1834421823984832513', '1834466120545275905', '1834503699675926530', '1834501559561670658', '1834501357903728641', '1834503606881144834']
+  - left-only sample: ['1858473041906651137', '1859785562995314690', '1866381772388724737', '1866382027452739585', '1867028236592979969', '1881971306351542274', '1881973388026560514', '1882000081135255554']
+  - right-only sample: ['7', '1797628152482992129']
+- `tenant_project.channel_code` → `cust_project_rel.channel_code` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=60 | left_in_right=60/3955 (0.0152) | right_in_left=116/116 (1.0)
+  - intersection sample: ['LN1RYDXM6947211195', '0919-WYWCSXM0559540242', 'BLYR563810', 'RYD436411', 'RYD234591', 'GP456008', 'RYD978505', 'RYD420439']
+  - left-only sample: ['RYD000583', 'RYD943942', 'RYD485272', 'RYD000910', 'RYD582960', 'RYD921922', 'RYD788591', 'C7ajlKAQ']
+- `funding_rule_info.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/7 (1.0) | right_in_left=210/210 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_detail.product_code` → `funding_rule_front_cfg.product_code` (host=`funding_rule_detail`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=210 | left_in_right=210/210 (1.0) | right_in_left=47/47 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_info.product_code` → `funding_rule_front_cfg.product_code` (host=`funding_rule_info`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/7 (1.0) | right_in_left=47/47 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `platform_product.product_code` → `funding_rule_info.product_code` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=2 | left_in_right=2/13 (0.1538) | right_in_left=7/7 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - left-only sample: ['AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'HTCP1', 'HTCP2', 'HTCP3', 'HTCP4']
+- `platform_product.id` → `tenant_interworking_product.platform_product_id` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=5 | left_in_right=5/13 (0.3846) | right_in_left=30/30 (1.0)
+  - intersection sample: ['1881600159662604289', '14', '13', '1881600368572497922', '6']
+  - left-only sample: ['11', '2', '5', '7', '3', '8', '4', '10']
+- `platform_product.id` → `tenant_product.platform_product_id` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/13 (0.5385) | right_in_left=388/388 (1.0)
+  - intersection sample: ['11', '2', '5', '7', '3', '8', '10']
+  - left-only sample: ['1881600159662604289', '14', '13', '1881600368572497922', '6', '4']
+- `platform_product.code` → `tenant_project.ref_tenant_project_platform_product` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=6 | left_in_right=6/13 (0.4615) | right_in_left=3955/3955 (1.0)
+  - intersection sample: ['f285fa5cf17f4a8f9eefe93d3a513a6b', 'f285fa5cf17f4a8f9eefe93d3a513a61', 'f285fa5cf17f4a8f9eefe93d3a513a63', 'f285fa5cf17f4a8f9eefe93d3a513a6e', 'b8468d68ba0a4762bda0f7b9164e4f6a', '007142024a5c425bb3673f753060e534']
+  - left-only sample: ['f285fa5cf17f4a8f9eefe93d3a513a64', '007142024a5c425bb3673f753060e533', 'f285fa5cf17f4a8f9eefe93d3a513a65', '0621bc920a7e41db856a435d5b64933c', '0621bc920a7e41db856a435d5b64934c', '0621bc920a7e41db856a435d5b64932c', '86a5bebc474449d4abc02bb896723ef6']
+- `platform_product.product_code` → `tenant_interworking_product.platform_product_code` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=5 | left_in_right=5/13 (0.3846) | right_in_left=30/30 (1.0)
+  - intersection sample: ['AMS', 'HTCP1', 'HTCP2', 'HTCP3', 'HTCP4']
+  - left-only sample: ['ACFLOW', 'BEECREDIT', 'DEALER', 'DRAFT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'VOUCHER']
+- `platform_product.code` → `tenant_interworking_product.ref_tenant_interworking_product_platform_product` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=5 | left_in_right=5/13 (0.3846) | right_in_left=30/30 (1.0)
+  - intersection sample: ['007142024a5c425bb3673f753060e533', '0621bc920a7e41db856a435d5b64933c', '0621bc920a7e41db856a435d5b64934c', '0621bc920a7e41db856a435d5b64932c', '86a5bebc474449d4abc02bb896723ef6']
+  - left-only sample: ['f285fa5cf17f4a8f9eefe93d3a513a6b', 'f285fa5cf17f4a8f9eefe93d3a513a61', 'f285fa5cf17f4a8f9eefe93d3a513a64', 'f285fa5cf17f4a8f9eefe93d3a513a63', 'f285fa5cf17f4a8f9eefe93d3a513a6e', 'f285fa5cf17f4a8f9eefe93d3a513a65', 'b8468d68ba0a4762bda0f7b9164e4f6a', '007142024a5c425bb3673f753060e534']
+- `platform_product.product_code` → `tenant_product.platform_product_code` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/13 (0.5385) | right_in_left=388/388 (1.0)
+  - intersection sample: ['ACFLOW', 'BEECREDIT', 'DRAFT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'VOUCHER']
+  - left-only sample: ['AMS', 'DEALER', 'HTCP1', 'HTCP2', 'HTCP3', 'HTCP4']
+- `platform_product.code` → `tenant_product.ref_tenant_product_project_code` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/13 (0.5385) | right_in_left=388/388 (1.0)
+  - intersection sample: ['f285fa5cf17f4a8f9eefe93d3a513a6b', 'f285fa5cf17f4a8f9eefe93d3a513a61', 'f285fa5cf17f4a8f9eefe93d3a513a63', 'f285fa5cf17f4a8f9eefe93d3a513a6e', 'f285fa5cf17f4a8f9eefe93d3a513a65', 'b8468d68ba0a4762bda0f7b9164e4f6a', '007142024a5c425bb3673f753060e534']
+  - left-only sample: ['f285fa5cf17f4a8f9eefe93d3a513a64', '007142024a5c425bb3673f753060e533', '0621bc920a7e41db856a435d5b64933c', '0621bc920a7e41db856a435d5b64934c', '0621bc920a7e41db856a435d5b64932c', '86a5bebc474449d4abc02bb896723ef6']
+- `platform_product.product_code` → `tenant_project.platform_product_code` (host=`platform_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=6 | left_in_right=6/13 (0.4615) | right_in_left=3955/3955 (1.0)
+  - intersection sample: ['ACFLOW', 'BEECREDIT', 'DRAFT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['AMS', 'DEALER', 'HTCP1', 'HTCP2', 'HTCP3', 'HTCP4', 'VOUCHER']
+- `tenant_setting_config.id` → `tenant_interworking_product.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=17 | left_in_right=17/282 (0.0603) | right_in_left=30/30 (1.0)
+  - intersection sample: ['143', '1834486698301034497', '1838148151065198593', '1881974823678091266', '1899723048619311105', '1932616620968321026', '1952187639501463553', '1955539749926080513']
+  - left-only sample: ['110', '124', '6943081066229796864', '6955030843458985984', '6971285050377105408', '6998543733351383040', '7004329482380849152', '7014170378068402176']
+- `tenant_setting_config.code` → `tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=17 | left_in_right=17/282 (0.0603) | right_in_left=30/30 (1.0)
+  - intersection sample: ['a5c1931c98b24d24a3d67d4d4d7104c8', '29eaffbfa0e54b58a61288377682733b', '194e2ce0100e4994b0a15845cc453aa6', '4c957d107f2443febabafcbfe1183e28', 'd77dc6bffbcc46fba7a864a07ef63c24', '75f3d7a4ce15457bb30d3be8118c897c', '9972c09cc75c422ab00f67f52b603c8e', '71131041904d42e38dd12bef2abb4455']
+  - left-only sample: ['002d9a13362d487b91f61b0635a5c1af', '00eca9456b3044a0853af8e783fd94c0', '01084cb262c94144b020f72d3cceb2de', '018507a1bc2446508a42847f5722e6dc', '027c1a1d63444f2eb698e445750c9112', '046bdd40b17d47098061f2606c777a95', '05a6b1301e9542bfa8dc48d8fcfcf4f6', '0773f70ab00f4310b6422dc13047035d']
+- `tenant_setting_config.id` → `tenant_product.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9974); consistent with FK / identity reference
+  - join_hits=238 | left_in_right=238/282 (0.844) | right_in_left=387/388 (0.9974)
+  - intersection sample: ['124', '6955030843458985984', '6971285050377105408', '7037775506240425984', '7282280020293099520', '1866787089740148738', '1881969133932748801', '1881972427270889474']
+  - left-only sample: ['110', '6943081066229796864', '6998543733351383040', '7004329482380849152', '7014170378068402176', '7014173664670490624', '7061603276626763776', '7062308875362504704']
+  - right-only sample: ['1980462839579361281']
+- `tenant_setting_config.code` → `tenant_product.ref_tenant_product_tenant_setting_config` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9974); consistent with FK / identity reference
+  - join_hits=238 | left_in_right=238/282 (0.844) | right_in_left=387/388 (0.9974)
+  - intersection sample: ['002d9a13362d487b91f61b0635a5c1af', '00eca9456b3044a0853af8e783fd94c0', '01084cb262c94144b020f72d3cceb2de', '018507a1bc2446508a42847f5722e6dc', '027c1a1d63444f2eb698e445750c9112', '0773f70ab00f4310b6422dc13047035d', '0a5266964dee42269e6329ccd376c1bb', '0cc32d61cc864bdb8a76e1c7bf0e2ee2']
+  - left-only sample: ['046bdd40b17d47098061f2606c777a95', '05a6b1301e9542bfa8dc48d8fcfcf4f6', '0c3b2fe3631e47c1935180a28e2bde96', '11b400d3c2b441b3a85c2bb60a010092', '1d5dfcae7ca24d5cbd6e3fd20a1ef5e4', '2dff694be9904f6584aeb0f464d568a0', '3a68c5dadea3428989697fbaaf880c87', '40df0a3a540c49d3a56d0e5cd6ff8451']
+  - right-only sample: ['c46e6749601a455b8a7c352123d2bae2']
+- `tenant_product.id` → `tenant_project.product_id` (host=`tenant_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=256 | left_in_right=256/388 (0.6598) | right_in_left=3955/3955 (1.0)
+  - intersection sample: ['1834421823984832513', '1834501357903728641', '1849327198790553601', '1895037819262513154', '1899290153075015681', '1911738774624215041', '1911738782407127041', '1911738794224197634']
+  - left-only sample: ['1858473041906651137', '1859785562995314690', '1866381772388724737', '1866382027452739585', '1867028236592979969', '1881971306351542274', '1881973388026560514', '1882000081135255554']
+- `tenant_product.code` → `tenant_project.ref_tenant_project_product_code` (host=`tenant_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=256 | left_in_right=256/388 (0.6598) | right_in_left=3955/3955 (1.0)
+  - intersection sample: ['00343497fb824960ac930eca5cbf6f86', '00f8c0adc7c646ca9e6902a1298559bb', '01938b7506724987b0bc678aed2b0445', '01d3a5eab4f941059142665799c5655f', '0204d91f86fb4de6bf6c621f601523fa', '02104322b1df4f26965ca336703014b7', '027289c536844aa681958e579912d512', '028f49a112854e02bd09df65c8d8dfde']
+  - left-only sample: ['006a8312406143cc9e2c581bc600efe9', '0361ed97a5354ba8860fe384fb39cd55', '0603ae6014ba481080af7420247acf21', '06cc45d757c94d21b20ed6fb68399211', '072a581a46e44d988b9f73bfcb3704f7', '083a2ebe1a8b4e18a0ef3d799ae4113d', '0879b6bc10764660967543ddf28cbb2e', '0a53b2b48be74000b47cf519e54162db']
+- `tenant_product.platform_product_code` → `tenant_project.platform_product_code` (host=`tenant_product`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=380 | left_in_right=380/388 (0.9794) | right_in_left=3955/3955 (1.0)
+  - intersection sample: ['RVSFACTOR_PC', 'ACFLOW', 'BEECREDIT', 'ORDER', 'STORAGE', 'DRAFT']
+  - left-only sample: ['VOUCHER']
+- `tenant_setting_config.id` → `tenant_project.tenant_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=185 | left_in_right=185/282 (0.656) | right_in_left=3955/3955 (1.0)
+  - intersection sample: ['101', '103', '107', '111', '113', '114', '118', '123']
+  - left-only sample: ['110', '124', '6943081066229796864', '6955030843458985984', '6971285050377105408', '6998543733351383040', '7004329482380849152', '7014170378068402176']
+- `tenant_setting_config.code` → `tenant_project.ref_tenant_project_tenant_code` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=185 | left_in_right=185/282 (0.656) | right_in_left=3955/3955 (1.0)
+  - intersection sample: ['002d9a13362d487b91f61b0635a5c1af', '00eca9456b3044a0853af8e783fd94c0', '01084cb262c94144b020f72d3cceb2de', '018507a1bc2446508a42847f5722e6dc', '027c1a1d63444f2eb698e445750c9112', '0773f70ab00f4310b6422dc13047035d', '0a5266964dee42269e6329ccd376c1bb', '0cc32d61cc864bdb8a76e1c7bf0e2ee2']
+  - left-only sample: ['046bdd40b17d47098061f2606c777a95', '05a6b1301e9542bfa8dc48d8fcfcf4f6', '0c3b2fe3631e47c1935180a28e2bde96', '0f0d681389494ff8b41a786d4100db83', '11b400d3c2b441b3a85c2bb60a010092', '12feaeea4e0f4b72a4ff678165b77ca9', '14f5c286df194fea8ad48e23919c76f5', '15cd80b419864331b0377e869f91d8fc']
+- `tenant_project.id` → `tenant_setting_config.default_project_id` (host=`tenant_project`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=8 | left_in_right=8/3955 (0.002) | right_in_left=8/8 (1.0)
+  - intersection sample: ['7146353203021029376', '7057263756209537024', '7008681813832028160', '1834529026418270209', '1915243355976630274', '7193442875686354944', '7234040571532013568', '7304782771043000320']
+  - left-only sample: ['7040501466974679040', '7201163812199690240', '7013832178061910016', '7150312967585423360', '2029381519250370561', '2029507051112419329', '6772446681310121984', '7170969840847376384']
+- `tenant_project_approval.code` → `tenant_project_approval_business_info.ref_tenant_project_approval_business_info_project_approval` (host=`tenant_project_approval`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=31 | left_in_right=31/102 (0.3039) | right_in_left=102/102 (1.0)
+  - intersection sample: ['07da2514969541fd970a015e3073fd32', '107a62d3dcfa41b3b7eebdf6b7025800', '325a0b6dd69c4873aa1e99015dd6693f', '3fc0f15f0d3a40ea8a49346c01780427', '48bdd18a647940e08e6c4c676106cd1d', '4e047af67c3e494e9b404c9c53b23113', '5804313e254d45c0b44ec528c7853d67', '612cb54fe20a44c7896b0306f94a8c2a']
+  - left-only sample: ['41651d2152564210ad9baedf507c2382', '830699629ae848928c9515a9c93dc9b9', '50eead831f434e879e479de51680817a', 'a99182262349473da7d8c19bb1641be6', 'a8c9cdcaef4e4a10859e0c7704fb451f', '9c248c5f1b9f464a9bd7a7bccffecf5c', '27ad426a65a245b5851d47820eecf72d', '9960298fa9b847c1b81b8b2ba9a8316a']
+- `tenant_project_approval.code` → `tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval` (host=`tenant_project_approval`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=78 | left_in_right=78/102 (0.7647) | right_in_left=286/286 (1.0)
+  - intersection sample: ['beb3f9d3e85344c2bfb831c3093419b7', '41651d2152564210ad9baedf507c2382', '830699629ae848928c9515a9c93dc9b9', '50eead831f434e879e479de51680817a', '7245332fedda404fa83437c71c8f5713', 'b51980a23e4d4802a9944e2bb93b5a9f', 'c7ca9272e74e407c90a679e09d63e48e', 'a99182262349473da7d8c19bb1641be6']
+  - left-only sample: ['c2e8efd4cc594175a374b0249295eb0c', '425d3323ce5c4bd9ab8891ccf0c0eb39', '3f90a5b8ccdf464983109f3fbc8e1bfb', 'a72d4d8048d040a6b8814ac2cd3b1f4a', 'fd976d69da8b4f00a88e2d1bbf7064b5', 'bd081e286b224a12be945b9fe074bc5b', '9e9e3cb5a251459dbe797f4f4dbf98c2', '67b63e904e8b45e98a1451a192e0c021']
+- `tenant_project_approval.code` → `tenant_project_approval_flow_comment.ref_tenant_project_approval_flow_comment_approval` (host=`tenant_project_approval`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=7 | left_in_right=7/102 (0.0686) | right_in_left=11/11 (1.0)
+  - intersection sample: ['6dbacbea9c8d4ec8ac49b9c6fb4b3284', '81043a266aa84ff384e620db259e49f3', '8e11cbf0fb70466a9baa50dedec08658', 'a829099e36e6484f8835ccaad805fdea', 'aebec371d2b1430ba2a8d43f8e50a720', 'b1aa5206a1c4423da573d4d046621a6e', 'e6a97b0d31704d8b98d879ce6c1fa6ae']
+  - left-only sample: ['beb3f9d3e85344c2bfb831c3093419b7', '41651d2152564210ad9baedf507c2382', '830699629ae848928c9515a9c93dc9b9', '50eead831f434e879e479de51680817a', '7245332fedda404fa83437c71c8f5713', 'b51980a23e4d4802a9944e2bb93b5a9f', 'c7ca9272e74e407c90a679e09d63e48e', 'a99182262349473da7d8c19bb1641be6']
+- `tenant_project_approval.code` → `tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval` (host=`tenant_project_approval`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=29 | left_in_right=29/102 (0.2843) | right_in_left=30/30 (1.0)
+  - intersection sample: ['032126a56a664f70ab2ae90e417f6d6b', '07da2514969541fd970a015e3073fd32', '11b3dd9b5de94c6fa6718851a95f80da', '17302494e20f4c2e99798ab37d7cefd5', '240354f6d750434c85b16e5b963972b8', '269177c714f54da0913fa7811d3d20ae', '4e047af67c3e494e9b404c9c53b23113', '6c4670d3e55f462c905afc9247a3067e']
+  - left-only sample: ['beb3f9d3e85344c2bfb831c3093419b7', '41651d2152564210ad9baedf507c2382', '830699629ae848928c9515a9c93dc9b9', '50eead831f434e879e479de51680817a', '7245332fedda404fa83437c71c8f5713', 'a99182262349473da7d8c19bb1641be6', '9c248c5f1b9f464a9bd7a7bccffecf5c', '27ad426a65a245b5851d47820eecf72d']
+- `tenant_project_approval.code` → `tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval` (host=`tenant_project_approval`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=27 | left_in_right=27/102 (0.2647) | right_in_left=42/42 (1.0)
+  - intersection sample: ['032126a56a664f70ab2ae90e417f6d6b', '07da2514969541fd970a015e3073fd32', '11b3dd9b5de94c6fa6718851a95f80da', '17302494e20f4c2e99798ab37d7cefd5', '18fe0689888f4113a09d7915fa058ed4', '240354f6d750434c85b16e5b963972b8', '50eead831f434e879e479de51680817a', '6dbacbea9c8d4ec8ac49b9c6fb4b3284']
+  - left-only sample: ['beb3f9d3e85344c2bfb831c3093419b7', '41651d2152564210ad9baedf507c2382', 'b51980a23e4d4802a9944e2bb93b5a9f', 'a99182262349473da7d8c19bb1641be6', 'a8c9cdcaef4e4a10859e0c7704fb451f', 'b25f423dec2743c2b39735d10121b38d', '27ad426a65a245b5851d47820eecf72d', '9960298fa9b847c1b81b8b2ba9a8316a']
+- `tenant_project_approval.code` → `tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval` (host=`tenant_project_approval`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=64 | left_in_right=64/102 (0.6275) | right_in_left=222/222 (1.0)
+  - intersection sample: ['beb3f9d3e85344c2bfb831c3093419b7', '41651d2152564210ad9baedf507c2382', '830699629ae848928c9515a9c93dc9b9', '50eead831f434e879e479de51680817a', '7245332fedda404fa83437c71c8f5713', 'b51980a23e4d4802a9944e2bb93b5a9f', 'c7ca9272e74e407c90a679e09d63e48e', 'a99182262349473da7d8c19bb1641be6']
+  - left-only sample: ['9960298fa9b847c1b81b8b2ba9a8316a', 'c2e8efd4cc594175a374b0249295eb0c', '425d3323ce5c4bd9ab8891ccf0c0eb39', '3f90a5b8ccdf464983109f3fbc8e1bfb', 'a72d4d8048d040a6b8814ac2cd3b1f4a', 'fd976d69da8b4f00a88e2d1bbf7064b5', '096660cdd5734977bb1104e07f2ee824', 'd4f2f3f53aba4ebc9fb0d8d4652fce9d']
+- `wechat_project_approval_apply.sp_no` → `tenant_project_approval.sp_no` (host=`wechat_project_approval_apply`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=13 | left_in_right=13/53 (0.2453) | right_in_left=79/79 (1.0)
+  - intersection sample: ['202604270003', '202605110011', '202605120015', '202605130016', '202606220002', '202607090002', '202607090005', '202607090020']
+  - left-only sample: ['202512290002', '202512290017', '202512300002', '202512310005', '202601040004', '202601040005', '202601060002', '202601060005']
+- `tenant_project_approval_flow.code` → `tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval_flow` (host=`tenant_project_approval_flow`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=179 | left_in_right=179/286 (0.6259) | right_in_left=220/220 (1.0)
+  - intersection sample: ['1df4de65fc5f4f6399b8055f093c2d98', '927df0db17414542806436e439dfe4fd', '692c5884575b4a40b7e7401fb78b4644', '0df579a6e923424ea8a3839d2ebd7c9f', '36e18ebc280d41cda626721171edfb66', 'e94d3bc6b4ce4b92b8ac83b251948dd7', 'a2b0f63b637340fc8b8fb87049b4073b', 'b3fbc88635374fcbabc0a7adca94765c']
+  - left-only sample: ['c056751aa84c4fa88365cbcfa9b014d4', 'ff2cb6dc035f4e8499a1bd2042b4bae9', 'cd11fa5e1cb04afc88a3dc757e9bd44a', '7dc8dfedcd0641e5a30abe6e396fa1f9', 'faf5b4646e1e430caaaa63a4f438ddf8', 'd5c7242a1d7f44e383bacb1ce9ee1614', 'abf98caa858b4a469c8f5bd680b67bb3', '3d09826fbe3d4af8aa462460ba7f07b4']
+- `tenant_project_approval_flow_comment.code` → `tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_comment` (host=`tenant_project_approval_flow_comment`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=8 | left_in_right=8/11 (0.7273) | right_in_left=9/9 (1.0)
+  - intersection sample: ['15df9da6f72a4daa8fcea497ca0933de', 'e939f07729a347eeb90e2fbe1d49b229', '80bfd117b0394dcdb8d839ca0e428f80', 'afdd5fe1e39242c7bee64640926a70d3', '1d294649899a4900ade4b47855830296', 'd6da4e09dd3d4d1dbe4130459a4171ba', '3ed7bf12112644a49acbf0830d7f0d14', 'be172c1bf6484e9ca7092d8ca3633f42']
+  - left-only sample: ['8796b6b8a91145e88a8cefcbaccfcc01', 'ef14c70e9ab94ebe9d80090846f42bc2', 'd601eb9097a6452b98f097c009e5064e']
+- `tenant_project_approval_flow_node.code` → `tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node` (host=`tenant_project_approval_flow_node`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=30 | left_in_right=30/222 (0.1351) | right_in_left=30/30 (1.0)
+  - intersection sample: ['c6f6445fb48f4f37a29cef22787d449a', '08ac00df85f34dd7b5784de68e77666c', '8420f2cbadb74152a5cb155ddc22d08a', 'e8f327ca0ee0433a9c65d501d7fbbbea', 'f2df044453fb4d63a4579e6cabea87bd', 'f00c7eef54ba49a68dfaf7f6be8554bd', '4ba4be7d74fc41fcaa56bd59caddd733', 'ee706720865f4ec185ec757470daef17']
+  - left-only sample: ['f0c3af4459d84568bf22475764ffe3c8', '90327560d8594b41bf0dacb1c35de5d4', '59cddd1ed8284a9887480f930f04a7df', 'c38e200ab05a4dd7b95b7f306210ac7f', '03374c784ae344d6bbddd467ec14ccef', '44edd50ca9ef4025adea1fab84225b32', '4cf1fa90feca4a11bebcb369ec3e133a', '63401ffc364942d6becd04f96aea7b59']
+- `tenant_project_approval_flow_node.code` → `tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval_flow_node` (host=`tenant_project_approval_flow_node`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=26 | left_in_right=26/222 (0.1171) | right_in_left=33/33 (1.0)
+  - intersection sample: ['f0c3af4459d84568bf22475764ffe3c8', '59cddd1ed8284a9887480f930f04a7df', '44edd50ca9ef4025adea1fab84225b32', 'c6f6445fb48f4f37a29cef22787d449a', '3f4c4d6ed5e644fba92cb7415380357e', '4ba4be7d74fc41fcaa56bd59caddd733', 'ee706720865f4ec185ec757470daef17', '9564ef12ea7a4eaa82ad88a8e5c8929b']
+  - left-only sample: ['90327560d8594b41bf0dacb1c35de5d4', 'c38e200ab05a4dd7b95b7f306210ac7f', '03374c784ae344d6bbddd467ec14ccef', '4cf1fa90feca4a11bebcb369ec3e133a', '63401ffc364942d6becd04f96aea7b59', '1de51646cfe34d15a77ca1e8e6768b4a', 'cf9db677ce2e43e49d0ec46ac1109476', '96266f095c4d4a44af26b232bd73df0c']
+- `tenant_setting_config.dbass_app_id` → `tenant_setting_config_share.dbass_app_id` (host=`tenant_setting_config`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=238 | left_in_right=238/238 (1.0) | right_in_left=24/24 (1.0)
+  - intersection sample: ['app_ChanRongPin336_20240529']
+- `wechat_project_approval_apply.id` → `wechat_project_approval_field_history.apply_id` (host=`wechat_project_approval_apply`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=952/952 (1.0)
+  - intersection sample: ['2008483666334945282', '2008483672626401282', '2008483675436584961', '2008483679618306049', '2008412854059642882', '2008412857058570241', '2008468781284655106', '2054075195140460546']
+- `wechat_project_approval_apply.sp_no` → `wechat_project_approval_field_history.sp_no` (host=`wechat_project_approval_apply`, wiki trust=`confirmed`/`likely`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=952/952 (1.0)
+  - intersection sample: ['202512290002', '202512290017', '202512300002', '202512310005', '202601040004', '202601040005', '202601060002', '202601060005']

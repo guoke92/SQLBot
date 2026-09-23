@@ -1,0 +1,205 @@
+generated_at: '2026-09-22T09:31:09.234957+00:00'
+policy: Curated from reextract-joins accepted (fk_like/shared_domain), patterns.md
+  rules, orphan-gap priority; skipped redundant sibling hub-FK same-name
+count: 20
+edges:
+- left: tenant_product_menu.menu_id
+  right: tenant_product_menu_res.menu_id
+  strategy: same_name
+  note: 菜单与按钮同 menu_id
+  verdict: fk_like
+  score: 18
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: tenant_product_menu_res
+  wrote: true
+- left: tenant_product_menu.product_code
+  right: tenant_product_menu_res.product_code
+  strategy: same_name
+  note: 菜单与按钮同 product_code
+  verdict: fk_like
+  score: 18
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: tenant_product_menu_res
+  wrote: true
+- left: platform_product.product_code
+  right: platform_product_cust_role.product_code
+  strategy: same_name
+  note: 平台产品业务码（非 UUID code）
+  verdict: shared_domain
+  score: 17
+  live_detail: two-way overlap (left->right=0.5, right->left=0.7903); same value domain
+    / business code space likely
+  host: platform_product_cust_role
+  wrote: true
+- left: tenant_setting_config.dbass_app_id
+  right: tenant_setting_config_share.dbass_app_id
+  strategy: same_name
+  note: 共享租户与租户配置
+  verdict: fk_like
+  score: 14
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: tenant_setting_config_share
+  wrote: true
+- left: cust_company_info.id
+  right: ca_cfca_upgrade_report.company_id
+  strategy: hub_id
+  note: CFCA 升级上报企业
+  verdict: fk_like
+  score: 7
+  live_detail: '>=95% of right-side rows resolve on left (ratio=0.9835); consistent
+    with FK / identity reference'
+  host: ca_cfca_upgrade_report
+  wrote: true
+- left: tenant_project.id
+  right: ca_fee_special_config.project_id
+  strategy: hub_id
+  note: CA 特殊配置项目
+  verdict: fk_like
+  score: 7
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: ca_fee_special_config
+  wrote: true
+- left: ca_fee_company.certification_no
+  right: ca_fee_special_config.certification_no
+  strategy: same_name
+  note: CA 特殊配置证书号
+  verdict: fk_like
+  score: 12
+  live_detail: '>=95% of right-side rows resolve on left (ratio=0.9636); consistent
+    with FK / identity reference'
+  host: ca_fee_special_config
+  wrote: true
+- left: funding_rule_info.product_code
+  right: funding_rule_front_cfg.product_code
+  strategy: same_name
+  note: 资方规则前端配置
+  verdict: fk_like
+  score: 13
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: funding_rule_front_cfg
+  wrote: true
+- left: funding_rule_info.product_code
+  right: funding_exception_resolution.product_code
+  strategy: same_name
+  note: 资金方异常解析
+  verdict: fk_like
+  score: 12
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: funding_exception_resolution
+  wrote: true
+- left: funding_rule_info.product_code
+  right: funding_rule_detail.product_code
+  strategy: same_name
+  note: 规则明细产品码
+  verdict: fk_like
+  score: 13
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: funding_rule_detail
+  wrote: true
+- left: tenant_project_approval_flow.node_code
+  right: tenant_project_approval_flow_node.node_code
+  strategy: same_name
+  note: 流程实例节点码
+  verdict: fk_like
+  score: 19
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: tenant_project_approval_flow_node
+  wrote: true
+- left: tenant_project_approval_flow.node_code
+  right: tenant_project_approval_flow_config.node_code
+  strategy: same_name
+  note: 流程预设节点码
+  verdict: shared_domain
+  score: 19
+  live_detail: two-way overlap (left->right=1.0, right->left=0.8); same value domain
+    / business code space likely
+  host: tenant_project_approval_flow_config
+  wrote: true
+- left: wechat_project_approval_apply.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  strategy: same_name
+  note: 企微审批单号
+  verdict: fk_like
+  score: 16
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: wechat_project_approval_field_history
+  wrote: true
+- left: tenant_interworking_product.code
+  right: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
+  strategy: ref_column
+  note: 互通产品 code→ref
+  verdict: fk_like
+  score: 10
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: cust_interworking_product
+  wrote: true
+- left: platform_product.code
+  right: tenant_project.ref_tenant_project_platform_product
+  strategy: ref_column
+  note: 项目 ref 存平台产品 UUID code
+  verdict: fk_like
+  score: 6
+  live_detail: '>=95% of right-side rows resolve on left (ratio=0.9994); consistent
+    with FK / identity reference'
+  host: tenant_project
+  wrote: true
+- left: tenant_product.platform_product_code
+  right: tenant_project.platform_product_code
+  strategy: same_name
+  note: 租户产品/项目业务产品码
+  verdict: fk_like
+  score: 12
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: tenant_project
+  wrote: true
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  strategy: same_name
+  note: 互通产品/项目业务产品码
+  verdict: fk_like
+  score: 14
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: tenant_interworking_project
+  wrote: true
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  strategy: same_name
+  note: 企业互通产品业务码
+  verdict: shared_domain
+  score: 12
+  live_detail: two-way overlap (left->right=1.0, right->left=0.85); same value domain
+    / business code space likely
+  host: tenant_interworking_product
+  wrote: true
+- left: open_sso_channel.app_id
+  right: cust_app_channel_config.app_id
+  strategy: same_name
+  note: 开放 SSO 与客户渠道 app
+  verdict: shared_domain
+  score: 7
+  live_detail: two-way overlap (left->right=1.0, right->left=0.5); same value domain
+    / business code space likely
+  host: cust_app_channel_config
+  wrote: true
+- left: tenant_setting_config.id
+  right: cust_interworking_product.tenant_id
+  strategy: hub_id
+  note: 企业互通产品租户
+  verdict: fk_like
+  score: 7
+  live_detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with
+    FK / identity reference'
+  host: cust_interworking_product
+  wrote: true

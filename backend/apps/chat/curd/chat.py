@@ -1634,11 +1634,82 @@ def finish_record(session: SessionDep, record_id: int) -> ChatRecord:
     return result
 
 
-def get_old_questions(session: SessionDep, datasource: int):
-    records = []
-    if not datasource:
-        return records
-    stmt = (
+def _normalize_history_question(question: object) -> str:
+    text = question.strip() if isinstance(question, str) else ""
+    if not text:
+        return ""
+    # Quick-command regenerations are not useful recommend seeds.
+    if text.startswith("/regenerate"):
+        return ""
+    return text
+
+
+def _append_unique_questions(
+    questions: list[object] | tuple[object, ...],
+    *,
+    out: list[str],
+    seen: set[str],
+    exclude: str = "",
+    limit: int = 20,
+) -> bool:
+    """Append unique history questions; return True when ``limit`` is reached."""
+    for raw in questions:
+        text = _normalize_history_question(raw)
+        if not text or text == exclude or text in seen:
+            continue
+        seen.add(text)
+        out.append(text)
+        if len(out) >= limit:
+            return True
+    return False
+
+
+def get_old_questions(
+    session: SessionDep,
+    datasource: int,
+    *,
+    chat_id: int | None = None,
+    exclude_question: str | None = None,
+    limit: int = 20,
+) -> list[str]:
+    """Collect recent unique questions for recommend-question prompting.
+
+    Prefer the current chat, then fill from the same datasource. Duplicates and
+    empty / regenerate commands are dropped so the LLM is not flooded with the
+    same export question repeated across turns.
+    """
+    if not datasource or limit <= 0:
+        return []
+    exclude = _normalize_history_question(exclude_question)
+    out: list[str] = []
+    seen: set[str] = set()
+    # Over-fetch because many recent rows may collapse to the same unique text.
+    fetch_limit = max(limit * 5, limit)
+
+    if chat_id is not None:
+        chat_rows = session.execute(
+            select(ChatRecord.question)
+            .where(
+                and_(
+                    ChatRecord.chat_id == chat_id,
+                    ChatRecord.datasource == datasource,
+                    ChatRecord.question.isnot(None),
+                    ChatRecord.error.is_(None),
+                )
+            )
+            .order_by(ChatRecord.create_time.desc())
+            .limit(fetch_limit)
+        ).all()
+        if _append_unique_questions(
+            [row[0] for row in chat_rows],
+            out=out,
+            seen=seen,
+            exclude=exclude,
+            limit=limit,
+        ):
+            return out
+
+    ds_rows = session.execute(
         select(ChatRecord.question)
         .where(
             and_(
@@ -1648,12 +1719,16 @@ def get_old_questions(session: SessionDep, datasource: int):
             )
         )
         .order_by(ChatRecord.create_time.desc())
-        .limit(20)
+        .limit(fetch_limit)
+    ).all()
+    _append_unique_questions(
+        [row[0] for row in ds_rows],
+        out=out,
+        seen=seen,
+        exclude=exclude,
+        limit=limit,
     )
-    result = session.execute(stmt)
-    for r in result:
-        records.append(r.question)
-    return records
+    return out
 
 
 FEEDBACK_COMMENT_MAX_LEN = 500

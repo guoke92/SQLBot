@@ -4,16 +4,20 @@ title: 异步导入导出任务
 page_key: async_io_task
 belong: tables
 status: draft
-anchors: [async_io_task]
-sources: ['database_schema:lowcode_pplatform.async_io_task']
+anchors:
+- async_io_task
+sources:
+- database_schema:lowcode_pplatform.async_io_task
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [async_io_task__task_type, async_io_task__menu_code, async_io_task__status,
-  async_io_task__is_deleted, async_io_task__enable]
+databases:
+- lowcode_pplatform
+related:
+- async_io_task__task_type
+- async_io_task__status
+- async_io_task__enable
 ---
-
 # 异步导入导出任务
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +29,17 @@ table: async_io_task
 database: lowcode_pplatform
 desc: 异步导入导出任务
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一异步导入导出任务一行
-name_anchors: [task_name, menu_code, menu_name, file_name, user_name, code, name]
+name_anchors:
+- task_name
+- menu_code
+- menu_name
+- file_name
+- user_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -40,15 +52,22 @@ fields:
 - name: task_type
   type: string
   desc: 任务类型
-  dict: [IMPORT, EXPORT]
+  dict:
+  - IMPORT
+  - EXPORT
 - name: task_name
   type: string
   desc: 任务名称
 - name: menu_code
   type: string
   desc: 业务菜单标识
-  dict: [PROJECT_REPORT_STATISTICS, WECHAT_PROJECT_APPROVAL, CUST_PROJECT_REL_BATCH,
-    TENANT_PROJECT_CONFIG, CUST_INPUT_BATCH, PROJECT_ONLINE_APPROVAL]
+  dict:
+  - PROJECT_REPORT_STATISTICS
+  - WECHAT_PROJECT_APPROVAL
+  - CUST_PROJECT_REL_BATCH
+  - TENANT_PROJECT_CONFIG
+  - CUST_INPUT_BATCH
+  - PROJECT_ONLINE_APPROVAL
 - name: menu_name
   type: string
   desc: 业务菜单名称
@@ -67,7 +86,10 @@ fields:
 - name: status
   type: string
   desc: 状态
-  dict: [SUCCESS, FAILED, RUNNING]
+  dict:
+  - SUCCESS
+  - FAILED
+  - RUNNING
 - name: result_text
   type: string
   desc: 业务返回
@@ -89,8 +111,6 @@ fields:
 - name: is_deleted
   type: string
   desc: 软删除：0 否 1 是
-  dict: ['0', '1']
-  label: [否, 是]
 - name: start_time
   type: temporal
   desc: 任务开始时间
@@ -106,7 +126,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -155,10 +178,13 @@ fields:
 
 ## 页面链接
 
+### 概念
+
+- [[concepts/async_batch_term]]
+
 ### 字典
 
 - [[dicts/async_io_task__task_type]]（`async_io_task.task_type`）
 - [[dicts/async_io_task__menu_code]]（`async_io_task.menu_code`）
 - [[dicts/async_io_task__status]]（`async_io_task.status`）
-- [[dicts/async_io_task__is_deleted]]（`async_io_task.is_deleted`）
 - [[dicts/async_io_task__enable]]（`async_io_task.enable`）

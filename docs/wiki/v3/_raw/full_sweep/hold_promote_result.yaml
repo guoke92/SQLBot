@@ -1,0 +1,154 @@
+promoted:
+- slug: ca_certification_info__head_company_data
+  labels:
+    N: 否
+    Y: 是
+  reason: 二值是否字段，N/Y 可直接映射为否/是
+- slug: ca_cfca_upgrade_report__todo_triggered
+  labels:
+    N: 否
+    Y: 是
+  reason: 二值是否字段，N/Y 可直接映射为否/是
+- slug: ca_fee_company__fee_locked
+  labels:
+    N: 否
+    Y: 是
+  reason: 二值是否字段，N/Y 可直接映射为否/是
+- slug: ca_fee_company__renew_remind_sent
+  labels:
+    N: 未生成
+    Y: 已生成
+  reason: 描述已明确 Y 已生成、N 未生成
+- slug: ca_fee_order__agreement_signed
+  labels:
+    N: 否
+    Y: 是
+  reason: 二值是否字段，N/Y 可直接映射为否/是
+- slug: ca_fee_project_config__charge_enabled
+  labels:
+    N: 停用
+    Y: 启用
+  reason: 开关字段，N/Y 可映射为停用/启用
+- slug: cust_access_secret__status_query_license_enabled
+  labels:
+    N: 否
+    Y: 是
+  reason: 描述已明确 Y-是、N-否
+- slug: cust_change_cfg__head_company
+  labels:
+    N: 否
+    Y: 是
+  reason: 二值是否字段，N/Y 可直接映射为否/是
+- slug: cust_change_record__need_cust_confirm
+  labels:
+    N: 否
+    Y: 是
+  reason: 二值是否字段，Y/N 可直接映射为是/否
+- slug: cust_change_record__need_resign_auth
+  labels:
+    N: 否
+    Y: 是
+  reason: 描述已明确 Y-是、N-否
+- slug: cust_company_info__abroad_cust
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯 Y/N 是否型字段，语义明确
+- slug: cust_company_info__head_company
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯 Y/N 是否型字段，语义明确
+- slug: cust_company_info__need_charge
+  labels:
+    N: 否
+    Y: 是
+  reason: 纯 Y/N 是否型字段，语义明确
+- slug: cust_company_info__test_data
+  labels:
+    N: 否
+    Y: 是
+  reason: 纯 Y/N 是否型字段，语义明确
+- slug: tenant_product__is_migratory
+  labels:
+    N: 未迁移
+    Y: 迁移
+  reason: 纯 Y/N 且描述明确给出 N=未迁移、Y=迁移
+- slug: tenant_project__cover_operator
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯 Y/N 是否型字段，语义明确
+- slug: tenant_project__is_add
+  labels:
+    N: 否
+    Y: 是
+  reason: 纯 Y/N 且描述明确 Y=是、N=否
+- slug: tenant_project__test_data
+  labels:
+    N: 否
+    Y: 是
+  reason: 纯 Y/N 是否型字段，语义明确
+- slug: tenant_project_approval__is_add
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，Y=是，N=否，语义明确
+- slug: tenant_project_approval__simple_mode
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，按是否简易模式处理，语义明确
+- slug: tenant_setting_config__need_mp_wx
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，Y=是，N=否，语义明确
+- slug: tenant_setting_config__project_code_required
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，表示项目码是否必填，Y=是，N=否
+- slug: tenant_setting_config__use_theme_after_login
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，Y=是，N=否，语义明确
+- slug: tenant_setting_config_share__need_mp_wx
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，Y=是，N=否，语义明确
+- slug: wechat_project_approval_apply__ka_white_label
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，表示KA是否贴牌，Y=是，N=否
+- slug: wechat_project_approval_apply__prd
+  labels:
+    Y: 是
+    N: 否
+  reason: 纯Y/N布尔字段，表示是否投产，Y=是，N=否
+still_hold:
+- slug: cust_company_info__group_company
+  decision: hold
+  codes:
+  - N
+  - Y
+  - '1'
+  reason: 代码中混入额外值 1，且未说明 1 是否表示“是”
+  labels:
+    N: 否
+    Y: 是
+    '1': 未知
+- slug: cust_company_info__need_register_bs
+  decision: hold
+  codes:
+  - N
+  - Y
+  - P
+  reason: N/Y/P 三元代码中 P 的业务含义未说明，无法确定中文标签
+  labels:
+    N: 否
+    Y: 是
+    P: 未知

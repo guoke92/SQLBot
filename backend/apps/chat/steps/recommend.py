@@ -8,6 +8,7 @@ import orjson
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlmodel import Session
 
+from apps.ai_model.call_log import llm_call_log_scope
 from apps.chat.curd.chat import get_old_questions, save_recommend_question_answer
 from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
 from apps.chat.steps.observability import log_span
@@ -39,13 +40,23 @@ def generate_recommend_questions(
     if recalled:
         llm_service.chat_question.db_schema = recalled
 
+    record = getattr(llm_service, "record", None)
+    chat_id = int(record.chat_id) if record is not None and record.chat_id else None
+    record_id = int(record.id) if record is not None and record.id else None
+    datasource = getattr(record, "datasource", None) if record is not None else None
+
     guess_msg: List[Union[BaseMessage, dict[str, Any]]] = [
         SystemPromptMessage(
-            content=llm_service.chat_question.guess_sys_question(llm_service.articles_number)
+            content=llm_service.chat_question.guess_sys_question(
+                llm_service.articles_number
+            )
         )
     ]
-    old_questions = list(
-        map(lambda q: q.strip(), get_old_questions(session, llm_service.record.datasource))
+    old_questions = get_old_questions(
+        session,
+        int(datasource) if datasource else 0,
+        chat_id=chat_id,
+        exclude_question=getattr(record, "question", None),
     )
     guess_msg.append(
         HumanMessage(
@@ -55,29 +66,30 @@ def generate_recommend_questions(
         )
     )
 
-    with log_span(
-        ai_modal_id=llm_service.chat_question.ai_modal_id,
-        ai_modal_name=llm_service.chat_question.ai_modal_name,
-        operate=OperationEnum.GENERATE_RECOMMENDED_QUESTIONS,
-        record_id=llm_service.record.id,
-        local_operation=False,
-        graph_node="generate",
-        title_key="chat.log.GENERATE_RECOMMENDED_QUESTIONS",
-    ) as span:
-        full_thinking_text = ""
-        full_guess_text = ""
-        token_usage: Dict[str, Any] = {}
-        for chunk in process_stream(llm_service.llm.stream(guess_msg), token_usage):
-            if chunk.get("content"):
-                full_guess_text += chunk.get("content")
-            if chunk.get("reasoning_content"):
-                full_thinking_text += chunk.get("reasoning_content")
-            yield chunk
-        guess_msg.append(AIMessage(full_guess_text))
-        span.set_model_context(guess_msg)
-        span.set_usage(token_usage)
-        span["reasoning_content"] = full_thinking_text
-        span.set_summary("chat.audit.response_ready")
+    with llm_call_log_scope(chat_id=chat_id, chat_record_id=record_id):
+        with log_span(
+            ai_modal_id=llm_service.chat_question.ai_modal_id,
+            ai_modal_name=llm_service.chat_question.ai_modal_name,
+            operate=OperationEnum.GENERATE_RECOMMENDED_QUESTIONS,
+            record_id=record_id,
+            local_operation=False,
+            graph_node="generate",
+            title_key="chat.log.GENERATE_RECOMMENDED_QUESTIONS",
+        ) as span:
+            full_thinking_text = ""
+            full_guess_text = ""
+            token_usage: Dict[str, Any] = {}
+            for chunk in process_stream(llm_service.llm.stream(guess_msg), token_usage):
+                if chunk.get("content"):
+                    full_guess_text += chunk.get("content")
+                if chunk.get("reasoning_content"):
+                    full_thinking_text += chunk.get("reasoning_content")
+                yield chunk
+            guess_msg.append(AIMessage(full_guess_text))
+            span.set_model_context(guess_msg)
+            span.set_usage(token_usage)
+            span["reasoning_content"] = full_thinking_text
+            span.set_summary("chat.audit.response_ready")
     llm_service.record = save_recommend_question_answer(
         session=session,
         record_id=llm_service.record.id,

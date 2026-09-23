@@ -1,0 +1,4439 @@
+schema_version: '1.0'
+generated_at: '2026-09-22'
+k: 50
+endpoints: 2216
+distinct_cached: 1539
+distinct_cap: 20000
+bags:
+  argeement_migratory_record.act_procinst_id:
+    size: 0
+  argeement_migratory_record.act_procinst_no:
+    size: 0
+  argeement_migratory_record.act_procinst_status:
+    size: 0
+  argeement_migratory_record.agreement_name:
+    size: 43
+  argeement_migratory_record.agreement_no:
+    size: 50
+  argeement_migratory_record.agreement_path:
+    size: 50
+  argeement_migratory_record.agreement_type:
+    size: 7
+  argeement_migratory_record.app_tenant_code:
+    size: 0
+  argeement_migratory_record.code:
+    size: 50
+  argeement_migratory_record.create_by:
+    size: 7
+  argeement_migratory_record.create_user:
+    size: 7
+  argeement_migratory_record.cust_id:
+    size: 14
+  argeement_migratory_record.db_tenant_code:
+    size: 6
+  argeement_migratory_record.enable:
+    size: 1
+  argeement_migratory_record.id:
+    size: 50
+  argeement_migratory_record.is_new:
+    size: 2
+  argeement_migratory_record.name:
+    size: 28
+  argeement_migratory_record.organization_id:
+    size: 0
+  argeement_migratory_record.platform_product_code:
+    size: 3
+  argeement_migratory_record.pull_num:
+    size: 13
+  argeement_migratory_record.remark:
+    size: 0
+  argeement_migratory_record.sign_mode:
+    size: 3
+  argeement_migratory_record.status:
+    size: 2
+  argeement_migratory_record.update_by:
+    size: 7
+  argeement_migratory_record.update_user:
+    size: 7
+  async_io_task.act_procinst_id:
+    size: 0
+  async_io_task.act_procinst_no:
+    size: 0
+  async_io_task.act_procinst_status:
+    size: 0
+  async_io_task.app_tenant_code:
+    size: 1
+  async_io_task.biz_class:
+    size: 6
+  async_io_task.biz_method:
+    size: 10
+  async_io_task.code:
+    size: 50
+  async_io_task.create_by:
+    size: 7
+  async_io_task.create_user:
+    size: 10
+  async_io_task.db_tenant_code:
+    size: 1
+  async_io_task.enable:
+    size: 1
+  async_io_task.file_name:
+    size: 50
+  async_io_task.file_url:
+    size: 50
+  async_io_task.id:
+    size: 50
+  async_io_task.is_deleted:
+    size: 2
+  async_io_task.menu_code:
+    size: 6
+  async_io_task.menu_name:
+    size: 6
+  async_io_task.name:
+    size: 0
+  async_io_task.organization_id:
+    size: 0
+  async_io_task.remark:
+    size: 0
+  async_io_task.status:
+    size: 2
+  async_io_task.task_name:
+    size: 9
+  async_io_task.task_no:
+    size: 50
+  async_io_task.task_type:
+    size: 2
+  async_io_task.update_by:
+    size: 7
+  async_io_task.update_user:
+    size: 10
+  async_io_task.user_id:
+    size: 7
+  async_io_task.user_name:
+    size: 7
+  authorization_agreement.act_procinst_id:
+    size: 50
+  authorization_agreement.act_procinst_no:
+    size: 0
+  authorization_agreement.act_procinst_status:
+    size: 0
+  authorization_agreement.app_tenant_code:
+    size: 5
+  authorization_agreement.authed_status:
+    size: 2
+  authorization_agreement.code:
+    size: 50
+  authorization_agreement.company_type:
+    size: 6
+  authorization_agreement.create_by:
+    size: 49
+  authorization_agreement.create_user:
+    size: 50
+  authorization_agreement.creation_type:
+    size: 2
+  authorization_agreement.cust_id:
+    size: 50
+  authorization_agreement.cust_manager_id:
+    size: 50
+  authorization_agreement.cust_manager_name:
+    size: 50
+  authorization_agreement.cust_name:
+    size: 50
+  authorization_agreement.db_tenant_code:
+    size: 14
+  authorization_agreement.enable:
+    size: 2
+  authorization_agreement.id:
+    size: 50
+  authorization_agreement.name:
+    size: 50
+  authorization_agreement.organization_id:
+    size: 0
+  authorization_agreement.original_cust_id:
+    size: 3
+  authorization_agreement.platform_product_code:
+    size: 6
+  authorization_agreement.remark:
+    size: 36
+  authorization_agreement.update_by:
+    size: 49
+  authorization_agreement.update_user:
+    size: 50
+  ca_certification_info.act_procinst_id:
+    size: 0
+  ca_certification_info.act_procinst_no:
+    size: 0
+  ca_certification_info.act_procinst_status:
+    size: 0
+  ca_certification_info.app_tenant_code:
+    size: 1
+  ca_certification_info.batch_no:
+    size: 50
+  ca_certification_info.code:
+    size: 50
+  ca_certification_info.create_by:
+    size: 39
+  ca_certification_info.create_user:
+    size: 39
+  ca_certification_info.cust_id:
+    size: 50
+  ca_certification_info.cust_type:
+    size: 1
+  ca_certification_info.data_date:
+    size: 4
+  ca_certification_info.data_source:
+    size: 3
+  ca_certification_info.db_tenant_code:
+    size: 6
+  ca_certification_info.enable:
+    size: 1
+  ca_certification_info.head_company_data:
+    size: 2
+  ca_certification_info.id:
+    size: 50
+  ca_certification_info.name:
+    size: 0
+  ca_certification_info.op_type:
+    size: 1
+  ca_certification_info.organization_id:
+    size: 0
+  ca_certification_info.remark:
+    size: 0
+  ca_certification_info.submit_status:
+    size: 3
+  ca_certification_info.update_by:
+    size: 39
+  ca_certification_info.update_user:
+    size: 39
+  ca_cfca_upgrade_report.act_procinst_id:
+    size: 0
+  ca_cfca_upgrade_report.act_procinst_no:
+    size: 0
+  ca_cfca_upgrade_report.act_procinst_status:
+    size: 0
+  ca_cfca_upgrade_report.app_tenant_code:
+    size: 0
+  ca_cfca_upgrade_report.authorized_user_id:
+    size: 21
+  ca_cfca_upgrade_report.authorized_user_name:
+    size: 19
+  ca_cfca_upgrade_report.biz_module:
+    size: 2
+  ca_cfca_upgrade_report.certification_no:
+    size: 21
+  ca_cfca_upgrade_report.code:
+    size: 0
+  ca_cfca_upgrade_report.company_id:
+    size: 14
+  ca_cfca_upgrade_report.company_type:
+    size: 3
+  ca_cfca_upgrade_report.create_by:
+    size: 0
+  ca_cfca_upgrade_report.create_user:
+    size: 0
+  ca_cfca_upgrade_report.customer_name:
+    size: 18
+  ca_cfca_upgrade_report.db_tenant_code:
+    size: 5
+  ca_cfca_upgrade_report.enable:
+    size: 1
+  ca_cfca_upgrade_report.id:
+    size: 50
+  ca_cfca_upgrade_report.name:
+    size: 0
+  ca_cfca_upgrade_report.organization_id:
+    size: 0
+  ca_cfca_upgrade_report.related_biz_no:
+    size: 45
+  ca_cfca_upgrade_report.remark:
+    size: 0
+  ca_cfca_upgrade_report.source_system:
+    size: 3
+  ca_cfca_upgrade_report.task_id:
+    size: 50
+  ca_cfca_upgrade_report.title:
+    size: 2
+  ca_cfca_upgrade_report.todo_triggered:
+    size: 2
+  ca_cfca_upgrade_report.trigger_scene:
+    size: 22
+  ca_cfca_upgrade_report.update_by:
+    size: 0
+  ca_cfca_upgrade_report.update_user:
+    size: 0
+  ca_fee_company.act_procinst_id:
+    size: 0
+  ca_fee_company.act_procinst_no:
+    size: 0
+  ca_fee_company.act_procinst_status:
+    size: 0
+  ca_fee_company.app_tenant_code:
+    size: 1
+  ca_fee_company.ca_status:
+    size: 3
+  ca_fee_company.certification_no:
+    size: 50
+  ca_fee_company.code:
+    size: 0
+  ca_fee_company.company_name:
+    size: 50
+  ca_fee_company.create_by:
+    size: 7
+  ca_fee_company.create_user:
+    size: 7
+  ca_fee_company.db_tenant_code:
+    size: 4
+  ca_fee_company.enable:
+    size: 1
+  ca_fee_company.fee_locked:
+    size: 2
+  ca_fee_company.id:
+    size: 50
+  ca_fee_company.locked_annual_fee:
+    size: 19
+  ca_fee_company.name:
+    size: 0
+  ca_fee_company.organization_id:
+    size: 0
+  ca_fee_company.pay_status:
+    size: 2
+  ca_fee_company.remark:
+    size: 0
+  ca_fee_company.renew_remind_sent:
+    size: 2
+  ca_fee_company.source_company_type:
+    size: 3
+  ca_fee_company.source_project_id:
+    size: 12
+  ca_fee_company.special_annual_fee:
+    size: 15
+  ca_fee_company.special_config_flag:
+    size: 2
+  ca_fee_company.tenant_id:
+    size: 6
+  ca_fee_company.update_by:
+    size: 7
+  ca_fee_company.update_user:
+    size: 7
+  ca_fee_order.act_procinst_id:
+    size: 0
+  ca_fee_order.act_procinst_no:
+    size: 0
+  ca_fee_order.act_procinst_status:
+    size: 0
+  ca_fee_order.agreement_file_path:
+    size: 50
+  ca_fee_order.agreement_signed:
+    size: 2
+  ca_fee_order.agreement_version:
+    size: 1
+  ca_fee_order.annual_fee:
+    size: 14
+  ca_fee_order.app_tenant_code:
+    size: 1
+  ca_fee_order.bocom_plfm_bsn_id:
+    size: 1
+  ca_fee_order.bocom_plfm_ser_no:
+    size: 17
+  ca_fee_order.bocom_req_sn:
+    size: 17
+  ca_fee_order.bocom_txn_sts:
+    size: 2
+  ca_fee_order.certification_no:
+    size: 50
+  ca_fee_order.close_reason:
+    size: 7
+  ca_fee_order.code:
+    size: 0
+  ca_fee_order.company_id:
+    size: 50
+  ca_fee_order.company_name:
+    size: 50
+  ca_fee_order.company_type:
+    size: 2
+  ca_fee_order.create_by:
+    size: 5
+  ca_fee_order.create_user:
+    size: 5
+  ca_fee_order.db_tenant_code:
+    size: 4
+  ca_fee_order.enable:
+    size: 2
+  ca_fee_order.id:
+    size: 50
+  ca_fee_order.invoice_fail_reason:
+    size: 0
+  ca_fee_order.invoice_file_path:
+    size: 0
+  ca_fee_order.invoice_no:
+    size: 0
+  ca_fee_order.invoice_request_id:
+    size: 0
+  ca_fee_order.invoice_status:
+    size: 2
+  ca_fee_order.name:
+    size: 0
+  ca_fee_order.order_no:
+    size: 50
+  ca_fee_order.order_status:
+    size: 4
+  ca_fee_order.order_type:
+    size: 4
+  ca_fee_order.organization_id:
+    size: 0
+  ca_fee_order.pay_amount:
+    size: 13
+  ca_fee_order.pay_method:
+    size: 1
+  ca_fee_order.pay_remark:
+    size: 50
+  ca_fee_order.project_id:
+    size: 11
+  ca_fee_order.project_name:
+    size: 11
+  ca_fee_order.remark:
+    size: 0
+  ca_fee_order.tenant_id:
+    size: 5
+  ca_fee_order.update_by:
+    size: 5
+  ca_fee_order.update_user:
+    size: 5
+  ca_fee_order.version:
+    size: 11
+  ca_fee_project_config.act_procinst_id:
+    size: 0
+  ca_fee_project_config.act_procinst_no:
+    size: 0
+  ca_fee_project_config.act_procinst_status:
+    size: 0
+  ca_fee_project_config.agreement_version:
+    size: 1
+  ca_fee_project_config.app_tenant_code:
+    size: 7
+  ca_fee_project_config.charge_enabled:
+    size: 2
+  ca_fee_project_config.code:
+    size: 0
+  ca_fee_project_config.core_annual_fee:
+    size: 15
+  ca_fee_project_config.create_by:
+    size: 33
+  ca_fee_project_config.create_user:
+    size: 34
+  ca_fee_project_config.db_tenant_code:
+    size: 19
+  ca_fee_project_config.enable:
+    size: 1
+  ca_fee_project_config.id:
+    size: 50
+  ca_fee_project_config.name:
+    size: 0
+  ca_fee_project_config.organization_id:
+    size: 0
+  ca_fee_project_config.project_id:
+    size: 50
+  ca_fee_project_config.remark:
+    size: 0
+  ca_fee_project_config.supplier_annual_fee:
+    size: 12
+  ca_fee_project_config.tenant_id:
+    size: 31
+  ca_fee_project_config.update_by:
+    size: 33
+  ca_fee_project_config.update_user:
+    size: 34
+  ca_fee_special_config.act_procinst_id:
+    size: 0
+  ca_fee_special_config.act_procinst_no:
+    size: 0
+  ca_fee_special_config.act_procinst_status:
+    size: 0
+  ca_fee_special_config.annual_fee:
+    size: 21
+  ca_fee_special_config.app_tenant_code:
+    size: 0
+  ca_fee_special_config.certification_no:
+    size: 39
+  ca_fee_special_config.code:
+    size: 0
+  ca_fee_special_config.company_name:
+    size: 39
+  ca_fee_special_config.create_by:
+    size: 7
+  ca_fee_special_config.create_user:
+    size: 10
+  ca_fee_special_config.db_tenant_code:
+    size: 0
+  ca_fee_special_config.enable:
+    size: 2
+  ca_fee_special_config.id:
+    size: 50
+  ca_fee_special_config.name:
+    size: 0
+  ca_fee_special_config.organization_id:
+    size: 0
+  ca_fee_special_config.project_id:
+    size: 16
+  ca_fee_special_config.remark:
+    size: 20
+  ca_fee_special_config.update_by:
+    size: 7
+  ca_fee_special_config.update_user:
+    size: 10
+  client_api_sync_error.act_procinst_id:
+    size: 0
+  client_api_sync_error.act_procinst_no:
+    size: 0
+  client_api_sync_error.act_procinst_status:
+    size: 0
+  client_api_sync_error.app_tenant_code:
+    size: 1
+  client_api_sync_error.code:
+    size: 50
+  client_api_sync_error.create_by:
+    size: 5
+  client_api_sync_error.create_user:
+    size: 5
+  client_api_sync_error.db_tenant_code:
+    size: 10
+  client_api_sync_error.enable:
+    size: 1
+  client_api_sync_error.id:
+    size: 50
+  client_api_sync_error.name:
+    size: 1
+  client_api_sync_error.organization_id:
+    size: 0
+  client_api_sync_error.remark:
+    size: 1
+  client_api_sync_error.retry_num:
+    size: 1
+  client_api_sync_error.service_class_name:
+    size: 7
+  client_api_sync_error.update_by:
+    size: 6
+  client_api_sync_error.update_user:
+    size: 6
+  cust_access_secret.act_procinst_id:
+    size: 0
+  cust_access_secret.act_procinst_no:
+    size: 0
+  cust_access_secret.act_procinst_status:
+    size: 0
+  cust_access_secret.app_tenant_code:
+    size: 0
+  cust_access_secret.channel:
+    size: 19
+  cust_access_secret.code:
+    size: 0
+  cust_access_secret.create_by:
+    size: 0
+  cust_access_secret.create_user:
+    size: 0
+  cust_access_secret.db_tenant_code:
+    size: 12
+  cust_access_secret.enable:
+    size: 2
+  cust_access_secret.encry_type:
+    size: 1
+  cust_access_secret.id:
+    size: 21
+  cust_access_secret.key_num:
+    size: 1
+  cust_access_secret.name:
+    size: 17
+  cust_access_secret.organization_id:
+    size: 0
+  cust_access_secret.password:
+    size: 4
+  cust_access_secret.pri_key:
+    size: 6
+  cust_access_secret.pub_key:
+    size: 14
+  cust_access_secret.rel_lls_secret_id:
+    size: 1
+  cust_access_secret.remark:
+    size: 0
+  cust_access_secret.status_query_license_enabled:
+    size: 2
+  cust_access_secret.update_by:
+    size: 0
+  cust_access_secret.update_user:
+    size: 0
+  cust_account_info.account_name:
+    size: 50
+  cust_account_info.account_no:
+    size: 50
+  cust_account_info.account_type:
+    size: 4
+  cust_account_info.act_procinst_id:
+    size: 0
+  cust_account_info.act_procinst_no:
+    size: 0
+  cust_account_info.act_procinst_status:
+    size: 0
+  cust_account_info.address:
+    size: 0
+  cust_account_info.app_tenant_code:
+    size: 2
+  cust_account_info.auth_state:
+    size: 3
+  cust_account_info.bank_branch_name:
+    size: 50
+  cust_account_info.bank_city_code:
+    size: 23
+  cust_account_info.bank_city_name:
+    size: 31
+  cust_account_info.bank_code:
+    size: 15
+  cust_account_info.bank_code_name:
+    size: 20
+  cust_account_info.bank_id:
+    size: 4
+  cust_account_info.bank_no:
+    size: 39
+  cust_account_info.bank_province_code:
+    size: 20
+  cust_account_info.bank_province_name:
+    size: 16
+  cust_account_info.code:
+    size: 50
+  cust_account_info.create_by:
+    size: 27
+  cust_account_info.create_user:
+    size: 12
+  cust_account_info.db_tenant_code:
+    size: 15
+  cust_account_info.default_account_flag:
+    size: 2
+  cust_account_info.email:
+    size: 0
+  cust_account_info.enable:
+    size: 1
+  cust_account_info.error_try_count:
+    size: 1
+  cust_account_info.id:
+    size: 50
+  cust_account_info.main_data_id:
+    size: 0
+  cust_account_info.name:
+    size: 3
+  cust_account_info.organization_id:
+    size: 0
+  cust_account_info.payment_remaining_count:
+    size: 5
+  cust_account_info.receive_payment_type:
+    size: 0
+  cust_account_info.ref_cust_company_info:
+    size: 50
+  cust_account_info.remark:
+    size: 0
+  cust_account_info.status:
+    size: 1
+  cust_account_info.telephone:
+    size: 0
+  cust_account_info.trace_no:
+    size: 8
+  cust_account_info.trans_id:
+    size: 8
+  cust_account_info.update_by:
+    size: 27
+  cust_account_info.update_user:
+    size: 12
+  cust_app_channel_config.act_procinst_id:
+    size: 0
+  cust_app_channel_config.act_procinst_no:
+    size: 0
+  cust_app_channel_config.act_procinst_status:
+    size: 0
+  cust_app_channel_config.app_id:
+    size: 2
+  cust_app_channel_config.app_tenant_code:
+    size: 2
+  cust_app_channel_config.code:
+    size: 2
+  cust_app_channel_config.create_by:
+    size: 1
+  cust_app_channel_config.create_user:
+    size: 1
+  cust_app_channel_config.db_tenant_code:
+    size: 2
+  cust_app_channel_config.enable:
+    size: 1
+  cust_app_channel_config.id:
+    size: 2
+  cust_app_channel_config.name:
+    size: 2
+  cust_app_channel_config.organization_id:
+    size: 0
+  cust_app_channel_config.remark:
+    size: 0
+  cust_app_channel_config.update_by:
+    size: 1
+  cust_app_channel_config.update_user:
+    size: 1
+  cust_auth_application.act_procinst_id:
+    size: 0
+  cust_auth_application.act_procinst_no:
+    size: 0
+  cust_auth_application.act_procinst_status:
+    size: 1
+  cust_auth_application.app_tenant_code:
+    size: 6
+  cust_auth_application.application:
+    size: 12
+  cust_auth_application.code:
+    size: 50
+  cust_auth_application.create_by:
+    size: 35
+  cust_auth_application.create_user:
+    size: 21
+  cust_auth_application.cust_manager_id:
+    size: 50
+  cust_auth_application.db_tenant_code:
+    size: 14
+  cust_auth_application.enable:
+    size: 1
+  cust_auth_application.id:
+    size: 50
+  cust_auth_application.main_data_id:
+    size: 50
+  cust_auth_application.name:
+    size: 10
+  cust_auth_application.open_status:
+    size: 3
+  cust_auth_application.organization_id:
+    size: 0
+  cust_auth_application.platform_product_code:
+    size: 5
+  cust_auth_application.ref_cust_auth_application_tenant_product:
+    size: 24
+  cust_auth_application.ref_cust_company_info:
+    size: 50
+  cust_auth_application.ref_parent_company:
+    size: 50
+  cust_auth_application.remark:
+    size: 0
+  cust_auth_application.update_by:
+    size: 34
+  cust_auth_application.update_user:
+    size: 21
+  cust_auth_application_config.act_procinst_id:
+    size: 0
+  cust_auth_application_config.act_procinst_no:
+    size: 0
+  cust_auth_application_config.act_procinst_status:
+    size: 0
+  cust_auth_application_config.app_tenant_code:
+    size: 0
+  cust_auth_application_config.code:
+    size: 0
+  cust_auth_application_config.create_by:
+    size: 0
+  cust_auth_application_config.create_user:
+    size: 0
+  cust_auth_application_config.cust_id:
+    size: 0
+  cust_auth_application_config.db_tenant_code:
+    size: 0
+  cust_auth_application_config.enable:
+    size: 0
+  cust_auth_application_config.id:
+    size: 0
+  cust_auth_application_config.name:
+    size: 0
+  cust_auth_application_config.needs_company_type_configuration:
+    size: 0
+  cust_auth_application_config.needs_product_agreement_configuration:
+    size: 0
+  cust_auth_application_config.organization_id:
+    size: 0
+  cust_auth_application_config.product_protocol_agreement:
+    size: 0
+  cust_auth_application_config.product_sign_mode:
+    size: 0
+  cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application:
+    size: 0
+  cust_auth_application_config.remark:
+    size: 0
+  cust_auth_application_config.update_by:
+    size: 0
+  cust_auth_application_config.update_user:
+    size: 0
+  cust_build_record.act_procinst_id:
+    size: 0
+  cust_build_record.act_procinst_no:
+    size: 50
+  cust_build_record.act_procinst_status:
+    size: 0
+  cust_build_record.app_tenant_code:
+    size: 1
+  cust_build_record.channel:
+    size: 0
+  cust_build_record.code:
+    size: 50
+  cust_build_record.create_by:
+    size: 42
+  cust_build_record.create_user:
+    size: 13
+  cust_build_record.cust_id:
+    size: 50
+  cust_build_record.db_tenant_code:
+    size: 13
+  cust_build_record.electronic_auth_sign_status:
+    size: 2
+  cust_build_record.enable:
+    size: 1
+  cust_build_record.id:
+    size: 50
+  cust_build_record.name:
+    size: 0
+  cust_build_record.organization_id:
+    size: 0
+  cust_build_record.person_id:
+    size: 50
+  cust_build_record.plat_cust_id:
+    size: 50
+  cust_build_record.plat_person_id:
+    size: 50
+  cust_build_record.push_data:
+    size: 0
+  cust_build_record.remark:
+    size: 0
+  cust_build_record.retry_status:
+    size: 0
+  cust_build_record.return_data:
+    size: 50
+  cust_build_record.update_by:
+    size: 42
+  cust_build_record.update_user:
+    size: 13
+  cust_certification_info.act_procinst_id:
+    size: 0
+  cust_certification_info.act_procinst_no:
+    size: 0
+  cust_certification_info.act_procinst_status:
+    size: 0
+  cust_certification_info.app_tenant_code:
+    size: 2
+  cust_certification_info.auto_verify_count:
+    size: 22
+  cust_certification_info.auto_verify_msg:
+    size: 10
+  cust_certification_info.auto_verify_status:
+    size: 3
+  cust_certification_info.certification_type:
+    size: 6
+  cust_certification_info.code:
+    size: 50
+  cust_certification_info.create_by:
+    size: 49
+  cust_certification_info.create_user:
+    size: 48
+  cust_certification_info.db_tenant_code:
+    size: 7
+  cust_certification_info.enable:
+    size: 1
+  cust_certification_info.face_business_no:
+    size: 50
+  cust_certification_info.id:
+    size: 50
+  cust_certification_info.manual_verify_count:
+    size: 0
+  cust_certification_info.manual_verify_msg:
+    size: 5
+  cust_certification_info.manual_verify_status:
+    size: 1
+  cust_certification_info.name:
+    size: 0
+  cust_certification_info.organization_id:
+    size: 27
+  cust_certification_info.ref_cust_company_info:
+    size: 36
+  cust_certification_info.remark:
+    size: 0
+  cust_certification_info.update_by:
+    size: 49
+  cust_certification_info.update_user:
+    size: 48
+  cust_certification_info.verify_score:
+    size: 0
+  cust_change_cfg.act_procinst_id:
+    size: 0
+  cust_change_cfg.act_procinst_no:
+    size: 0
+  cust_change_cfg.act_procinst_status:
+    size: 0
+  cust_change_cfg.app_tenant_code:
+    size: 0
+  cust_change_cfg.client_type:
+    size: 2
+  cust_change_cfg.code:
+    size: 0
+  cust_change_cfg.create_by:
+    size: 0
+  cust_change_cfg.create_user:
+    size: 0
+  cust_change_cfg.cust_type:
+    size: 3
+  cust_change_cfg.data_desc:
+    size: 11
+  cust_change_cfg.db_tenant_code:
+    size: 2
+  cust_change_cfg.enable:
+    size: 1
+  cust_change_cfg.head_company:
+    size: 2
+  cust_change_cfg.id:
+    size: 50
+  cust_change_cfg.identify_style:
+    size: 4
+  cust_change_cfg.item_code:
+    size: 16
+  cust_change_cfg.name:
+    size: 0
+  cust_change_cfg.open_process:
+    size: 2
+  cust_change_cfg.oper_item:
+    size: 16
+  cust_change_cfg.organization_id:
+    size: 0
+  cust_change_cfg.plat_item:
+    size: 15
+  cust_change_cfg.remark:
+    size: 0
+  cust_change_cfg.update_by:
+    size: 0
+  cust_change_cfg.update_user:
+    size: 0
+  cust_change_record.act_procinst_id:
+    size: 0
+  cust_change_record.act_procinst_no:
+    size: 0
+  cust_change_record.act_procinst_status:
+    size: 0
+  cust_change_record.admin_auth:
+    size: 2
+  cust_change_record.alter_data:
+    size: 10
+  cust_change_record.alter_mode:
+    size: 2
+  cust_change_record.alter_type:
+    size: 8
+  cust_change_record.alter_type_id:
+    size: 14
+  cust_change_record.app_tenant_code:
+    size: 5
+  cust_change_record.code:
+    size: 50
+  cust_change_record.create_by:
+    size: 45
+  cust_change_record.create_user:
+    size: 12
+  cust_change_record.cust_company_type:
+    size: 6
+  cust_change_record.cust_id:
+    size: 36
+  cust_change_record.cust_name:
+    size: 45
+  cust_change_record.cust_type:
+    size: 3
+  cust_change_record.db_tenant_code:
+    size: 10
+  cust_change_record.electronic_auth_sign_status:
+    size: 3
+  cust_change_record.enable:
+    size: 2
+  cust_change_record.id:
+    size: 50
+  cust_change_record.legal_auth:
+    size: 2
+  cust_change_record.msg_send:
+    size: 2
+  cust_change_record.name:
+    size: 0
+  cust_change_record.need_cust_confirm:
+    size: 2
+  cust_change_record.need_resign_auth:
+    size: 2
+  cust_change_record.oper_app_no:
+    size: 50
+  cust_change_record.oper_channel:
+    size: 3
+  cust_change_record.oper_cust_id:
+    size: 50
+  cust_change_record.organization_id:
+    size: 0
+  cust_change_record.remark:
+    size: 1
+  cust_change_record.status:
+    size: 16
+  cust_change_record.update_by:
+    size: 45
+  cust_change_record.update_user:
+    size: 11
+  cust_company_info.abroad_cust:
+    size: 3
+  cust_company_info.act_procinst_id:
+    size: 42
+  cust_company_info.act_procinst_no:
+    size: 42
+  cust_company_info.act_procinst_status:
+    size: 5
+  cust_company_info.app_tenant_code:
+    size: 6
+  cust_company_info.apply_data_id:
+    size: 15
+  cust_company_info.apply_type:
+    size: 2
+  cust_company_info.audit_back_flag:
+    size: 2
+  cust_company_info.auth_aggrement_supplement_flag:
+    size: 2
+  cust_company_info.back_reason:
+    size: 3
+  cust_company_info.bank_branch:
+    size: 26
+  cust_company_info.biz_cust_type:
+    size: 7
+  cust_company_info.bs_register_status:
+    size: 2
+  cust_company_info.business_address:
+    size: 3
+  cust_company_info.business_city:
+    size: 16
+  cust_company_info.business_city_code:
+    size: 37
+  cust_company_info.business_province:
+    size: 0
+  cust_company_info.business_province_city:
+    size: 1
+  cust_company_info.business_province_code:
+    size: 0
+  cust_company_info.business_status:
+    size: 26
+  cust_company_info.ca_register_status:
+    size: 2
+  cust_company_info.cert_no_flag:
+    size: 1
+  cust_company_info.certification_no:
+    size: 50
+  cust_company_info.channel_code:
+    size: 2
+  cust_company_info.check_status:
+    size: 5
+  cust_company_info.client_type:
+    size: 0
+  cust_company_info.code:
+    size: 50
+  cust_company_info.contact_address:
+    size: 2
+  cust_company_info.contact_city:
+    size: 2
+  cust_company_info.contact_city_code:
+    size: 2
+  cust_company_info.contact_province:
+    size: 2
+  cust_company_info.contact_province_city:
+    size: 3
+  cust_company_info.contact_province_code:
+    size: 2
+  cust_company_info.contact_tel:
+    size: 0
+  cust_company_info.contact_user_name:
+    size: 1
+  cust_company_info.create_by:
+    size: 43
+  cust_company_info.create_user:
+    size: 38
+  cust_company_info.cust_build_status:
+    size: 5
+  cust_company_info.cust_build_type:
+    size: 3
+  cust_company_info.cust_company_type:
+    size: 15
+  cust_company_info.cust_email:
+    size: 21
+  cust_company_info.cust_english_name:
+    size: 50
+  cust_company_info.cust_english_short_name:
+    size: 50
+  cust_company_info.cust_former_name:
+    size: 50
+  cust_company_info.cust_from:
+    size: 21
+  cust_company_info.cust_no:
+    size: 50
+  cust_company_info.cust_profile:
+    size: 1
+  cust_company_info.cust_scale:
+    size: 2
+  cust_company_info.cust_short_name:
+    size: 50
+  cust_company_info.cust_source:
+    size: 2
+  cust_company_info.cust_status:
+    size: 3
+  cust_company_info.data_type:
+    size: 3
+  cust_company_info.db_tenant_code:
+    size: 18
+  cust_company_info.enable:
+    size: 2
+  cust_company_info.ext:
+    size: 50
+  cust_company_info.finance_org_code:
+    size: 50
+  cust_company_info.finance_org_flag:
+    size: 17
+  cust_company_info.finance_org_type:
+    size: 26
+  cust_company_info.finance_org_type_name:
+    size: 0
+  cust_company_info.group_company:
+    size: 3
+  cust_company_info.head_company:
+    size: 3
+  cust_company_info.id:
+    size: 50
+  cust_company_info.identify_style:
+    size: 3
+  cust_company_info.industry_involved:
+    size: 12
+  cust_company_info.invoicing_accont_no:
+    size: 0
+  cust_company_info.invoicing_address:
+    size: 0
+  cust_company_info.invoicing_bank_branch:
+    size: 1
+  cust_company_info.invoicing_bank_code:
+    size: 0
+  cust_company_info.invoicing_bank_name:
+    size: 1
+  cust_company_info.invoicing_bank_no:
+    size: 4
+  cust_company_info.invoicing_bank_province_city:
+    size: 1
+  cust_company_info.invoicing_email:
+    size: 1
+  cust_company_info.invoicing_name:
+    size: 7
+  cust_company_info.invoicing_phone:
+    size: 0
+  cust_company_info.invoicing_taxpayer_no:
+    size: 1
+  cust_company_info.legal_certification_no:
+    size: 50
+  cust_company_info.legal_certification_type:
+    size: 8
+  cust_company_info.legal_email:
+    size: 50
+  cust_company_info.legal_name:
+    size: 50
+  cust_company_info.legal_name_english:
+    size: 47
+  cust_company_info.legal_name_english_end:
+    size: 50
+  cust_company_info.legal_phone:
+    size: 50
+  cust_company_info.legal_realname_status:
+    size: 2
+  cust_company_info.legal_time_permanent:
+    size: 44
+  cust_company_info.main_data_id:
+    size: 28
+  cust_company_info.manager_id:
+    size: 0
+  cust_company_info.migarory_auth_aggrement_flag:
+    size: 2
+  cust_company_info.name:
+    size: 50
+  cust_company_info.nationality:
+    size: 0
+  cust_company_info.nationality_en:
+    size: 0
+  cust_company_info.need_charge:
+    size: 2
+  cust_company_info.need_register_bs:
+    size: 2
+  cust_company_info.need_register_ca:
+    size: 2
+  cust_company_info.organization_id:
+    size: 0
+  cust_company_info.outside_org:
+    size: 3
+  cust_company_info.paid_in_capital:
+    size: 1
+  cust_company_info.pc_task_id:
+    size: 14
+  cust_company_info.platform_cust_id:
+    size: 50
+  cust_company_info.regist_city:
+    size: 27
+  cust_company_info.regist_city_code:
+    size: 9
+  cust_company_info.regist_city_english:
+    size: 22
+  cust_company_info.regist_province:
+    size: 8
+  cust_company_info.regist_province_city:
+    size: 7
+  cust_company_info.regist_province_city_english:
+    size: 12
+  cust_company_info.regist_province_code:
+    size: 5
+  cust_company_info.register_capital:
+    size: 5
+  cust_company_info.registered_address:
+    size: 48
+  cust_company_info.relate_company_id:
+    size: 24
+  cust_company_info.relate_company_name:
+    size: 24
+  cust_company_info.remark:
+    size: 50
+  cust_company_info.sign_mode:
+    size: 1
+  cust_company_info.signing_mode:
+    size: 1
+  cust_company_info.tenant_flg_en:
+    size: 12
+  cust_company_info.test_data:
+    size: 2
+  cust_company_info.third_auth_status:
+    size: 1
+  cust_company_info.time_permanent:
+    size: 45
+  cust_company_info.update_by:
+    size: 42
+  cust_company_info.update_user:
+    size: 39
+  cust_company_info.workers_no:
+    size: 1
+  cust_company_lifecycle_info.act_procinst_id:
+    size: 0
+  cust_company_lifecycle_info.act_procinst_no:
+    size: 0
+  cust_company_lifecycle_info.act_procinst_status:
+    size: 0
+  cust_company_lifecycle_info.app_tenant_code:
+    size: 1
+  cust_company_lifecycle_info.attach:
+    size: 0
+  cust_company_lifecycle_info.code:
+    size: 50
+  cust_company_lifecycle_info.company_id:
+    size: 35
+  cust_company_lifecycle_info.create_by:
+    size: 11
+  cust_company_lifecycle_info.create_user:
+    size: 15
+  cust_company_lifecycle_info.db_tenant_code:
+    size: 0
+  cust_company_lifecycle_info.enable:
+    size: 2
+  cust_company_lifecycle_info.id:
+    size: 50
+  cust_company_lifecycle_info.name:
+    size: 14
+  cust_company_lifecycle_info.organization_id:
+    size: 0
+  cust_company_lifecycle_info.reason:
+    size: 34
+  cust_company_lifecycle_info.ref_cust_company_info:
+    size: 0
+  cust_company_lifecycle_info.remark:
+    size: 0
+  cust_company_lifecycle_info.type:
+    size: 2
+  cust_company_lifecycle_info.update_by:
+    size: 11
+  cust_company_lifecycle_info.update_user:
+    size: 11
+  cust_company_survey_state.act_procinst_id:
+    size: 0
+  cust_company_survey_state.act_procinst_no:
+    size: 0
+  cust_company_survey_state.act_procinst_status:
+    size: 0
+  cust_company_survey_state.app_tenant_code:
+    size: 1
+  cust_company_survey_state.code:
+    size: 11
+  cust_company_survey_state.company_id:
+    size: 11
+  cust_company_survey_state.create_by:
+    size: 10
+  cust_company_survey_state.create_user:
+    size: 10
+  cust_company_survey_state.db_tenant_code:
+    size: 2
+  cust_company_survey_state.enable:
+    size: 1
+  cust_company_survey_state.first_visitor_lottery_shown:
+    size: 1
+  cust_company_survey_state.first_visitor_user_id:
+    size: 10
+  cust_company_survey_state.id:
+    size: 11
+  cust_company_survey_state.name:
+    size: 0
+  cust_company_survey_state.organization_id:
+    size: 0
+  cust_company_survey_state.remark:
+    size: 0
+  cust_company_survey_state.respondent:
+    size: 11
+  cust_company_survey_state.update_by:
+    size: 10
+  cust_company_survey_state.update_user:
+    size: 10
+  cust_company_survey_whitelist.act_procinst_id:
+    size: 0
+  cust_company_survey_whitelist.act_procinst_no:
+    size: 0
+  cust_company_survey_whitelist.act_procinst_status:
+    size: 0
+  cust_company_survey_whitelist.app_tenant_code:
+    size: 0
+  cust_company_survey_whitelist.code:
+    size: 0
+  cust_company_survey_whitelist.company_id:
+    size: 11
+  cust_company_survey_whitelist.company_name:
+    size: 50
+  cust_company_survey_whitelist.create_by:
+    size: 0
+  cust_company_survey_whitelist.create_user:
+    size: 0
+  cust_company_survey_whitelist.db_tenant_code:
+    size: 1
+  cust_company_survey_whitelist.enable:
+    size: 1
+  cust_company_survey_whitelist.id:
+    size: 50
+  cust_company_survey_whitelist.name:
+    size: 0
+  cust_company_survey_whitelist.organization_id:
+    size: 0
+  cust_company_survey_whitelist.remark:
+    size: 0
+  cust_company_survey_whitelist.update_by:
+    size: 0
+  cust_company_survey_whitelist.update_user:
+    size: 0
+  cust_config_mapping.act_procinst_id:
+    size: 0
+  cust_config_mapping.act_procinst_no:
+    size: 0
+  cust_config_mapping.act_procinst_status:
+    size: 0
+  cust_config_mapping.app_tenant_code:
+    size: 0
+  cust_config_mapping.code:
+    size: 35
+  cust_config_mapping.create_by:
+    size: 0
+  cust_config_mapping.create_user:
+    size: 0
+  cust_config_mapping.db_tenant_code:
+    size: 1
+  cust_config_mapping.enable:
+    size: 1
+  cust_config_mapping.groups:
+    size: 3
+  cust_config_mapping.id:
+    size: 35
+  cust_config_mapping.inner_code:
+    size: 25
+  cust_config_mapping.inner_name:
+    size: 25
+  cust_config_mapping.name:
+    size: 35
+  cust_config_mapping.organization_id:
+    size: 0
+  cust_config_mapping.outer_channel:
+    size: 4
+  cust_config_mapping.outer_code:
+    size: 20
+  cust_config_mapping.outer_name:
+    size: 21
+  cust_config_mapping.remark:
+    size: 0
+  cust_config_mapping.type:
+    size: 3
+  cust_config_mapping.update_by:
+    size: 0
+  cust_config_mapping.update_user:
+    size: 0
+  cust_customized_product.act_procinst_id:
+    size: 0
+  cust_customized_product.act_procinst_no:
+    size: 0
+  cust_customized_product.act_procinst_status:
+    size: 0
+  cust_customized_product.app_tenant_code:
+    size: 2
+  cust_customized_product.code:
+    size: 25
+  cust_customized_product.create_by:
+    size: 18
+  cust_customized_product.create_user:
+    size: 18
+  cust_customized_product.cust_id:
+    size: 15
+  cust_customized_product.db_tenant_code:
+    size: 4
+  cust_customized_product.enable:
+    size: 1
+  cust_customized_product.id:
+    size: 25
+  cust_customized_product.logo_icon_url:
+    size: 21
+  cust_customized_product.name:
+    size: 17
+  cust_customized_product.organization_id:
+    size: 0
+  cust_customized_product.ref_cust_customized_product_cust_company_info:
+    size: 0
+  cust_customized_product.remark:
+    size: 0
+  cust_customized_product.update_by:
+    size: 18
+  cust_customized_product.update_user:
+    size: 18
+  cust_customized_product.url:
+    size: 17
+  cust_customized_product.view_order:
+    size: 0
+  cust_group_rel.act_procinst_id:
+    size: 0
+  cust_group_rel.act_procinst_no:
+    size: 0
+  cust_group_rel.act_procinst_status:
+    size: 0
+  cust_group_rel.app_tenant_code:
+    size: 1
+  cust_group_rel.code:
+    size: 50
+  cust_group_rel.create_by:
+    size: 24
+  cust_group_rel.create_user:
+    size: 19
+  cust_group_rel.cust_id:
+    size: 50
+  cust_group_rel.cust_type:
+    size: 9
+  cust_group_rel.db_tenant_code:
+    size: 9
+  cust_group_rel.enable:
+    size: 1
+  cust_group_rel.id:
+    size: 50
+  cust_group_rel.level:
+    size: 1
+  cust_group_rel.name:
+    size: 0
+  cust_group_rel.organization_id:
+    size: 0
+  cust_group_rel.parent_cust_id:
+    size: 30
+  cust_group_rel.parent_group_id:
+    size: 33
+  cust_group_rel.remark:
+    size: 0
+  cust_group_rel.root_cust_id:
+    size: 48
+  cust_group_rel.root_flag:
+    size: 2
+  cust_group_rel.root_group_id:
+    size: 35
+  cust_group_rel.status:
+    size: 4
+  cust_group_rel.update_by:
+    size: 46
+  cust_group_rel.update_user:
+    size: 25
+  cust_head_company_info.act_procinst_id:
+    size: 0
+  cust_head_company_info.act_procinst_no:
+    size: 0
+  cust_head_company_info.act_procinst_status:
+    size: 0
+  cust_head_company_info.app_tenant_code:
+    size: 1
+  cust_head_company_info.certification_no:
+    size: 50
+  cust_head_company_info.code:
+    size: 50
+  cust_head_company_info.create_by:
+    size: 9
+  cust_head_company_info.create_user:
+    size: 17
+  cust_head_company_info.cust_english_name:
+    size: 50
+  cust_head_company_info.cust_english_short_name:
+    size: 50
+  cust_head_company_info.cust_short_name:
+    size: 50
+  cust_head_company_info.db_tenant_code:
+    size: 19
+  cust_head_company_info.enable:
+    size: 1
+  cust_head_company_info.head_business_scope:
+    size: 3
+  cust_head_company_info.id:
+    size: 50
+  cust_head_company_info.legal_certification_no:
+    size: 50
+  cust_head_company_info.legal_certification_type:
+    size: 8
+  cust_head_company_info.legal_english_first_name:
+    size: 50
+  cust_head_company_info.legal_english_sec_name:
+    size: 50
+  cust_head_company_info.legal_name:
+    size: 50
+  cust_head_company_info.legal_phone:
+    size: 50
+  cust_head_company_info.legal_time_permanent:
+    size: 50
+  cust_head_company_info.name:
+    size: 50
+  cust_head_company_info.organization_id:
+    size: 0
+  cust_head_company_info.ref_cust_head_company_info_cust_company_info:
+    size: 50
+  cust_head_company_info.regist_province_city:
+    size: 41
+  cust_head_company_info.regist_province_city_english:
+    size: 38
+  cust_head_company_info.regist_province_city_english_end:
+    size: 50
+  cust_head_company_info.registered_address:
+    size: 50
+  cust_head_company_info.remark:
+    size: 0
+  cust_head_company_info.time_permanent:
+    size: 25
+  cust_head_company_info.update_by:
+    size: 12
+  cust_head_company_info.update_user:
+    size: 19
+  cust_interworking_product.act_procinst_id:
+    size: 0
+  cust_interworking_product.act_procinst_no:
+    size: 0
+  cust_interworking_product.act_procinst_status:
+    size: 0
+  cust_interworking_product.agree_authorization_flag:
+    size: 1
+  cust_interworking_product.app_tenant_code:
+    size: 2
+  cust_interworking_product.code:
+    size: 50
+  cust_interworking_product.create_by:
+    size: 10
+  cust_interworking_product.create_user:
+    size: 50
+  cust_interworking_product.cust_id:
+    size: 50
+  cust_interworking_product.db_tenant_code:
+    size: 6
+  cust_interworking_product.enable:
+    size: 1
+  cust_interworking_product.id:
+    size: 50
+  cust_interworking_product.name:
+    size: 16
+  cust_interworking_product.open_status:
+    size: 1
+  cust_interworking_product.open_user:
+    size: 10
+  cust_interworking_product.organization_id:
+    size: 0
+  cust_interworking_product.platform_product_code:
+    size: 6
+  cust_interworking_product.product_id:
+    size: 19
+  cust_interworking_product.ref_cust_interworking_product_cust_company_info:
+    size: 50
+  cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product:
+    size: 15
+  cust_interworking_product.remark:
+    size: 0
+  cust_interworking_product.tenant_id:
+    size: 6
+  cust_interworking_product.update_by:
+    size: 10
+  cust_interworking_product.update_user:
+    size: 50
+  cust_invite_info.act_procinst_id:
+    size: 0
+  cust_invite_info.act_procinst_no:
+    size: 0
+  cust_invite_info.act_procinst_status:
+    size: 0
+  cust_invite_info.app_tenant_code:
+    size: 1
+  cust_invite_info.channel_code:
+    size: 50
+  cust_invite_info.code:
+    size: 50
+  cust_invite_info.contact_name:
+    size: 50
+  cust_invite_info.contact_phone:
+    size: 50
+  cust_invite_info.create_by:
+    size: 43
+  cust_invite_info.create_user:
+    size: 32
+  cust_invite_info.db_tenant_code:
+    size: 5
+  cust_invite_info.email:
+    size: 50
+  cust_invite_info.enable:
+    size: 1
+  cust_invite_info.id:
+    size: 50
+  cust_invite_info.invite_cust_id:
+    size: 29
+  cust_invite_info.invite_from:
+    size: 39
+  cust_invite_info.name:
+    size: 50
+  cust_invite_info.organization_id:
+    size: 0
+  cust_invite_info.progress:
+    size: 7
+  cust_invite_info.remark:
+    size: 0
+  cust_invite_info.update_by:
+    size: 28
+  cust_invite_info.update_user:
+    size: 32
+  cust_message_send_policy.act_procinst_id:
+    size: 0
+  cust_message_send_policy.act_procinst_no:
+    size: 0
+  cust_message_send_policy.act_procinst_status:
+    size: 0
+  cust_message_send_policy.app_tenant_code:
+    size: 0
+  cust_message_send_policy.code:
+    size: 0
+  cust_message_send_policy.create_by:
+    size: 0
+  cust_message_send_policy.create_user:
+    size: 0
+  cust_message_send_policy.db_tenant_code:
+    size: 0
+  cust_message_send_policy.enable:
+    size: 0
+  cust_message_send_policy.id:
+    size: 0
+  cust_message_send_policy.msg_kind:
+    size: 0
+  cust_message_send_policy.name:
+    size: 0
+  cust_message_send_policy.organization_id:
+    size: 0
+  cust_message_send_policy.remark:
+    size: 0
+  cust_message_send_policy.scenes_type:
+    size: 0
+  cust_message_send_policy.send_enable:
+    size: 0
+  cust_message_send_policy.update_by:
+    size: 0
+  cust_message_send_policy.update_user:
+    size: 0
+  cust_oper_change_record.act_procinst_id:
+    size: 0
+  cust_oper_change_record.act_procinst_no:
+    size: 0
+  cust_oper_change_record.act_procinst_status:
+    size: 0
+  cust_oper_change_record.after_operator_id:
+    size: 11
+  cust_oper_change_record.after_operator_name:
+    size: 16
+  cust_oper_change_record.app_tenant_code:
+    size: 1
+  cust_oper_change_record.asset_id:
+    size: 50
+  cust_oper_change_record.asset_no:
+    size: 50
+  cust_oper_change_record.before_operator_id:
+    size: 26
+  cust_oper_change_record.before_operator_name:
+    size: 35
+  cust_oper_change_record.change_reason:
+    size: 2
+  cust_oper_change_record.change_type:
+    size: 3
+  cust_oper_change_record.code:
+    size: 50
+  cust_oper_change_record.company_code:
+    size: 50
+  cust_oper_change_record.company_id:
+    size: 46
+  cust_oper_change_record.company_name:
+    size: 50
+  cust_oper_change_record.create_by:
+    size: 5
+  cust_oper_change_record.create_user:
+    size: 4
+  cust_oper_change_record.db_tenant_code:
+    size: 13
+  cust_oper_change_record.enable:
+    size: 1
+  cust_oper_change_record.id:
+    size: 50
+  cust_oper_change_record.name:
+    size: 0
+  cust_oper_change_record.organization_id:
+    size: 0
+  cust_oper_change_record.person_id:
+    size: 50
+  cust_oper_change_record.person_name:
+    size: 50
+  cust_oper_change_record.remark:
+    size: 0
+  cust_oper_change_record.source_system:
+    size: 0
+  cust_oper_change_record.update_by:
+    size: 3
+  cust_oper_change_record.update_user:
+    size: 6
+  cust_person_info.act_procinst_id:
+    size: 0
+  cust_person_info.act_procinst_no:
+    size: 0
+  cust_person_info.act_procinst_status:
+    size: 0
+  cust_person_info.app_tenant_code:
+    size: 6
+  cust_person_info.auth_application:
+    size: 8
+  cust_person_info.certification_expire:
+    size: 26
+  cust_person_info.certification_no:
+    size: 50
+  cust_person_info.certification_type:
+    size: 7
+  cust_person_info.code:
+    size: 50
+  cust_person_info.company_type:
+    size: 4
+  cust_person_info.create_by:
+    size: 29
+  cust_person_info.create_user:
+    size: 21
+  cust_person_info.cust_build_status:
+    size: 5
+  cust_person_info.cust_company_id:
+    size: 50
+  cust_person_info.db_tenant_code:
+    size: 13
+  cust_person_info.email:
+    size: 50
+  cust_person_info.en_name:
+    size: 50
+  cust_person_info.en_name_end:
+    size: 29
+  cust_person_info.enable:
+    size: 2
+  cust_person_info.ext_data:
+    size: 27
+  cust_person_info.face_status:
+    size: 4
+  cust_person_info.handby_person:
+    size: 7
+  cust_person_info.handby_person_name:
+    size: 9
+  cust_person_info.id:
+    size: 50
+  cust_person_info.main_data_id:
+    size: 42
+  cust_person_info.name:
+    size: 50
+  cust_person_info.operator:
+    size: 8
+  cust_person_info.operator_id:
+    size: 10
+  cust_person_info.operator_push_system:
+    size: 4
+  cust_person_info.operator_realname:
+    size: 8
+  cust_person_info.organization_id:
+    size: 1
+  cust_person_info.phone:
+    size: 50
+  cust_person_info.phone_realname_status:
+    size: 3
+  cust_person_info.platform_user_id:
+    size: 50
+  cust_person_info.real_name_result:
+    size: 3
+  cust_person_info.realname_status:
+    size: 4
+  cust_person_info.ref_cust_company_info:
+    size: 50
+  cust_person_info.remark:
+    size: 0
+  cust_person_info.skip_auth_flag:
+    size: 2
+  cust_person_info.source:
+    size: 2
+  cust_person_info.status:
+    size: 4
+  cust_person_info.test_data:
+    size: 2
+  cust_person_info.update_by:
+    size: 31
+  cust_person_info.update_user:
+    size: 21
+  cust_person_info.user_id:
+    size: 50
+  cust_person_info.user_name:
+    size: 50
+  cust_person_info.user_type:
+    size: 3
+  cust_project_code_record.act_procinst_id:
+    size: 0
+  cust_project_code_record.act_procinst_no:
+    size: 0
+  cust_project_code_record.act_procinst_status:
+    size: 0
+  cust_project_code_record.app_tenant_code:
+    size: 3
+  cust_project_code_record.channel_code:
+    size: 50
+  cust_project_code_record.code:
+    size: 50
+  cust_project_code_record.company_id:
+    size: 50
+  cust_project_code_record.company_type:
+    size: 13
+  cust_project_code_record.create_by:
+    size: 41
+  cust_project_code_record.create_user:
+    size: 42
+  cust_project_code_record.db_tenant_code:
+    size: 14
+  cust_project_code_record.enable:
+    size: 1
+  cust_project_code_record.id:
+    size: 50
+  cust_project_code_record.name:
+    size: 47
+  cust_project_code_record.organization_id:
+    size: 0
+  cust_project_code_record.remark:
+    size: 0
+  cust_project_code_record.status:
+    size: 2
+  cust_project_code_record.type:
+    size: 3
+  cust_project_code_record.update_by:
+    size: 41
+  cust_project_code_record.update_user:
+    size: 42
+  cust_project_code_record.use_id:
+    size: 50
+  cust_project_pushcust.act_procinst_id:
+    size: 0
+  cust_project_pushcust.act_procinst_no:
+    size: 0
+  cust_project_pushcust.act_procinst_status:
+    size: 0
+  cust_project_pushcust.app_tenant_code:
+    size: 0
+  cust_project_pushcust.code:
+    size: 0
+  cust_project_pushcust.create_by:
+    size: 0
+  cust_project_pushcust.create_user:
+    size: 0
+  cust_project_pushcust.db_tenant_code:
+    size: 3
+  cust_project_pushcust.enable:
+    size: 1
+  cust_project_pushcust.id:
+    size: 4
+  cust_project_pushcust.name:
+    size: 0
+  cust_project_pushcust.organization_id:
+    size: 0
+  cust_project_pushcust.project_id:
+    size: 4
+  cust_project_pushcust.remark:
+    size: 0
+  cust_project_pushcust.source_sso_channel:
+    size: 4
+  cust_project_pushcust.target_sso_channel:
+    size: 4
+  cust_project_pushcust.update_by:
+    size: 0
+  cust_project_pushcust.update_user:
+    size: 0
+  cust_project_rel.act_procinst_id:
+    size: 0
+  cust_project_rel.act_procinst_no:
+    size: 0
+  cust_project_rel.act_procinst_status:
+    size: 0
+  cust_project_rel.app_tenant_code:
+    size: 3
+  cust_project_rel.channel_code:
+    size: 23
+  cust_project_rel.code:
+    size: 50
+  cust_project_rel.company_type:
+    size: 3
+  cust_project_rel.config_model:
+    size: 1
+  cust_project_rel.create_by:
+    size: 21
+  cust_project_rel.create_user:
+    size: 7
+  cust_project_rel.db_tenant_code:
+    size: 17
+  cust_project_rel.enable:
+    size: 2
+  cust_project_rel.id:
+    size: 50
+  cust_project_rel.name:
+    size: 22
+  cust_project_rel.op_contact_a:
+    size: 13
+  cust_project_rel.op_contact_a_group:
+    size: 9
+  cust_project_rel.op_contact_b:
+    size: 13
+  cust_project_rel.op_update_user:
+    size: 2
+  cust_project_rel.organization_id:
+    size: 0
+  cust_project_rel.product_id:
+    size: 11
+  cust_project_rel.project_id:
+    size: 30
+  cust_project_rel.project_open_status:
+    size: 2
+  cust_project_rel.ref_cust_project_rel_cust_company_info:
+    size: 50
+  cust_project_rel.ref_cust_project_rel_platform_product:
+    size: 7
+  cust_project_rel.remark:
+    size: 4
+  cust_project_rel.risk_control_contact_a:
+    size: 11
+  cust_project_rel.risk_control_contact_a_group:
+    size: 8
+  cust_project_rel.risk_control_contact_b:
+    size: 9
+  cust_project_rel.show_flag:
+    size: 2
+  cust_project_rel.status:
+    size: 3
+  cust_project_rel.tenant_code:
+    size: 17
+  cust_project_rel.tenant_flg_en:
+    size: 19
+  cust_project_rel.top_flag:
+    size: 2
+  cust_project_rel.update_by:
+    size: 22
+  cust_project_rel.update_user:
+    size: 7
+  cust_project_rel.verification_contact:
+    size: 11
+  cust_project_rel.verification_contact_group:
+    size: 6
+  cust_role_info.act_procinst_id:
+    size: 0
+  cust_role_info.act_procinst_no:
+    size: 0
+  cust_role_info.act_procinst_status:
+    size: 0
+  cust_role_info.app_tenant_code:
+    size: 4
+  cust_role_info.code:
+    size: 50
+  cust_role_info.create_by:
+    size: 29
+  cust_role_info.create_user:
+    size: 9
+  cust_role_info.db_tenant_code:
+    size: 17
+  cust_role_info.enable:
+    size: 1
+  cust_role_info.id:
+    size: 50
+  cust_role_info.main_data_id:
+    size: 24
+  cust_role_info.name:
+    size: 0
+  cust_role_info.organization_id:
+    size: 1
+  cust_role_info.platform_cust_id:
+    size: 50
+  cust_role_info.ref_cust_auth_application:
+    size: 42
+  cust_role_info.ref_cust_company_info:
+    size: 50
+  cust_role_info.remark:
+    size: 0
+  cust_role_info.role_type:
+    size: 6
+  cust_role_info.status:
+    size: 4
+  cust_role_info.update_by:
+    size: 29
+  cust_role_info.update_user:
+    size: 10
+  cust_setting_config.act_procinst_id:
+    size: 0
+  cust_setting_config.act_procinst_no:
+    size: 0
+  cust_setting_config.act_procinst_status:
+    size: 0
+  cust_setting_config.app_tenant_code:
+    size: 0
+  cust_setting_config.authorization_change:
+    size: 0
+  cust_setting_config.authorization_offline:
+    size: 1
+  cust_setting_config.authorization_online:
+    size: 0
+  cust_setting_config.cfca_agreement:
+    size: 0
+  cust_setting_config.code:
+    size: 1
+  cust_setting_config.create_by:
+    size: 1
+  cust_setting_config.create_user:
+    size: 1
+  cust_setting_config.cust_id:
+    size: 0
+  cust_setting_config.db_tenant_code:
+    size: 1
+  cust_setting_config.enable:
+    size: 1
+  cust_setting_config.face_recognition:
+    size: 1
+  cust_setting_config.id:
+    size: 1
+  cust_setting_config.invitation_code_period:
+    size: 1
+  cust_setting_config.invitation_code_period_unit:
+    size: 0
+  cust_setting_config.key_word:
+    size: 1
+  cust_setting_config.name:
+    size: 1
+  cust_setting_config.need_auth_verify:
+    size: 1
+  cust_setting_config.need_verify_no_key:
+    size: 1
+  cust_setting_config.no_key_word:
+    size: 1
+  cust_setting_config.organization_id:
+    size: 0
+  cust_setting_config.payment_maximum_number:
+    size: 1
+  cust_setting_config.payment_verification:
+    size: 1
+  cust_setting_config.privacy_policy_agreement:
+    size: 1
+  cust_setting_config.remark:
+    size: 0
+  cust_setting_config.sending_interval:
+    size: 1
+  cust_setting_config.sending_interval_unti:
+    size: 0
+  cust_setting_config.update_by:
+    size: 1
+  cust_setting_config.update_user:
+    size: 1
+  cust_setting_config.user_agreement:
+    size: 1
+  cust_sftp.act_procinst_id:
+    size: 0
+  cust_sftp.act_procinst_no:
+    size: 0
+  cust_sftp.act_procinst_status:
+    size: 0
+  cust_sftp.app_tenant_code:
+    size: 0
+  cust_sftp.channel:
+    size: 16
+  cust_sftp.code:
+    size: 0
+  cust_sftp.create_by:
+    size: 0
+  cust_sftp.create_user:
+    size: 0
+  cust_sftp.db_tenant_code:
+    size: 11
+  cust_sftp.enable:
+    size: 1
+  cust_sftp.host:
+    size: 2
+  cust_sftp.id:
+    size: 16
+  cust_sftp.name:
+    size: 15
+  cust_sftp.organization_id:
+    size: 0
+  cust_sftp.password:
+    size: 12
+  cust_sftp.port:
+    size: 1
+  cust_sftp.private_key:
+    size: 0
+  cust_sftp.private_key_pwd:
+    size: 0
+  cust_sftp.remark:
+    size: 0
+  cust_sftp.update_by:
+    size: 0
+  cust_sftp.update_user:
+    size: 0
+  cust_sftp.user_name:
+    size: 13
+  cust_shareholder_info.act_procinst_id:
+    size: 0
+  cust_shareholder_info.act_procinst_no:
+    size: 0
+  cust_shareholder_info.act_procinst_status:
+    size: 0
+  cust_shareholder_info.app_tenant_code:
+    size: 1
+  cust_shareholder_info.certification_no:
+    size: 2
+  cust_shareholder_info.certification_type:
+    size: 1
+  cust_shareholder_info.code:
+    size: 6
+  cust_shareholder_info.create_by:
+    size: 1
+  cust_shareholder_info.create_user:
+    size: 1
+  cust_shareholder_info.currency:
+    size: 0
+  cust_shareholder_info.db_tenant_code:
+    size: 1
+  cust_shareholder_info.email:
+    size: 2
+  cust_shareholder_info.enable:
+    size: 1
+  cust_shareholder_info.fund_amount_act:
+    size: 2
+  cust_shareholder_info.fund_amount_ought:
+    size: 0
+  cust_shareholder_info.fund_scale:
+    size: 2
+  cust_shareholder_info.fund_type:
+    size: 0
+  cust_shareholder_info.id:
+    size: 6
+  cust_shareholder_info.main_data_id:
+    size: 1
+  cust_shareholder_info.name:
+    size: 4
+  cust_shareholder_info.organization_id:
+    size: 0
+  cust_shareholder_info.ref_cust_company_info:
+    size: 5
+  cust_shareholder_info.relation_type:
+    size: 2
+  cust_shareholder_info.remark:
+    size: 2
+  cust_shareholder_info.telephone:
+    size: 2
+  cust_shareholder_info.update_by:
+    size: 1
+  cust_shareholder_info.update_user:
+    size: 1
+  cust_survey_answer.act_procinst_id:
+    size: 0
+  cust_survey_answer.act_procinst_no:
+    size: 0
+  cust_survey_answer.act_procinst_status:
+    size: 0
+  cust_survey_answer.answer_value:
+    size: 24
+  cust_survey_answer.app_tenant_code:
+    size: 1
+  cust_survey_answer.code:
+    size: 50
+  cust_survey_answer.company_id:
+    size: 24
+  cust_survey_answer.create_by:
+    size: 20
+  cust_survey_answer.create_user:
+    size: 18
+  cust_survey_answer.db_tenant_code:
+    size: 1
+  cust_survey_answer.enable:
+    size: 1
+  cust_survey_answer.id:
+    size: 50
+  cust_survey_answer.name:
+    size: 0
+  cust_survey_answer.organization_id:
+    size: 0
+  cust_survey_answer.other_text:
+    size: 5
+  cust_survey_answer.question_no:
+    size: 6
+  cust_survey_answer.remark:
+    size: 0
+  cust_survey_answer.survey_code:
+    size: 1
+  cust_survey_answer.update_by:
+    size: 20
+  cust_survey_answer.update_user:
+    size: 18
+  cust_survey_answer.user_id:
+    size: 20
+  cust_user_rel.act_procinst_id:
+    size: 0
+  cust_user_rel.act_procinst_no:
+    size: 0
+  cust_user_rel.act_procinst_status:
+    size: 0
+  cust_user_rel.app_tenant_code:
+    size: 0
+  cust_user_rel.code:
+    size: 1
+  cust_user_rel.company_id:
+    size: 1
+  cust_user_rel.company_name:
+    size: 1
+  cust_user_rel.company_type:
+    size: 1
+  cust_user_rel.create_by:
+    size: 0
+  cust_user_rel.create_user:
+    size: 0
+  cust_user_rel.db_tenant_code:
+    size: 0
+  cust_user_rel.enable:
+    size: 1
+  cust_user_rel.id:
+    size: 1
+  cust_user_rel.name:
+    size: 0
+  cust_user_rel.organization_id:
+    size: 0
+  cust_user_rel.remark:
+    size: 0
+  cust_user_rel.type_status:
+    size: 1
+  cust_user_rel.update_by:
+    size: 0
+  cust_user_rel.update_user:
+    size: 0
+  cust_user_rel.user_id:
+    size: 1
+  cust_user_rel.user_type:
+    size: 1
+  funding_exception_resolution.act_procinst_id:
+    size: 0
+  funding_exception_resolution.act_procinst_no:
+    size: 0
+  funding_exception_resolution.act_procinst_status:
+    size: 0
+  funding_exception_resolution.app_tenant_code:
+    size: 1
+  funding_exception_resolution.code:
+    size: 50
+  funding_exception_resolution.create_by:
+    size: 11
+  funding_exception_resolution.create_user:
+    size: 11
+  funding_exception_resolution.db_tenant_code:
+    size: 0
+  funding_exception_resolution.enable:
+    size: 1
+  funding_exception_resolution.error_keyword:
+    size: 50
+  funding_exception_resolution.exception_no:
+    size: 50
+  funding_exception_resolution.funding_party_code:
+    size: 17
+  funding_exception_resolution.funding_party_name:
+    size: 50
+  funding_exception_resolution.id:
+    size: 50
+  funding_exception_resolution.name:
+    size: 0
+  funding_exception_resolution.organization_id:
+    size: 0
+  funding_exception_resolution.product_code:
+    size: 2
+  funding_exception_resolution.remark:
+    size: 0
+  funding_exception_resolution.update_by:
+    size: 11
+  funding_exception_resolution.update_user:
+    size: 11
+  funding_rule_detail.act_procinst_id:
+    size: 0
+  funding_rule_detail.act_procinst_no:
+    size: 0
+  funding_rule_detail.act_procinst_status:
+    size: 0
+  funding_rule_detail.app_tenant_code:
+    size: 1
+  funding_rule_detail.check_scene:
+    size: 1
+  funding_rule_detail.code:
+    size: 50
+  funding_rule_detail.create_by:
+    size: 4
+  funding_rule_detail.create_user:
+    size: 7
+  funding_rule_detail.db_tenant_code:
+    size: 0
+  funding_rule_detail.enable:
+    size: 1
+  funding_rule_detail.fund_rule_code_ref:
+    size: 8
+  funding_rule_detail.funding_party_mark:
+    size: 6
+  funding_rule_detail.id:
+    size: 50
+  funding_rule_detail.name:
+    size: 0
+  funding_rule_detail.organization_id:
+    size: 0
+  funding_rule_detail.product_code:
+    size: 2
+  funding_rule_detail.remark:
+    size: 0
+  funding_rule_detail.rule_info_id:
+    size: 7
+  funding_rule_detail.rule_key:
+    size: 31
+  funding_rule_detail.rule_layer:
+    size: 3
+  funding_rule_detail.rule_value:
+    size: 10
+  funding_rule_detail.update_by:
+    size: 4
+  funding_rule_detail.update_user:
+    size: 7
+  funding_rule_detail.version:
+    size: 5
+  funding_rule_front_cfg.act_procinst_id:
+    size: 0
+  funding_rule_front_cfg.act_procinst_no:
+    size: 0
+  funding_rule_front_cfg.act_procinst_status:
+    size: 0
+  funding_rule_front_cfg.app_tenant_code:
+    size: 0
+  funding_rule_front_cfg.check_scene:
+    size: 1
+  funding_rule_front_cfg.code:
+    size: 0
+  funding_rule_front_cfg.create_by:
+    size: 0
+  funding_rule_front_cfg.create_user:
+    size: 0
+  funding_rule_front_cfg.db_tenant_code:
+    size: 0
+  funding_rule_front_cfg.enable:
+    size: 1
+  funding_rule_front_cfg.front_field_style:
+    size: 22
+  funding_rule_front_cfg.front_key:
+    size: 29
+  funding_rule_front_cfg.front_key_name:
+    size: 16
+  funding_rule_front_cfg.id:
+    size: 47
+  funding_rule_front_cfg.key_name:
+    size: 16
+  funding_rule_front_cfg.key_type:
+    size: 12
+  funding_rule_front_cfg.name:
+    size: 0
+  funding_rule_front_cfg.organization_id:
+    size: 0
+  funding_rule_front_cfg.product_code:
+    size: 2
+  funding_rule_front_cfg.remark:
+    size: 0
+  funding_rule_front_cfg.rule_key:
+    size: 11
+  funding_rule_front_cfg.rule_layer:
+    size: 3
+  funding_rule_front_cfg.update_by:
+    size: 0
+  funding_rule_front_cfg.update_user:
+    size: 0
+  funding_rule_info.act_procinst_id:
+    size: 0
+  funding_rule_info.act_procinst_no:
+    size: 0
+  funding_rule_info.act_procinst_status:
+    size: 0
+  funding_rule_info.app_tenant_code:
+    size: 1
+  funding_rule_info.code:
+    size: 50
+  funding_rule_info.create_by:
+    size: 8
+  funding_rule_info.create_user:
+    size: 8
+  funding_rule_info.db_tenant_code:
+    size: 0
+  funding_rule_info.enable:
+    size: 1
+  funding_rule_info.funding_party_mark:
+    size: 39
+  funding_rule_info.funding_party_name:
+    size: 44
+  funding_rule_info.id:
+    size: 50
+  funding_rule_info.name:
+    size: 0
+  funding_rule_info.organization_id:
+    size: 0
+  funding_rule_info.product_code:
+    size: 2
+  funding_rule_info.remark:
+    size: 0
+  funding_rule_info.rule_status:
+    size: 3
+  funding_rule_info.update_by:
+    size: 11
+  funding_rule_info.update_user:
+    size: 11
+  funding_rule_info.version:
+    size: 9
+  gpt_learn_poster_log.act_procinst_id:
+    size: 0
+  gpt_learn_poster_log.act_procinst_no:
+    size: 0
+  gpt_learn_poster_log.act_procinst_status:
+    size: 0
+  gpt_learn_poster_log.app_tenant_code:
+    size: 1
+  gpt_learn_poster_log.code:
+    size: 50
+  gpt_learn_poster_log.company_id:
+    size: 42
+  gpt_learn_poster_log.company_name:
+    size: 48
+  gpt_learn_poster_log.create_by:
+    size: 46
+  gpt_learn_poster_log.create_user:
+    size: 50
+  gpt_learn_poster_log.db_tenant_code:
+    size: 1
+  gpt_learn_poster_log.enable:
+    size: 1
+  gpt_learn_poster_log.id:
+    size: 50
+  gpt_learn_poster_log.name:
+    size: 0
+  gpt_learn_poster_log.organization_id:
+    size: 0
+  gpt_learn_poster_log.remark:
+    size: 0
+  gpt_learn_poster_log.update_by:
+    size: 46
+  gpt_learn_poster_log.update_user:
+    size: 50
+  gpt_learn_poster_log.user_id:
+    size: 46
+  gpt_learn_poster_log.user_name:
+    size: 49
+  lc_sql_init_log.description:
+    size: 0
+  lc_sql_init_log.id:
+    size: 4
+  lc_sql_init_log.name:
+    size: 4
+  migratory_user_record.act_procinst_id:
+    size: 0
+  migratory_user_record.act_procinst_no:
+    size: 0
+  migratory_user_record.act_procinst_status:
+    size: 0
+  migratory_user_record.app_tenant_code:
+    size: 0
+  migratory_user_record.code:
+    size: 50
+  migratory_user_record.create_by:
+    size: 10
+  migratory_user_record.create_user:
+    size: 13
+  migratory_user_record.db_tenant_code:
+    size: 9
+  migratory_user_record.enable:
+    size: 1
+  migratory_user_record.id:
+    size: 50
+  migratory_user_record.is_login:
+    size: 2
+  migratory_user_record.name:
+    size: 0
+  migratory_user_record.organization_id:
+    size: 0
+  migratory_user_record.remark:
+    size: 0
+  migratory_user_record.update_by:
+    size: 10
+  migratory_user_record.update_user:
+    size: 13
+  migratory_user_record.user_id:
+    size: 50
+  open_sso_channel.act_procinst_id:
+    size: 0
+  open_sso_channel.act_procinst_no:
+    size: 0
+  open_sso_channel.act_procinst_status:
+    size: 0
+  open_sso_channel.app_id:
+    size: 1
+  open_sso_channel.app_tenant_code:
+    size: 0
+  open_sso_channel.channel_code:
+    size: 2
+  open_sso_channel.channel_kind:
+    size: 1
+  open_sso_channel.channel_name:
+    size: 2
+  open_sso_channel.code:
+    size: 0
+  open_sso_channel.create_by:
+    size: 0
+  open_sso_channel.create_user:
+    size: 0
+  open_sso_channel.db_tenant_code:
+    size: 0
+  open_sso_channel.default_session_expire_minute:
+    size: 0
+  open_sso_channel.enable:
+    size: 2
+  open_sso_channel.id:
+    size: 3
+  open_sso_channel.max_session_expire_minute:
+    size: 0
+  open_sso_channel.name:
+    size: 0
+  open_sso_channel.open_mode_default:
+    size: 1
+  open_sso_channel.org_code:
+    size: 0
+  open_sso_channel.organization_id:
+    size: 0
+  open_sso_channel.remark:
+    size: 0
+  open_sso_channel.sso_client_id:
+    size: 1
+  open_sso_channel.sso_client_secret:
+    size: 1
+  open_sso_channel.sso_sync_msg:
+    size: 1
+  open_sso_channel.sso_sync_status:
+    size: 1
+  open_sso_channel.sys_channel:
+    size: 3
+  open_sso_channel.sys_type:
+    size: 3
+  open_sso_channel.tenant_code:
+    size: 1
+  open_sso_channel.update_by:
+    size: 0
+  open_sso_channel.update_user:
+    size: 0
+  operation_user.act_procinst_id:
+    size: 0
+  operation_user.act_procinst_no:
+    size: 0
+  operation_user.act_procinst_status:
+    size: 0
+  operation_user.app_tenant_code:
+    size: 0
+  operation_user.code:
+    size: 50
+  operation_user.create_by:
+    size: 1
+  operation_user.create_user:
+    size: 1
+  operation_user.db_tenant_code:
+    size: 1
+  operation_user.deleted:
+    size: 2
+  operation_user.enable:
+    size: 2
+  operation_user.id:
+    size: 50
+  operation_user.name:
+    size: 0
+  operation_user.operation_group:
+    size: 50
+  operation_user.operation_id:
+    size: 50
+  operation_user.operation_name:
+    size: 50
+  operation_user.organization_id:
+    size: 0
+  operation_user.remark:
+    size: 0
+  operation_user.status:
+    size: 0
+  operation_user.update_by:
+    size: 1
+  operation_user.update_user:
+    size: 1
+  org_manage.act_procinst_id:
+    size: 0
+  org_manage.act_procinst_no:
+    size: 0
+  org_manage.act_procinst_status:
+    size: 0
+  org_manage.app_tenant_code:
+    size: 0
+  org_manage.client_type:
+    size: 0
+  org_manage.code:
+    size: 0
+  org_manage.create_by:
+    size: 0
+  org_manage.create_user:
+    size: 0
+  org_manage.db_tenant_code:
+    size: 0
+  org_manage.enable:
+    size: 0
+  org_manage.id:
+    size: 0
+  org_manage.name:
+    size: 0
+  org_manage.org_level:
+    size: 0
+  org_manage.org_name:
+    size: 0
+  org_manage.org_no:
+    size: 0
+  org_manage.org_type:
+    size: 0
+  org_manage.organization_id:
+    size: 0
+  org_manage.parent_code:
+    size: 0
+  org_manage.remark:
+    size: 0
+  org_manage.status:
+    size: 0
+  org_manage.update_by:
+    size: 0
+  org_manage.update_user:
+    size: 0
+  platform_product.act_procinst_id:
+    size: 0
+  platform_product.act_procinst_no:
+    size: 0
+  platform_product.act_procinst_status:
+    size: 1
+  platform_product.app_code:
+    size: 3
+  platform_product.app_tenant_code:
+    size: 1
+  platform_product.basic_product:
+    size: 0
+  platform_product.code:
+    size: 11
+  platform_product.create_by:
+    size: 2
+  platform_product.create_user:
+    size: 2
+  platform_product.credit_measures:
+    size: 9
+  platform_product.customer_group:
+    size: 10
+  platform_product.db_tenant_code:
+    size: 3
+  platform_product.default_menu_code:
+    size: 0
+  platform_product.default_menu_index:
+    size: 1
+  platform_product.enable:
+    size: 2
+  platform_product.general_flag:
+    size: 1
+  platform_product.id:
+    size: 20
+  platform_product.max_financing_amount:
+    size: 3
+  platform_product.max_financing_amount_flag:
+    size: 2
+  platform_product.max_financing_period:
+    size: 6
+  platform_product.menu_type:
+    size: 1
+  platform_product.multiple_client_type:
+    size: 2
+  platform_product.multiple_cust_role_flag:
+    size: 2
+  platform_product.multiple_project_flag:
+    size: 2
+  platform_product.name:
+    size: 20
+  platform_product.organization_id:
+    size: 0
+  platform_product.platform_code:
+    size: 17
+  platform_product.platform_flag:
+    size: 2
+  platform_product.product_cate:
+    size: 3
+  platform_product.product_code:
+    size: 20
+  platform_product.product_construction_status:
+    size: 1
+  platform_product.product_ref_num:
+    size: 12
+  platform_product.product_status:
+    size: 1
+  platform_product.product_type:
+    size: 2
+  platform_product.project_code:
+    size: 2
+  platform_product.project_config:
+    size: 1
+  platform_product.remark:
+    size: 0
+  platform_product.transaction_structure:
+    size: 13
+  platform_product.update_by:
+    size: 4
+  platform_product.update_user:
+    size: 4
+  platform_product.wkfl_flag:
+    size: 1
+  platform_product_client.act_procinst_id:
+    size: 1
+  platform_product_client.act_procinst_no:
+    size: 1
+  platform_product_client.act_procinst_status:
+    size: 1
+  platform_product_client.app_tenant_code:
+    size: 1
+  platform_product_client.client_type:
+    size: 7
+  platform_product_client.code:
+    size: 26
+  platform_product_client.create_by:
+    size: 1
+  platform_product_client.create_user:
+    size: 1
+  platform_product_client.db_tenant_code:
+    size: 1
+  platform_product_client.enable:
+    size: 1
+  platform_product_client.ext_config:
+    size: 1
+  platform_product_client.id:
+    size: 26
+  platform_product_client.link_type:
+    size: 1
+  platform_product_client.multiple_type:
+    size: 10
+  platform_product_client.name:
+    size: 8
+  platform_product_client.organization_id:
+    size: 0
+  platform_product_client.platform_product_id:
+    size: 8
+  platform_product_client.remark:
+    size: 1
+  platform_product_client.status:
+    size: 1
+  platform_product_client.update_by:
+    size: 1
+  platform_product_client.update_user:
+    size: 4
+  platform_product_client.url:
+    size: 9
+  platform_product_client.wx_flag:
+    size: 2
+  platform_product_cust_role.act_procinst_id:
+    size: 0
+  platform_product_cust_role.act_procinst_no:
+    size: 0
+  platform_product_cust_role.act_procinst_status:
+    size: 0
+  platform_product_cust_role.app_tenant_code:
+    size: 0
+  platform_product_cust_role.code:
+    size: 50
+  platform_product_cust_role.company_type_code:
+    size: 8
+  platform_product_cust_role.company_type_name:
+    size: 9
+  platform_product_cust_role.create_by:
+    size: 0
+  platform_product_cust_role.create_user:
+    size: 0
+  platform_product_cust_role.db_tenant_code:
+    size: 0
+  platform_product_cust_role.enable:
+    size: 2
+  platform_product_cust_role.id:
+    size: 50
+  platform_product_cust_role.name:
+    size: 12
+  platform_product_cust_role.organization_id:
+    size: 0
+  platform_product_cust_role.product_code:
+    size: 12
+  platform_product_cust_role.remark:
+    size: 0
+  platform_product_cust_role.update_by:
+    size: 0
+  platform_product_cust_role.update_user:
+    size: 0
+  project_file_info.act_procinst_id:
+    size: 0
+  project_file_info.act_procinst_no:
+    size: 0
+  project_file_info.act_procinst_status:
+    size: 0
+  project_file_info.app_tenant_code:
+    size: 1
+  project_file_info.code:
+    size: 50
+  project_file_info.content:
+    size: 18
+  project_file_info.create_by:
+    size: 7
+  project_file_info.create_user:
+    size: 7
+  project_file_info.db_tenant_code:
+    size: 0
+  project_file_info.enable:
+    size: 1
+  project_file_info.file_type:
+    size: 5
+  project_file_info.id:
+    size: 50
+  project_file_info.name:
+    size: 0
+  project_file_info.organization_id:
+    size: 0
+  project_file_info.project_id:
+    size: 18
+  project_file_info.remark:
+    size: 0
+  project_file_info.title:
+    size: 23
+  project_file_info.update_by:
+    size: 6
+  project_file_info.update_user:
+    size: 6
+  short_link.act_procinst_id:
+    size: 0
+  short_link.act_procinst_no:
+    size: 0
+  short_link.act_procinst_status:
+    size: 0
+  short_link.app_tenant_code:
+    size: 1
+  short_link.code:
+    size: 50
+  short_link.create_by:
+    size: 19
+  short_link.create_user:
+    size: 17
+  short_link.db_tenant_code:
+    size: 8
+  short_link.enable:
+    size: 1
+  short_link.id:
+    size: 50
+  short_link.is_forever:
+    size: 1
+  short_link.name:
+    size: 0
+  short_link.number:
+    size: 50
+  short_link.organization_id:
+    size: 0
+  short_link.remark:
+    size: 0
+  short_link.source_url:
+    size: 50
+  short_link.type:
+    size: 2
+  short_link.update_by:
+    size: 19
+  short_link.update_user:
+    size: 17
+  tenant_interworking_product.act_procinst_id:
+    size: 0
+  tenant_interworking_product.act_procinst_no:
+    size: 0
+  tenant_interworking_product.act_procinst_status:
+    size: 0
+  tenant_interworking_product.app_tenant_code:
+    size: 4
+  tenant_interworking_product.code:
+    size: 40
+  tenant_interworking_product.create_by:
+    size: 6
+  tenant_interworking_product.create_user:
+    size: 6
+  tenant_interworking_product.credit_measures:
+    size: 3
+  tenant_interworking_product.customer_group:
+    size: 6
+  tenant_interworking_product.db_tenant_code:
+    size: 13
+  tenant_interworking_product.enable:
+    size: 1
+  tenant_interworking_product.id:
+    size: 40
+  tenant_interworking_product.logo_icon_url:
+    size: 40
+  tenant_interworking_product.max_financing_amount:
+    size: 3
+  tenant_interworking_product.max_financing_amount_flag:
+    size: 2
+  tenant_interworking_product.max_financing_period:
+    size: 3
+  tenant_interworking_product.name:
+    size: 21
+  tenant_interworking_product.open_status:
+    size: 2
+  tenant_interworking_product.organization_id:
+    size: 0
+  tenant_interworking_product.platform_product_code:
+    size: 11
+  tenant_interworking_product.platform_product_id:
+    size: 11
+  tenant_interworking_product.product_cate:
+    size: 3
+  tenant_interworking_product.ref_tenant_interworking_product_platform_product:
+    size: 3
+  tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config:
+    size: 13
+  tenant_interworking_product.remark:
+    size: 0
+  tenant_interworking_product.scope:
+    size: 2
+  tenant_interworking_product.scope_role:
+    size: 5
+  tenant_interworking_product.target_sys_channel:
+    size: 7
+  tenant_interworking_product.tenant_id:
+    size: 13
+  tenant_interworking_product.update_by:
+    size: 6
+  tenant_interworking_product.update_user:
+    size: 6
+  tenant_interworking_project.act_procinst_id:
+    size: 0
+  tenant_interworking_project.act_procinst_no:
+    size: 0
+  tenant_interworking_project.act_procinst_status:
+    size: 0
+  tenant_interworking_project.app_tenant_code:
+    size: 1
+  tenant_interworking_project.code:
+    size: 12
+  tenant_interworking_project.create_by:
+    size: 2
+  tenant_interworking_project.create_user:
+    size: 2
+  tenant_interworking_project.db_tenant_code:
+    size: 2
+  tenant_interworking_project.enable:
+    size: 1
+  tenant_interworking_project.id:
+    size: 12
+  tenant_interworking_project.name:
+    size: 12
+  tenant_interworking_project.organization_id:
+    size: 0
+  tenant_interworking_project.platform_product_code:
+    size: 5
+  tenant_interworking_project.product_id:
+    size: 6
+  tenant_interworking_project.project_id:
+    size: 9
+  tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product:
+    size: 6
+  tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config:
+    size: 2
+  tenant_interworking_project.remark:
+    size: 0
+  tenant_interworking_project.tenant_id:
+    size: 2
+  tenant_interworking_project.update_by:
+    size: 2
+  tenant_interworking_project.update_user:
+    size: 2
+  tenant_migarory_log.act_procinst_id:
+    size: 0
+  tenant_migarory_log.act_procinst_no:
+    size: 0
+  tenant_migarory_log.act_procinst_status:
+    size: 0
+  tenant_migarory_log.app_tenant_code:
+    size: 2
+  tenant_migarory_log.batch_no:
+    size: 50
+  tenant_migarory_log.code:
+    size: 50
+  tenant_migarory_log.create_by:
+    size: 9
+  tenant_migarory_log.create_user:
+    size: 23
+  tenant_migarory_log.db_tenant_code:
+    size: 3
+  tenant_migarory_log.direction:
+    size: 2
+  tenant_migarory_log.enable:
+    size: 1
+  tenant_migarory_log.falied_number:
+    size: 0
+  tenant_migarory_log.id:
+    size: 50
+  tenant_migarory_log.name:
+    size: 7
+  tenant_migarory_log.organization_id:
+    size: 0
+  tenant_migarory_log.platform_product_code:
+    size: 10
+  tenant_migarory_log.req_no:
+    size: 50
+  tenant_migarory_log.req_sn:
+    size: 50
+  tenant_migarory_log.status:
+    size: 2
+  tenant_migarory_log.success_number:
+    size: 0
+  tenant_migarory_log.total_number:
+    size: 0
+  tenant_migarory_log.trace_id:
+    size: 50
+  tenant_migarory_log.type:
+    size: 6
+  tenant_migarory_log.update_by:
+    size: 9
+  tenant_migarory_log.update_user:
+    size: 23
+  tenant_migarory_log_bak.act_procinst_id:
+    size: 0
+  tenant_migarory_log_bak.act_procinst_no:
+    size: 0
+  tenant_migarory_log_bak.act_procinst_status:
+    size: 0
+  tenant_migarory_log_bak.app_tenant_code:
+    size: 2
+  tenant_migarory_log_bak.batch_no:
+    size: 41
+  tenant_migarory_log_bak.code:
+    size: 50
+  tenant_migarory_log_bak.create_by:
+    size: 29
+  tenant_migarory_log_bak.create_user:
+    size: 17
+  tenant_migarory_log_bak.db_tenant_code:
+    size: 11
+  tenant_migarory_log_bak.direction:
+    size: 2
+  tenant_migarory_log_bak.enable:
+    size: 1
+  tenant_migarory_log_bak.falied_number:
+    size: 2
+  tenant_migarory_log_bak.id:
+    size: 50
+  tenant_migarory_log_bak.name:
+    size: 16
+  tenant_migarory_log_bak.organization_id:
+    size: 0
+  tenant_migarory_log_bak.platform_product_code:
+    size: 10
+  tenant_migarory_log_bak.req_no:
+    size: 50
+  tenant_migarory_log_bak.req_sn:
+    size: 50
+  tenant_migarory_log_bak.status:
+    size: 2
+  tenant_migarory_log_bak.success_number:
+    size: 1
+  tenant_migarory_log_bak.total_number:
+    size: 1
+  tenant_migarory_log_bak.trace_id:
+    size: 50
+  tenant_migarory_log_bak.type:
+    size: 12
+  tenant_migarory_log_bak.update_by:
+    size: 29
+  tenant_migarory_log_bak.update_user:
+    size: 17
+  tenant_product.act_procinst_id:
+    size: 0
+  tenant_product.act_procinst_no:
+    size: 0
+  tenant_product.act_procinst_status:
+    size: 0
+  tenant_product.app_tenant_code:
+    size: 36
+  tenant_product.code:
+    size: 50
+  tenant_product.create_by:
+    size: 30
+  tenant_product.create_user:
+    size: 34
+  tenant_product.credit_measures:
+    size: 5
+  tenant_product.customer_group:
+    size: 6
+  tenant_product.db_tenant_code:
+    size: 50
+  tenant_product.enable:
+    size: 1
+  tenant_product.id:
+    size: 50
+  tenant_product.is_migratory:
+    size: 2
+  tenant_product.logo_icon_url:
+    size: 50
+  tenant_product.max_financing_amount:
+    size: 4
+  tenant_product.max_financing_amount_flag:
+    size: 4
+  tenant_product.max_financing_period:
+    size: 6
+  tenant_product.multiple:
+    size: 1
+  tenant_product.name:
+    size: 10
+  tenant_product.open_status:
+    size: 2
+  tenant_product.organization_id:
+    size: 0
+  tenant_product.platform_product_code:
+    size: 8
+  tenant_product.platform_product_id:
+    size: 8
+  tenant_product.product_agreement:
+    size: 20
+  tenant_product.product_cate:
+    size: 3
+  tenant_product.product_web_url:
+    size: 4
+  tenant_product.ref_tenant_product_project_code:
+    size: 7
+  tenant_product.ref_tenant_product_tenant_setting_config:
+    size: 50
+  tenant_product.remark:
+    size: 0
+  tenant_product.tenant_id:
+    size: 50
+  tenant_product.update_by:
+    size: 29
+  tenant_product.update_user:
+    size: 30
+  tenant_product.view_order:
+    size: 4
+  tenant_product_menu.act_procinst_id:
+    size: 0
+  tenant_product_menu.act_procinst_no:
+    size: 0
+  tenant_product_menu.act_procinst_status:
+    size: 0
+  tenant_product_menu.app_tenant_code:
+    size: 1
+  tenant_product_menu.code:
+    size: 50
+  tenant_product_menu.company_type:
+    size: 3
+  tenant_product_menu.create_by:
+    size: 4
+  tenant_product_menu.create_user:
+    size: 4
+  tenant_product_menu.db_tenant_code:
+    size: 3
+  tenant_product_menu.enable:
+    size: 1
+  tenant_product_menu.id:
+    size: 50
+  tenant_product_menu.menu_id:
+    size: 25
+  tenant_product_menu.name:
+    size: 0
+  tenant_product_menu.organization_id:
+    size: 0
+  tenant_product_menu.product_code:
+    size: 3
+  tenant_product_menu.remark:
+    size: 0
+  tenant_product_menu.update_by:
+    size: 4
+  tenant_product_menu.update_user:
+    size: 4
+  tenant_product_menu_res.act_procinst_id:
+    size: 0
+  tenant_product_menu_res.act_procinst_no:
+    size: 0
+  tenant_product_menu_res.act_procinst_status:
+    size: 0
+  tenant_product_menu_res.app_tenant_code:
+    size: 1
+  tenant_product_menu_res.code:
+    size: 50
+  tenant_product_menu_res.company_type:
+    size: 4
+  tenant_product_menu_res.create_by:
+    size: 3
+  tenant_product_menu_res.create_user:
+    size: 3
+  tenant_product_menu_res.db_tenant_code:
+    size: 3
+  tenant_product_menu_res.enable:
+    size: 1
+  tenant_product_menu_res.id:
+    size: 50
+  tenant_product_menu_res.menu_id:
+    size: 8
+  tenant_product_menu_res.name:
+    size: 0
+  tenant_product_menu_res.organization_id:
+    size: 0
+  tenant_product_menu_res.product_code:
+    size: 2
+  tenant_product_menu_res.remark:
+    size: 0
+  tenant_product_menu_res.resource_id:
+    size: 33
+  tenant_product_menu_res.update_by:
+    size: 3
+  tenant_product_menu_res.update_user:
+    size: 3
+  tenant_project.act_procinst_id:
+    size: 1
+  tenant_project.act_procinst_no:
+    size: 0
+  tenant_project.act_procinst_status:
+    size: 0
+  tenant_project.app_tenant_code:
+    size: 16
+  tenant_project.business_group:
+    size: 4
+  tenant_project.business_manager:
+    size: 11
+  tenant_project.bussiness_project_relation:
+    size: 7
+  tenant_project.channel_code:
+    size: 50
+  tenant_project.code:
+    size: 50
+  tenant_project.config_model:
+    size: 2
+  tenant_project.cover_operator:
+    size: 2
+  tenant_project.create_by:
+    size: 7
+  tenant_project.create_user:
+    size: 10
+  tenant_project.cust_oper_show:
+    size: 2
+  tenant_project.custom_field_one:
+    size: 8
+  tenant_project.custom_field_three:
+    size: 7
+  tenant_project.custom_field_two:
+    size: 8
+  tenant_project.db_tenant_code:
+    size: 23
+  tenant_project.enable:
+    size: 1
+  tenant_project.id:
+    size: 50
+  tenant_project.invite_customer_service_words:
+    size: 44
+  tenant_project.is_add:
+    size: 2
+  tenant_project.is_prd:
+    size: 2
+  tenant_project.logo_path:
+    size: 50
+  tenant_project.name:
+    size: 50
+  tenant_project.op_contact_a:
+    size: 19
+  tenant_project.op_contact_a_group:
+    size: 14
+  tenant_project.op_contact_b:
+    size: 7
+  tenant_project.op_update_user:
+    size: 12
+  tenant_project.operater_card_type:
+    size: 2
+  tenant_project.operator_email:
+    size: 11
+  tenant_project.operator_id:
+    size: 0
+  tenant_project.operator_name:
+    size: 14
+  tenant_project.organization_id:
+    size: 0
+  tenant_project.platform_product_code:
+    size: 4
+  tenant_project.product_id:
+    size: 30
+  tenant_project.project_agreement:
+    size: 0
+  tenant_project.project_approval_id:
+    size: 0
+  tenant_project.project_code:
+    size: 50
+  tenant_project.project_config_version:
+    size: 2
+  tenant_project.project_relation:
+    size: 3
+  tenant_project.project_status:
+    size: 3
+  tenant_project.project_tag:
+    size: 2
+  tenant_project.ref_tenant_project_platform_product:
+    size: 4
+  tenant_project.ref_tenant_project_product_code:
+    size: 42
+  tenant_project.ref_tenant_project_tenant_code:
+    size: 25
+  tenant_project.refer_tenant_project_id:
+    size: 46
+  tenant_project.remark:
+    size: 0
+  tenant_project.risk_control_contact_a:
+    size: 14
+  tenant_project.risk_control_contact_a_group:
+    size: 9
+  tenant_project.risk_control_contact_b:
+    size: 9
+  tenant_project.send_email:
+    size: 2
+  tenant_project.share_flag:
+    size: 2
+  tenant_project.solution_manager:
+    size: 9
+  tenant_project.source:
+    size: 3
+  tenant_project.source_id:
+    size: 50
+  tenant_project.tenant_flg_en:
+    size: 24
+  tenant_project.tenant_id:
+    size: 14
+  tenant_project.test_data:
+    size: 2
+  tenant_project.text:
+    size: 7
+  tenant_project.top_flag:
+    size: 2
+  tenant_project.update_by:
+    size: 19
+  tenant_project.update_user:
+    size: 18
+  tenant_project.verification_contact:
+    size: 6
+  tenant_project.verification_contact_group:
+    size: 5
+  tenant_project.wechat_audit_no:
+    size: 42
+  tenant_project_approval.act_procinst_id:
+    size: 50
+  tenant_project_approval.act_procinst_no:
+    size: 0
+  tenant_project_approval.act_procinst_status:
+    size: 0
+  tenant_project_approval.app_tenant_code:
+    size: 5
+  tenant_project_approval.approval_no:
+    size: 50
+  tenant_project_approval.capital_names:
+    size: 33
+  tenant_project_approval.code:
+    size: 50
+  tenant_project_approval.core_enterprise_names:
+    size: 27
+  tenant_project_approval.create_by:
+    size: 12
+  tenant_project_approval.create_user:
+    size: 7
+  tenant_project_approval.db_tenant_code:
+    size: 7
+  tenant_project_approval.enable:
+    size: 1
+  tenant_project_approval.flow_code:
+    size: 0
+  tenant_project_approval.id:
+    size: 50
+  tenant_project_approval.initiator_user_id:
+    size: 12
+  tenant_project_approval.initiator_user_name:
+    size: 7
+  tenant_project_approval.is_add:
+    size: 2
+  tenant_project_approval.is_latest:
+    size: 2
+  tenant_project_approval.is_low_risk:
+    size: 2
+  tenant_project_approval.is_online_approval:
+    size: 2
+  tenant_project_approval.name:
+    size: 50
+  tenant_project_approval.organization_id:
+    size: 0
+  tenant_project_approval.project_plan:
+    size: 50
+  tenant_project_approval.project_type:
+    size: 2
+  tenant_project_approval.ref_tenant_project_approval_tenant_project:
+    size: 50
+  tenant_project_approval.ref_tenant_project_approval_tenant_project_approval:
+    size: 50
+  tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config:
+    size: 0
+  tenant_project_approval.related_approval_no:
+    size: 24
+  tenant_project_approval.remark:
+    size: 34
+  tenant_project_approval.simple_mode:
+    size: 2
+  tenant_project_approval.solution_manager_id:
+    size: 17
+  tenant_project_approval.solution_manager_name:
+    size: 7
+  tenant_project_approval.sp_no:
+    size: 21
+  tenant_project_approval.update_by:
+    size: 12
+  tenant_project_approval.update_user:
+    size: 10
+  tenant_project_approval.wf_last_operator:
+    size: 10
+  tenant_project_approval.wf_last_operator_id:
+    size: 13
+  tenant_project_approval.wf_procdef_key:
+    size: 50
+  tenant_project_approval.wf_status:
+    size: 4
+  tenant_project_approval.whitelist_query_result:
+    size: 50
+  tenant_project_approval_business_info.act_procinst_id:
+    size: 0
+  tenant_project_approval_business_info.act_procinst_no:
+    size: 0
+  tenant_project_approval_business_info.act_procinst_status:
+    size: 0
+  tenant_project_approval_business_info.app_tenant_code:
+    size: 3
+  tenant_project_approval_business_info.asset_list_mode:
+    size: 2
+  tenant_project_approval_business_info.business_flow_mode:
+    size: 4
+  tenant_project_approval_business_info.code:
+    size: 50
+  tenant_project_approval_business_info.create_by:
+    size: 4
+  tenant_project_approval_business_info.create_user:
+    size: 4
+  tenant_project_approval_business_info.db_tenant_code:
+    size: 6
+  tenant_project_approval_business_info.enable:
+    size: 1
+  tenant_project_approval_business_info.id:
+    size: 50
+  tenant_project_approval_business_info.name:
+    size: 22
+  tenant_project_approval_business_info.organization_id:
+    size: 0
+  tenant_project_approval_business_info.payer:
+    size: 5
+  tenant_project_approval_business_info.product_code:
+    size: 3
+  tenant_project_approval_business_info.project_config_version:
+    size: 2
+  tenant_project_approval_business_info.quote_method:
+    size: 17
+  tenant_project_approval_business_info.ref_tenant_project_approval_business_info_project_approval:
+    size: 50
+  tenant_project_approval_business_info.remark:
+    size: 0
+  tenant_project_approval_business_info.review_fee:
+    size: 9
+  tenant_project_approval_business_info.service_fee_collect_method_financing:
+    size: 7
+  tenant_project_approval_business_info.service_fee_collector_financing:
+    size: 4
+  tenant_project_approval_business_info.service_fee_min_amount:
+    size: 6
+  tenant_project_approval_business_info.service_fee_min_flag:
+    size: 4
+  tenant_project_approval_business_info.service_fee_quote_type_financing:
+    size: 5
+  tenant_project_approval_business_info.source_system:
+    size: 3
+  tenant_project_approval_business_info.update_by:
+    size: 4
+  tenant_project_approval_business_info.update_user:
+    size: 4
+  tenant_project_approval_business_info.zhongdeng_register:
+    size: 8
+  tenant_project_approval_flow.act_procinst_id:
+    size: 0
+  tenant_project_approval_flow.act_procinst_no:
+    size: 0
+  tenant_project_approval_flow.act_procinst_status:
+    size: 0
+  tenant_project_approval_flow.app_tenant_code:
+    size: 4
+  tenant_project_approval_flow.approver_user_id:
+    size: 10
+  tenant_project_approval_flow.approver_user_name:
+    size: 8
+  tenant_project_approval_flow.code:
+    size: 50
+  tenant_project_approval_flow.create_by:
+    size: 6
+  tenant_project_approval_flow.create_user:
+    size: 7
+  tenant_project_approval_flow.db_tenant_code:
+    size: 4
+  tenant_project_approval_flow.enable:
+    size: 1
+  tenant_project_approval_flow.id:
+    size: 50
+  tenant_project_approval_flow.is_operate:
+    size: 2
+  tenant_project_approval_flow.is_optional:
+    size: 2
+  tenant_project_approval_flow.name:
+    size: 0
+  tenant_project_approval_flow.node_code:
+    size: 6
+  tenant_project_approval_flow.node_name:
+    size: 6
+  tenant_project_approval_flow.node_order:
+    size: 6
+  tenant_project_approval_flow.node_status:
+    size: 4
+  tenant_project_approval_flow.organization_id:
+    size: 0
+  tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval:
+    size: 42
+  tenant_project_approval_flow.remark:
+    size: 0
+  tenant_project_approval_flow.update_by:
+    size: 6
+  tenant_project_approval_flow.update_user:
+    size: 7
+  tenant_project_approval_flow_comment.act_procinst_id:
+    size: 0
+  tenant_project_approval_flow_comment.act_procinst_no:
+    size: 0
+  tenant_project_approval_flow_comment.act_procinst_status:
+    size: 0
+  tenant_project_approval_flow_comment.app_tenant_code:
+    size: 1
+  tenant_project_approval_flow_comment.cc_user_id:
+    size: 16
+  tenant_project_approval_flow_comment.code:
+    size: 50
+  tenant_project_approval_flow_comment.content:
+    size: 50
+  tenant_project_approval_flow_comment.create_by:
+    size: 4
+  tenant_project_approval_flow_comment.create_user:
+    size: 4
+  tenant_project_approval_flow_comment.db_tenant_code:
+    size: 4
+  tenant_project_approval_flow_comment.enable:
+    size: 1
+  tenant_project_approval_flow_comment.id:
+    size: 50
+  tenant_project_approval_flow_comment.name:
+    size: 0
+  tenant_project_approval_flow_comment.organization_id:
+    size: 0
+  tenant_project_approval_flow_comment.ref_tenant_project_approval_flow_comment_approval:
+    size: 22
+  tenant_project_approval_flow_comment.remark:
+    size: 0
+  tenant_project_approval_flow_comment.update_by:
+    size: 4
+  tenant_project_approval_flow_comment.update_user:
+    size: 4
+  tenant_project_approval_flow_config.act_procinst_id:
+    size: 0
+  tenant_project_approval_flow_config.act_procinst_no:
+    size: 0
+  tenant_project_approval_flow_config.act_procinst_status:
+    size: 0
+  tenant_project_approval_flow_config.app_tenant_code:
+    size: 0
+  tenant_project_approval_flow_config.code:
+    size: 0
+  tenant_project_approval_flow_config.create_by:
+    size: 0
+  tenant_project_approval_flow_config.create_user:
+    size: 0
+  tenant_project_approval_flow_config.db_tenant_code:
+    size: 0
+  tenant_project_approval_flow_config.enable:
+    size: 2
+  tenant_project_approval_flow_config.flow_code:
+    size: 3
+  tenant_project_approval_flow_config.id:
+    size: 15
+  tenant_project_approval_flow_config.is_operate:
+    size: 2
+  tenant_project_approval_flow_config.is_optional:
+    size: 2
+  tenant_project_approval_flow_config.name:
+    size: 0
+  tenant_project_approval_flow_config.node_code:
+    size: 7
+  tenant_project_approval_flow_config.node_name:
+    size: 7
+  tenant_project_approval_flow_config.node_order:
+    size: 7
+  tenant_project_approval_flow_config.organization_id:
+    size: 0
+  tenant_project_approval_flow_config.remark:
+    size: 3
+  tenant_project_approval_flow_config.update_by:
+    size: 0
+  tenant_project_approval_flow_config.update_user:
+    size: 0
+  tenant_project_approval_flow_credit.act_procinst_id:
+    size: 0
+  tenant_project_approval_flow_credit.act_procinst_no:
+    size: 0
+  tenant_project_approval_flow_credit.act_procinst_status:
+    size: 0
+  tenant_project_approval_flow_credit.app_tenant_code:
+    size: 2
+  tenant_project_approval_flow_credit.code:
+    size: 50
+  tenant_project_approval_flow_credit.create_by:
+    size: 12
+  tenant_project_approval_flow_credit.create_user:
+    size: 11
+  tenant_project_approval_flow_credit.credit_limit:
+    size: 21
+  tenant_project_approval_flow_credit.credited_cust_id:
+    size: 0
+  tenant_project_approval_flow_credit.credited_cust_name:
+    size: 39
+  tenant_project_approval_flow_credit.crediting_cust_id:
+    size: 0
+  tenant_project_approval_flow_credit.crediting_cust_name:
+    size: 38
+  tenant_project_approval_flow_credit.db_tenant_code:
+    size: 5
+  tenant_project_approval_flow_credit.enable:
+    size: 1
+  tenant_project_approval_flow_credit.finance_email:
+    size: 49
+  tenant_project_approval_flow_credit.id:
+    size: 50
+  tenant_project_approval_flow_credit.is_group_limit:
+    size: 2
+  tenant_project_approval_flow_credit.is_recyclable:
+    size: 2
+  tenant_project_approval_flow_credit.name:
+    size: 0
+  tenant_project_approval_flow_credit.organization_id:
+    size: 0
+  tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval:
+    size: 50
+  tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node:
+    size: 50
+  tenant_project_approval_flow_credit.remark:
+    size: 0
+  tenant_project_approval_flow_credit.update_by:
+    size: 12
+  tenant_project_approval_flow_credit.update_user:
+    size: 11
+  tenant_project_approval_flow_file.act_procinst_id:
+    size: 0
+  tenant_project_approval_flow_file.act_procinst_no:
+    size: 0
+  tenant_project_approval_flow_file.act_procinst_status:
+    size: 0
+  tenant_project_approval_flow_file.app_tenant_code:
+    size: 1
+  tenant_project_approval_flow_file.busi_key:
+    size: 19
+  tenant_project_approval_flow_file.catg_id:
+    size: 3
+  tenant_project_approval_flow_file.catg_name:
+    size: 3
+  tenant_project_approval_flow_file.code:
+    size: 50
+  tenant_project_approval_flow_file.create_by:
+    size: 8
+  tenant_project_approval_flow_file.create_user:
+    size: 10
+  tenant_project_approval_flow_file.db_tenant_code:
+    size: 5
+  tenant_project_approval_flow_file.enable:
+    size: 1
+  tenant_project_approval_flow_file.file_id:
+    size: 50
+  tenant_project_approval_flow_file.file_name:
+    size: 50
+  tenant_project_approval_flow_file.file_path:
+    size: 50
+  tenant_project_approval_flow_file.file_url:
+    size: 50
+  tenant_project_approval_flow_file.id:
+    size: 50
+  tenant_project_approval_flow_file.name:
+    size: 0
+  tenant_project_approval_flow_file.organization_id:
+    size: 0
+  tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_comment:
+    size: 50
+  tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval:
+    size: 39
+  tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval_flow_node:
+    size: 50
+  tenant_project_approval_flow_file.remark:
+    size: 37
+  tenant_project_approval_flow_file.update_by:
+    size: 8
+  tenant_project_approval_flow_file.update_user:
+    size: 10
+  tenant_project_approval_flow_node.act_procinst_id:
+    size: 0
+  tenant_project_approval_flow_node.act_procinst_no:
+    size: 0
+  tenant_project_approval_flow_node.act_procinst_status:
+    size: 0
+  tenant_project_approval_flow_node.app_tenant_code:
+    size: 2
+  tenant_project_approval_flow_node.approval_type:
+    size: 2
+  tenant_project_approval_flow_node.approve_comment:
+    size: 50
+  tenant_project_approval_flow_node.cc_user_id:
+    size: 33
+  tenant_project_approval_flow_node.code:
+    size: 50
+  tenant_project_approval_flow_node.create_by:
+    size: 8
+  tenant_project_approval_flow_node.create_user:
+    size: 7
+  tenant_project_approval_flow_node.db_tenant_code:
+    size: 6
+  tenant_project_approval_flow_node.enable:
+    size: 1
+  tenant_project_approval_flow_node.id:
+    size: 50
+  tenant_project_approval_flow_node.is_back_agreement:
+    size: 2
+  tenant_project_approval_flow_node.is_low_risk:
+    size: 2
+  tenant_project_approval_flow_node.name:
+    size: 0
+  tenant_project_approval_flow_node.node_code:
+    size: 6
+  tenant_project_approval_flow_node.node_order:
+    size: 16
+  tenant_project_approval_flow_node.operate_type:
+    size: 5
+  tenant_project_approval_flow_node.operator_user_id:
+    size: 8
+  tenant_project_approval_flow_node.operator_user_name:
+    size: 7
+  tenant_project_approval_flow_node.organization_id:
+    size: 0
+  tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval:
+    size: 50
+  tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval_flow:
+    size: 50
+  tenant_project_approval_flow_node.remark:
+    size: 6
+  tenant_project_approval_flow_node.transfer_to_user_id:
+    size: 12
+  tenant_project_approval_flow_node.transfer_to_user_name:
+    size: 12
+  tenant_project_approval_flow_node.update_by:
+    size: 8
+  tenant_project_approval_flow_node.update_user:
+    size: 7
+  tenant_setting_config.access_mode:
+    size: 1
+  tenant_setting_config.act_procinst_id:
+    size: 0
+  tenant_setting_config.act_procinst_no:
+    size: 0
+  tenant_setting_config.act_procinst_status:
+    size: 1
+  tenant_setting_config.adapt_colour:
+    size: 0
+  tenant_setting_config.ai_resource_color:
+    size: 17
+  tenant_setting_config.ai_zc_channel:
+    size: 6
+  tenant_setting_config.ai_zc_sysnum:
+    size: 7
+  tenant_setting_config.apaas_tenant_code:
+    size: 1
+  tenant_setting_config.app_tenant_code:
+    size: 32
+  tenant_setting_config.auth_agreement:
+    size: 11
+  tenant_setting_config.band_name:
+    size: 50
+  tenant_setting_config.bank_branch:
+    size: 0
+  tenant_setting_config.bank_branch_property_requried:
+    size: 2
+  tenant_setting_config.bank_branch_property_requried_config_cust_role:
+    size: 1
+  tenant_setting_config.bg_color:
+    size: 0
+  tenant_setting_config.billing_type_property_requried:
+    size: 1
+  tenant_setting_config.billing_type_property_requried_config_cust_role:
+    size: 0
+  tenant_setting_config.cash_contract_no_property_requried:
+    size: 1
+  tenant_setting_config.cash_contract_no_property_requried_config_cust_role:
+    size: 1
+  tenant_setting_config.code:
+    size: 50
+  tenant_setting_config.company_share_flag:
+    size: 2
+  tenant_setting_config.company_size_property_requried:
+    size: 1
+  tenant_setting_config.company_size_property_requried_config_cust_role:
+    size: 0
+  tenant_setting_config.composite_field_property_requried:
+    size: 2
+  tenant_setting_config.composite_field_property_requried_company_role:
+    size: 0
+  tenant_setting_config.composite_field_property_requried_config_company_role:
+    size: 0
+  tenant_setting_config.composite_field_property_requried_config_cust_role:
+    size: 2
+  tenant_setting_config.core_bosc_company_id_property_requried:
+    size: 1
+  tenant_setting_config.core_bosc_company_id_property_requried_config_cust_role:
+    size: 0
+  tenant_setting_config.create_by:
+    size: 20
+  tenant_setting_config.create_user:
+    size: 33
+  tenant_setting_config.cust_service_number:
+    size: 50
+  tenant_setting_config.customer_card_type:
+    size: 2
+  tenant_setting_config.db_tenant_code:
+    size: 50
+  tenant_setting_config.dbass_app_id:
+    size: 2
+  tenant_setting_config.dbass_private_key:
+    size: 2
+  tenant_setting_config.default_project_id:
+    size: 32
+  tenant_setting_config.dev_domain:
+    size: 50
+  tenant_setting_config.enable:
+    size: 1
+  tenant_setting_config.finance_org_type_property_requried:
+    size: 2
+  tenant_setting_config.finance_org_type_property_requried_config_cust_role:
+    size: 1
+  tenant_setting_config.generate_electronic_auth_flag:
+    size: 3
+  tenant_setting_config.hfive_dev_domain:
+    size: 50
+  tenant_setting_config.hfive_prd_domain:
+    size: 50
+  tenant_setting_config.hfive_test_domain:
+    size: 50
+  tenant_setting_config.hfive_uat_domain:
+    size: 50
+  tenant_setting_config.id:
+    size: 50
+  tenant_setting_config.is_stack:
+    size: 2
+  tenant_setting_config.lybank_cash_contract_no_property_requried:
+    size: 1
+  tenant_setting_config.lybank_cash_contract_no_property_requried_config_cust_role:
+    size: 1
+  tenant_setting_config.main_tenant_flg_en:
+    size: 2
+  tenant_setting_config.main_theme_color:
+    size: 50
+  tenant_setting_config.migratory_flag:
+    size: 1
+  tenant_setting_config.mp_dbass_app_id:
+    size: 0
+  tenant_setting_config.mp_sso_sys_channel:
+    size: 1
+  tenant_setting_config.mp_sso_tenant_chanel:
+    size: 50
+  tenant_setting_config.name:
+    size: 50
+  tenant_setting_config.need_hfive:
+    size: 2
+  tenant_setting_config.need_mp_wx:
+    size: 2
+  tenant_setting_config.op_update_user:
+    size: 10
+  tenant_setting_config.oper_auth_agreement:
+    size: 3
+  tenant_setting_config.operator_ai_customer:
+    size: 2
+  tenant_setting_config.operator_applet_code:
+    size: 36
+  tenant_setting_config.operator_email:
+    size: 7
+  tenant_setting_config.operator_id:
+    size: 0
+  tenant_setting_config.operator_name:
+    size: 8
+  tenant_setting_config.operator_qr_code:
+    size: 36
+  tenant_setting_config.operator_wechat_code:
+    size: 36
+  tenant_setting_config.organization_id:
+    size: 0
+  tenant_setting_config.person_auth_agreement:
+    size: 12
+  tenant_setting_config.platform_operator:
+    size: 4
+  tenant_setting_config.platform_secret_key:
+    size: 8
+  tenant_setting_config.platform_sms_signature:
+    size: 18
+  tenant_setting_config.portal_flag:
+    size: 3
+  tenant_setting_config.prd_domain:
+    size: 50
+  tenant_setting_config.prd_mp_app_id:
+    size: 50
+  tenant_setting_config.prd_mp_app_name:
+    size: 50
+  tenant_setting_config.prd_mp_wx_login_name:
+    size: 50
+  tenant_setting_config.prd_mp_wx_login_pwd:
+    size: 50
+  tenant_setting_config.privacy_policy_agreement:
+    size: 9
+  tenant_setting_config.project_code_required:
+    size: 2
+  tenant_setting_config.pushing_status:
+    size: 2
+  tenant_setting_config.recall_auth_doc_flag:
+    size: 2
+  tenant_setting_config.remark:
+    size: 0
+  tenant_setting_config.self_registration_flag:
+    size: 2
+  tenant_setting_config.send_email:
+    size: 2
+  tenant_setting_config.share_flag:
+    size: 2
+  tenant_setting_config.sign_flag:
+    size: 2
+  tenant_setting_config.sit_domain:
+    size: 50
+  tenant_setting_config.source:
+    size: 3
+  tenant_setting_config.source_id:
+    size: 50
+  tenant_setting_config.sso_sys_channel:
+    size: 7
+  tenant_setting_config.sso_tenant_chanel:
+    size: 50
+  tenant_setting_config.status:
+    size: 2
+  tenant_setting_config.tenant_flag_zh:
+    size: 50
+  tenant_setting_config.tenant_flg_en:
+    size: 50
+  tenant_setting_config.uat_domain:
+    size: 50
+  tenant_setting_config.uat_mp_app_id:
+    size: 50
+  tenant_setting_config.uat_mp_app_name:
+    size: 50
+  tenant_setting_config.uat_mp_wx_login_name:
+    size: 50
+  tenant_setting_config.uat_mp_wx_login_pwd:
+    size: 50
+  tenant_setting_config.uni_social_credit_code:
+    size: 50
+  tenant_setting_config.update_by:
+    size: 31
+  tenant_setting_config.update_user:
+    size: 36
+  tenant_setting_config.use_theme_after_login:
+    size: 2
+  tenant_setting_config.user_protocol_agreement:
+    size: 10
+  tenant_setting_config.web_title:
+    size: 50
+  tenant_setting_config.xib_factor_contract_no_property_requried:
+    size: 1
+  tenant_setting_config.xib_factor_contract_no_property_requried_config_cust_role:
+    size: 0
+  tenant_setting_config.zybank_cash_contract_amt_property_requried:
+    size: 1
+  tenant_setting_config.zybank_cash_contract_amt_property_requried_config_cust_role:
+    size: 1
+  tenant_setting_config_share.act_procinst_id:
+    size: 0
+  tenant_setting_config_share.act_procinst_no:
+    size: 0
+  tenant_setting_config_share.act_procinst_status:
+    size: 1
+  tenant_setting_config_share.ai_zc_channel:
+    size: 0
+  tenant_setting_config_share.ai_zc_sysnum:
+    size: 0
+  tenant_setting_config_share.apaas_tenant_code:
+    size: 0
+  tenant_setting_config_share.app_tenant_code:
+    size: 0
+  tenant_setting_config_share.auth_agreement:
+    size: 1
+  tenant_setting_config_share.band_name:
+    size: 29
+  tenant_setting_config_share.code:
+    size: 29
+  tenant_setting_config_share.company_share_flag:
+    size: 1
+  tenant_setting_config_share.create_by:
+    size: 1
+  tenant_setting_config_share.create_user:
+    size: 1
+  tenant_setting_config_share.cust_service_number:
+    size: 2
+  tenant_setting_config_share.db_tenant_code:
+    size: 1
+  tenant_setting_config_share.dbass_app_id:
+    size: 1
+  tenant_setting_config_share.dbass_private_key:
+    size: 1
+  tenant_setting_config_share.dev_domain:
+    size: 5
+  tenant_setting_config_share.enable:
+    size: 1
+  tenant_setting_config_share.hfive_dev_domain:
+    size: 2
+  tenant_setting_config_share.hfive_prd_domain:
+    size: 2
+  tenant_setting_config_share.hfive_test_domain:
+    size: 2
+  tenant_setting_config_share.hfive_uat_domain:
+    size: 2
+  tenant_setting_config_share.id:
+    size: 29
+  tenant_setting_config_share.main_theme_color:
+    size: 3
+  tenant_setting_config_share.mp_dbass_app_id:
+    size: 0
+  tenant_setting_config_share.mp_sso_sys_channel:
+    size: 0
+  tenant_setting_config_share.mp_sso_tenant_chanel:
+    size: 0
+  tenant_setting_config_share.name:
+    size: 29
+  tenant_setting_config_share.need_hfive:
+    size: 1
+  tenant_setting_config_share.need_mp_wx:
+    size: 2
+  tenant_setting_config_share.operator_ai_customer:
+    size: 0
+  tenant_setting_config_share.operator_applet_code:
+    size: 0
+  tenant_setting_config_share.operator_email:
+    size: 0
+  tenant_setting_config_share.operator_id:
+    size: 0
+  tenant_setting_config_share.operator_name:
+    size: 0
+  tenant_setting_config_share.operator_qr_code:
+    size: 0
+  tenant_setting_config_share.operator_wechat_code:
+    size: 0
+  tenant_setting_config_share.organization_id:
+    size: 0
+  tenant_setting_config_share.person_auth_agreement:
+    size: 1
+  tenant_setting_config_share.platform_operator:
+    size: 1
+  tenant_setting_config_share.portal_flag:
+    size: 2
+  tenant_setting_config_share.prd_domain:
+    size: 6
+  tenant_setting_config_share.prd_mp_app_id:
+    size: 5
+  tenant_setting_config_share.prd_mp_app_name:
+    size: 5
+  tenant_setting_config_share.prd_mp_wx_login_name:
+    size: 3
+  tenant_setting_config_share.prd_mp_wx_login_pwd:
+    size: 3
+  tenant_setting_config_share.privacy_policy_agreement:
+    size: 1
+  tenant_setting_config_share.remark:
+    size: 0
+  tenant_setting_config_share.self_registration_flag:
+    size: 1
+  tenant_setting_config_share.send_email:
+    size: 0
+  tenant_setting_config_share.share_flag:
+    size: 1
+  tenant_setting_config_share.sit_domain:
+    size: 5
+  tenant_setting_config_share.source:
+    size: 1
+  tenant_setting_config_share.source_id:
+    size: 29
+  tenant_setting_config_share.sso_sys_channel:
+    size: 0
+  tenant_setting_config_share.sso_tenant_chanel:
+    size: 0
+  tenant_setting_config_share.status:
+    size: 1
+  tenant_setting_config_share.tenant_flag_zh:
+    size: 29
+  tenant_setting_config_share.tenant_flg_en:
+    size: 29
+  tenant_setting_config_share.uat_domain:
+    size: 5
+  tenant_setting_config_share.uat_mp_app_id:
+    size: 5
+  tenant_setting_config_share.uat_mp_app_name:
+    size: 5
+  tenant_setting_config_share.uat_mp_wx_login_name:
+    size: 3
+  tenant_setting_config_share.uat_mp_wx_login_pwd:
+    size: 3
+  tenant_setting_config_share.uni_social_credit_code:
+    size: 0
+  tenant_setting_config_share.update_by:
+    size: 1
+  tenant_setting_config_share.update_user:
+    size: 1
+  tenant_setting_config_share.user_protocol_agreement:
+    size: 1
+  tenant_setting_config_share.web_title:
+    size: 0
+  wec_project_cust_operation_rel.act_procinst_id:
+    size: 0
+  wec_project_cust_operation_rel.act_procinst_no:
+    size: 0
+  wec_project_cust_operation_rel.act_procinst_status:
+    size: 0
+  wec_project_cust_operation_rel.app_tenant_code:
+    size: 1
+  wec_project_cust_operation_rel.code:
+    size: 50
+  wec_project_cust_operation_rel.company_id:
+    size: 50
+  wec_project_cust_operation_rel.company_type:
+    size: 2
+  wec_project_cust_operation_rel.create_by:
+    size: 4
+  wec_project_cust_operation_rel.create_user:
+    size: 4
+  wec_project_cust_operation_rel.db_tenant_code:
+    size: 0
+  wec_project_cust_operation_rel.enable:
+    size: 1
+  wec_project_cust_operation_rel.id:
+    size: 50
+  wec_project_cust_operation_rel.name:
+    size: 0
+  wec_project_cust_operation_rel.op_contact_a:
+    size: 8
+  wec_project_cust_operation_rel.op_contact_a_group:
+    size: 6
+  wec_project_cust_operation_rel.op_contact_b:
+    size: 6
+  wec_project_cust_operation_rel.organization_id:
+    size: 0
+  wec_project_cust_operation_rel.project_id:
+    size: 30
+  wec_project_cust_operation_rel.remark:
+    size: 0
+  wec_project_cust_operation_rel.risk_control_contact_a:
+    size: 5
+  wec_project_cust_operation_rel.risk_control_contact_a_group:
+    size: 5
+  wec_project_cust_operation_rel.risk_control_contact_b:
+    size: 6
+  wec_project_cust_operation_rel.top_flag:
+    size: 1
+  wec_project_cust_operation_rel.update_by:
+    size: 4
+  wec_project_cust_operation_rel.update_user:
+    size: 6
+  wec_project_cust_operation_rel.verification_contact:
+    size: 4
+  wec_project_cust_operation_rel.verification_contact_group:
+    size: 4
+  wec_project_cust_operation_rel.wec_rel_id:
+    size: 50
+  wec_project_operation_rel.act_procinst_id:
+    size: 0
+  wec_project_operation_rel.act_procinst_no:
+    size: 0
+  wec_project_operation_rel.act_procinst_status:
+    size: 0
+  wec_project_operation_rel.app_tenant_code:
+    size: 1
+  wec_project_operation_rel.business_group:
+    size: 0
+  wec_project_operation_rel.business_manager:
+    size: 7
+  wec_project_operation_rel.bussiness_project_relation:
+    size: 5
+  wec_project_operation_rel.code:
+    size: 50
+  wec_project_operation_rel.create_by:
+    size: 9
+  wec_project_operation_rel.create_user:
+    size: 12
+  wec_project_operation_rel.custom_field_one:
+    size: 8
+  wec_project_operation_rel.custom_field_three:
+    size: 5
+  wec_project_operation_rel.custom_field_two:
+    size: 8
+  wec_project_operation_rel.db_tenant_code:
+    size: 0
+  wec_project_operation_rel.enable:
+    size: 1
+  wec_project_operation_rel.id:
+    size: 50
+  wec_project_operation_rel.name:
+    size: 0
+  wec_project_operation_rel.op_contact_a:
+    size: 12
+  wec_project_operation_rel.op_contact_a_group:
+    size: 5
+  wec_project_operation_rel.op_contact_b:
+    size: 10
+  wec_project_operation_rel.organization_id:
+    size: 0
+  wec_project_operation_rel.project_relation:
+    size: 0
+  wec_project_operation_rel.project_tag:
+    size: 2
+  wec_project_operation_rel.remark:
+    size: 0
+  wec_project_operation_rel.risk_control_contact_a:
+    size: 9
+  wec_project_operation_rel.risk_control_contact_a_group:
+    size: 8
+  wec_project_operation_rel.risk_control_contact_b:
+    size: 10
+  wec_project_operation_rel.solution_manager:
+    size: 6
+  wec_project_operation_rel.text:
+    size: 0
+  wec_project_operation_rel.top_flag:
+    size: 1
+  wec_project_operation_rel.update_by:
+    size: 13
+  wec_project_operation_rel.update_user:
+    size: 18
+  wec_project_operation_rel.verification_contact:
+    size: 8
+  wec_project_operation_rel.verification_contact_group:
+    size: 6
+  wec_project_operation_rel.wec_project_id:
+    size: 50
+  wec_project_operation_rel.wechat_audit_no:
+    size: 50
+  wechat_project_approval_apply.act_procinst_id:
+    size: 0
+  wechat_project_approval_apply.act_procinst_no:
+    size: 0
+  wechat_project_approval_apply.act_procinst_status:
+    size: 4
+  wechat_project_approval_apply.app_tenant_code:
+    size: 1
+  wechat_project_approval_apply.archives_contact:
+    size: 4
+  wechat_project_approval_apply.archives_contact_group:
+    size: 4
+  wechat_project_approval_apply.bank_quota:
+    size: 12
+  wechat_project_approval_apply.business_center:
+    size: 18
+  wechat_project_approval_apply.bussiness_manager:
+    size: 23
+  wechat_project_approval_apply.capital_branch_name:
+    size: 44
+  wechat_project_approval_apply.capital_org_full_name:
+    size: 43
+  wechat_project_approval_apply.code:
+    size: 50
+  wechat_project_approval_apply.comment:
+    size: 19
+  wechat_project_approval_apply.core_enterprise:
+    size: 27
+  wechat_project_approval_apply.create_by:
+    size: 8
+  wechat_project_approval_apply.create_user:
+    size: 8
+  wechat_project_approval_apply.credit_enhancer:
+    size: 6
+  wechat_project_approval_apply.custom_field_one:
+    size: 3
+  wechat_project_approval_apply.custom_field_statistics_one:
+    size: 15
+  wechat_project_approval_apply.custom_field_three:
+    size: 2
+  wechat_project_approval_apply.custom_field_two:
+    size: 2
+  wechat_project_approval_apply.data_source:
+    size: 2
+  wechat_project_approval_apply.db_tenant_code:
+    size: 1
+  wechat_project_approval_apply.enable:
+    size: 2
+  wechat_project_approval_apply.enterprise_full_name:
+    size: 46
+  wechat_project_approval_apply.fund_manager:
+    size: 6
+  wechat_project_approval_apply.id:
+    size: 50
+  wechat_project_approval_apply.ka_white_label:
+    size: 2
+  wechat_project_approval_apply.lls_participate_role:
+    size: 3
+  wechat_project_approval_apply.main_project_name:
+    size: 47
+  wechat_project_approval_apply.name:
+    size: 0
+  wechat_project_approval_apply.old_solution_manager:
+    size: 30
+  wechat_project_approval_apply.op_contact:
+    size: 10
+  wechat_project_approval_apply.op_contact_group:
+    size: 8
+  wechat_project_approval_apply.organization_id:
+    size: 0
+  wechat_project_approval_apply.prd:
+    size: 2
+  wechat_project_approval_apply.product_type:
+    size: 27
+  wechat_project_approval_apply.product_type_arr:
+    size: 22
+  wechat_project_approval_apply.project_approval_name:
+    size: 50
+  wechat_project_approval_apply.project_exception_remark:
+    size: 16
+  wechat_project_approval_apply.project_focus_level:
+    size: 16
+  wechat_project_approval_apply.project_id:
+    size: 0
+  wechat_project_approval_apply.project_manager:
+    size: 2
+  wechat_project_approval_apply.project_online_name:
+    size: 13
+  wechat_project_approval_apply.project_phase:
+    size: 3
+  wechat_project_approval_apply.project_type:
+    size: 2
+  wechat_project_approval_apply.remark:
+    size: 0
+  wechat_project_approval_apply.risk_control_contact:
+    size: 8
+  wechat_project_approval_apply.risk_control_contact_group:
+    size: 7
+  wechat_project_approval_apply.shelf_scale:
+    size: 6
+  wechat_project_approval_apply.solution_manager:
+    size: 20
+  wechat_project_approval_apply.solution_manager_wxid:
+    size: 18
+  wechat_project_approval_apply.sp_no:
+    size: 50
+  wechat_project_approval_apply.sp_type:
+    size: 3
+  wechat_project_approval_apply.statics_op_user:
+    size: 8
+  wechat_project_approval_apply.system_delivery:
+    size: 3
+  wechat_project_approval_apply.update_by:
+    size: 10
+  wechat_project_approval_apply.update_user:
+    size: 10
+  wechat_project_approval_field_history.act_procinst_id:
+    size: 0
+  wechat_project_approval_field_history.act_procinst_no:
+    size: 0
+  wechat_project_approval_field_history.act_procinst_status:
+    size: 0
+  wechat_project_approval_field_history.app_tenant_code:
+    size: 1
+  wechat_project_approval_field_history.apply_id:
+    size: 8
+  wechat_project_approval_field_history.change_source:
+    size: 3
+  wechat_project_approval_field_history.code:
+    size: 50
+  wechat_project_approval_field_history.create_by:
+    size: 3
+  wechat_project_approval_field_history.create_user:
+    size: 4
+  wechat_project_approval_field_history.db_tenant_code:
+    size: 1
+  wechat_project_approval_field_history.enable:
+    size: 1
+  wechat_project_approval_field_history.field_label:
+    size: 18
+  wechat_project_approval_field_history.field_name:
+    size: 20
+  wechat_project_approval_field_history.id:
+    size: 50
+  wechat_project_approval_field_history.name:
+    size: 0
+  wechat_project_approval_field_history.new_value:
+    size: 50
+  wechat_project_approval_field_history.old_value:
+    size: 50
+  wechat_project_approval_field_history.operator_id:
+    size: 3
+  wechat_project_approval_field_history.operator_name:
+    size: 4
+  wechat_project_approval_field_history.organization_id:
+    size: 0
+  wechat_project_approval_field_history.remark:
+    size: 0
+  wechat_project_approval_field_history.sp_no:
+    size: 7
+  wechat_project_approval_field_history.update_by:
+    size: 3
+  wechat_project_approval_field_history.update_user:
+    size: 4

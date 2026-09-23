@@ -113,6 +113,7 @@ async def _launch_run(
             chat_id=request.chat_id,
             question=request.question,
             base_state={"sink": "sse", "in_chat": True, "stream": True},
+            reasoning_effort=request.reasoning_effort,
         )
         run = session.get(ConversationRun, str(state["run_id"]))
         if run is None:
@@ -137,7 +138,11 @@ async def _launch_run(
             ),
         )
         service = await LLMService.create(
-            session, current_user, question, current_assistant
+            session,
+            current_user,
+            question,
+            current_assistant,
+            reasoning_effort=request.reasoning_effort,
         )
         if regenerate_record is not None:
             service.set_record(regenerate_record)
@@ -158,6 +163,7 @@ async def _launch_run(
                 and getattr(current_assistant, "id", None) is not None
                 else None
             ),
+            reasoning_effort=request.reasoning_effort,
         )
         attach_runtime(run.run_id, llm_service=service)
         explicit_refs = (
@@ -205,6 +211,18 @@ async def _launch_run(
     runner = submit_graph(graph_key, state)
     runner.detach()
     return run
+
+
+@router.get("/llm_capabilities", summary="Active model reasoning defaults for the chat composer")
+async def chat_llm_capabilities(
+    session: SessionDep,
+    current_user: CurrentUser,
+    current_assistant: CurrentAssistant,
+):
+    from apps.conversation.llm import llm_capabilities_view, resolve_chat_llm_config
+
+    config = await resolve_chat_llm_config(session, current_user, current_assistant)
+    return llm_capabilities_view(config)
 
 
 @router.post("/runs", summary="Create and start a durable conversation run")

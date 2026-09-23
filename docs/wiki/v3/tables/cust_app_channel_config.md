@@ -4,16 +4,20 @@ title: 客户应用渠道关系
 page_key: cust_app_channel_config
 belong: tables
 status: draft
-anchors: [cust_app_channel_config]
-sources: ['database_schema:lowcode_pplatform.cust_app_channel_config', 'code_path:ChannelArchiveAppChannelConfigInitializer.java:44']
+anchors:
+- cust_app_channel_config
+sources:
+- database_schema:lowcode_pplatform.cust_app_channel_config
+- code_path:ChannelArchiveAppChannelConfigInitializer.java:44
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_app_channel_config__app_id, cust_app_channel_config__code, cust_app_channel_config__name,
-  cust_app_channel_config__enable]
+databases:
+- lowcode_pplatform
+related:
+- open_sso_channel
+- cust_app_channel_config__enable
 ---
-
 # 客户应用渠道关系
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +29,12 @@ table: cust_app_channel_config
 database: lowcode_pplatform
 desc: 客户应用渠道关系
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 租户渠道 appId 映射；建档时按 db_tenant_code 幂等初始化
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -36,19 +43,19 @@ fields:
 - name: app_id
   type: string
   desc: 应用id
-  dict: [73d62771729e4ffba7f263cb6012746d, d547c3081b1a44d7992031434438e1f3]
 - name: code
   type: string
   desc: 编码
-  dict: [longteng, jingke]
 - name: name
   type: string
   desc: 名称
-  dict: [longteng, jingke]
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -99,11 +106,35 @@ default_filter:
   evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:44
 ```
 
+
+## 关联关系
+
+### likely — 值域支持且列名/注释有关联语义
+
+```ground:relation
+type: EQUI_JOIN
+left: open_sso_channel.app_id
+right: cust_app_channel_config.app_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:shared_domain;reextract:开放 SSO 与客户渠道 app
+source: reextract_joins
+join_role: business_code
+priority: primary
+authenticity_note: 开放 SSO 与客户渠道 app
+```
 ## 页面链接
+
+### 关联表
+
+- [[tables/open_sso_channel]]
+
+### 概念
+
+- [[concepts/app_channel_config_term]]
+- [[concepts/tenant_code_vs_db_tenant]]
 
 ### 字典
 
-- [[dicts/cust_app_channel_config__app_id]]（`cust_app_channel_config.app_id`）
-- [[dicts/cust_app_channel_config__code]]（`cust_app_channel_config.code`）
-- [[dicts/cust_app_channel_config__name]]（`cust_app_channel_config.name`）
 - [[dicts/cust_app_channel_config__enable]]（`cust_app_channel_config.enable`）

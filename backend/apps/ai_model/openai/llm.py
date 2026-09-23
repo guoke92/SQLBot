@@ -1,5 +1,5 @@
 from collections.abc import Iterator, Mapping
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.messages import (
@@ -19,20 +19,26 @@ from langchain_core.runnables import RunnableConfig, ensure_config
 from langchain_openai import ChatOpenAI
 from langchain_openai.chat_models.base import _create_usage_metadata
 
+from apps.ai_model.call_log import begin_llm_call_log, finish_llm_call_log
+from apps.ai_model.openai.responses_compat import install_openai_compat
+from apps.ai_model.runtime import normalize_message_parts
+
+install_openai_compat()
+
 
 def _convert_delta_to_message_chunk(
-        _dict: Mapping[str, Any], default_class: type[BaseMessageChunk]
+    _dict: Mapping[str, Any], default_class: type[BaseMessageChunk]
 ) -> BaseMessageChunk:
     id_ = _dict.get("id")
     role = cast(str, _dict.get("role"))
     content = cast(str, _dict.get("content") or "")
     additional_kwargs: dict = {}
     # 兼容 reasoning_content (DeepSeek等) 和 reasoning (Ollama/LMStudio GPT-OSS) 两种字段
-    reasoning_content = _dict.get('reasoning_content')
+    reasoning_content = _dict.get("reasoning_content")
     if not reasoning_content:
-        reasoning_content = _dict.get('reasoning')
+        reasoning_content = _dict.get("reasoning")
     if reasoning_content:
-        additional_kwargs['reasoning_content'] = reasoning_content
+        additional_kwargs["reasoning_content"] = reasoning_content
     if _dict.get("function_call"):
         function_call = dict(_dict["function_call"])
         if "name" in function_call and function_call["name"] is None:
@@ -84,54 +90,129 @@ def _convert_delta_to_message_chunk(
 
 
 class BaseChatOpenAI(ChatOpenAI):
+    def _completions_wire(self) -> bool:
+        return getattr(self, "use_responses_api", None) is not True
+
+    def _should_delegate_chunk(self, chunk: Mapping[str, Any]) -> bool:
+        if not self._completions_wire():
+            return True
+        chunk_type = chunk.get("type")
+        if isinstance(chunk_type, str) and chunk_type.startswith("response."):
+            return True
+        nested = chunk.get("chunk")
+        nested_choices = nested.get("choices") if isinstance(nested, Mapping) else None
+        choices = chunk.get("choices") or nested_choices
+        return not choices and "output" in chunk
+
+    def _inject_max_tokens(self, payload: dict[str, Any]) -> dict[str, Any]:
+        max_tokens = self.max_tokens
+        if max_tokens and self._completions_wire():
+            payload["max_tokens"] = max_tokens
+        return payload
+
+    def _strip_completions_only_payload(
+        self, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        if self._completions_wire():
+            return payload
+        payload.pop("stream_usage", None)
+        payload.pop("stream_options", None)
+        return payload
+
+    def _prepare_stream_kwargs(self, kwargs: dict[str, Any]) -> dict[str, Any]:
+        prepared = dict(kwargs)
+        if self._completions_wire():
+            prepared["stream_usage"] = True
+        else:
+            prepared.pop("stream_usage", None)
+            prepared.pop("stream_options", None)
+        return prepared
+
     @property
     def _default_params(self) -> dict[str, Any]:
-        max_tokens = self.max_tokens
-        params = super()._default_params
-        if max_tokens:
-            params["max_tokens"] = max_tokens
-        return params
+        return self._inject_max_tokens(super()._default_params)
 
     def _get_request_payload(
-            self,
-            input_: LanguageModelInput,
-            *,
-            stop: Optional[list[str]] = None,
-            **kwargs: Any,
+        self,
+        input_: LanguageModelInput,
+        *,
+        stop: list[str] | None = None,
+        **kwargs: Any,
     ) -> dict:
-        max_tokens = self.max_tokens
+        if not self._completions_wire():
+            kwargs.pop("stream_usage", None)
+            kwargs.pop("stream_options", None)
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
-        if max_tokens:
-            payload["max_tokens"] = max_tokens
+        payload = self._strip_completions_only_payload(self._inject_max_tokens(payload))
+        # Persist the wire body as-sent, before the HTTP round-trip.
+        object.__setattr__(self, "_active_llm_call_log_id", begin_llm_call_log(payload))
         return payload
 
     usage_metadata: dict = {}
 
-    # custom_get_token_ids = custom_get_token_ids
-
     def get_last_generation_info(self) -> dict[str, Any] | None:
         return self.usage_metadata
 
+    def _finish_active_call_log(
+        self,
+        *,
+        response_content: str | None = None,
+        reasoning_content: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        log_id = getattr(self, "_active_llm_call_log_id", None)
+        if log_id is None:
+            return
+        object.__setattr__(self, "_active_llm_call_log_id", None)
+        finish_llm_call_log(
+            log_id,
+            response_content=response_content,
+            reasoning_content=reasoning_content,
+            error=error,
+        )
+
     def _stream(self, *args: Any, **kwargs: Any) -> Iterator[ChatGenerationChunk]:
-        kwargs['stream_usage'] = True
-        for chunk in super()._stream(*args, **kwargs):
-            if chunk.message.usage_metadata is not None:
-                self.usage_metadata = chunk.message.usage_metadata
-            yield chunk
+        kwargs = self._prepare_stream_kwargs(kwargs)
+        content_parts: list[str] = []
+        reasoning_parts: list[str] = []
+        error_text: str | None = None
+        try:
+            for chunk in super()._stream(*args, **kwargs):
+                if chunk.message.usage_metadata is not None:
+                    self.usage_metadata = chunk.message.usage_metadata
+                parts = normalize_message_parts(chunk.message)
+                if parts.content:
+                    content_parts.append(parts.content)
+                if parts.reasoning:
+                    reasoning_parts.append(parts.reasoning)
+                yield chunk
+        except Exception as exc:
+            error_text = f"{type(exc).__name__}: {exc}"
+            raise
+        finally:
+            self._finish_active_call_log(
+                response_content="".join(content_parts) or None,
+                reasoning_content="".join(reasoning_parts) or None,
+                error=error_text,
+            )
 
     def _convert_chunk_to_generation_chunk(
-            self,
-            chunk: dict,
-            default_chunk_class: type,
-            base_generation_info: dict | None,
+        self,
+        chunk: dict,
+        default_chunk_class: type,
+        base_generation_info: dict | None,
     ) -> ChatGenerationChunk | None:
         if chunk.get("type") == "content.delta":  # from beta.chat.completions.stream
             return None
+        if self._should_delegate_chunk(chunk):
+            return super()._convert_chunk_to_generation_chunk(
+                chunk, default_chunk_class, base_generation_info
+            )
         token_usage = chunk.get("usage")
         choices = (
-                chunk.get("choices", [])
-                # from beta.chat.completions.stream
-                or chunk.get("chunk", {}).get("choices", [])
+            chunk.get("choices", [])
+            # from beta.chat.completions.stream
+            or chunk.get("chunk", {}).get("choices", [])
         )
 
         usage_metadata: UsageMetadata | None = (
@@ -175,28 +256,47 @@ class BaseChatOpenAI(ChatOpenAI):
         return generation_chunk
 
     def invoke(
-            self,
-            input: LanguageModelInput,
-            config: RunnableConfig | None = None,
-            *,
-            stop: list[str] | None = None,
-            **kwargs: Any,
+        self,
+        input: LanguageModelInput,
+        config: RunnableConfig | None = None,
+        *,
+        stop: list[str] | None = None,
+        **kwargs: Any,
     ) -> BaseMessage:
         config = ensure_config(config)
-        chat_result = cast(
-            ChatGeneration,
-            self.generate_prompt(
-                [self._convert_input(input)],
-                stop=stop,
-                callbacks=config.get("callbacks"),
-                tags=config.get("tags"),
-                metadata=config.get("metadata"),
-                run_name=config.get("run_name"),
-                run_id=config.pop("run_id", None),
-                **kwargs,
-            ).generations[0][0],
-        ).message
+        error_text: str | None = None
+        chat_result: BaseMessage | None = None
+        try:
+            chat_result = cast(
+                ChatGeneration,
+                self.generate_prompt(
+                    [self._convert_input(input)],
+                    stop=stop,
+                    callbacks=config.get("callbacks"),
+                    tags=config.get("tags"),
+                    metadata=config.get("metadata"),
+                    run_name=config.get("run_name"),
+                    run_id=config.pop("run_id", None),
+                    **kwargs,
+                ).generations[0][0],
+            ).message
+        except Exception as exc:
+            error_text = f"{type(exc).__name__}: {exc}"
+            # Streaming path already finished the log in ``_stream``; only
+            # non-stream generate leaves the pending id for us to close.
+            self._finish_active_call_log(error=error_text)
+            raise
 
-        self.usage_metadata = chat_result.response_metadata[
-            'token_usage'] if 'token_usage' in chat_result.response_metadata else chat_result.usage_metadata
+        self.usage_metadata = (
+            chat_result.response_metadata["token_usage"]
+            if "token_usage" in chat_result.response_metadata
+            else chat_result.usage_metadata
+        )
+        # Non-streaming generate does not go through ``_stream``; persist here.
+        if getattr(self, "_active_llm_call_log_id", None) is not None:
+            parts = normalize_message_parts(chat_result)
+            self._finish_active_call_log(
+                response_content=parts.content or None,
+                reasoning_content=parts.reasoning or None,
+            )
         return chat_result

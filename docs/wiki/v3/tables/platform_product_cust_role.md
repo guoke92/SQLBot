@@ -4,16 +4,20 @@ title: 平台产品企业角色
 page_key: platform_product_cust_role
 belong: tables
 status: draft
-anchors: [platform_product_cust_role]
-sources: ['database_schema:lowcode_pplatform.platform_product_cust_role']
+anchors:
+- platform_product_cust_role
+sources:
+- database_schema:lowcode_pplatform.platform_product_cust_role
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [platform_product, platform_product_cust_role__product_code, platform_product_cust_role__company_type_code,
-  platform_product_cust_role__enable]
+databases:
+- lowcode_pplatform
+related:
+- platform_product
+- tenant_product
+- platform_product_cust_role__enable
 ---
-
 # 平台产品企业角色
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +29,14 @@ table: platform_product_cust_role
 database: lowcode_pplatform
 desc: 平台产品企业角色
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 平台产品适配的企业角色
-name_anchors: [code, name, company_type_code, company_type_name]
+name_anchors:
+- code
+- name
+- company_type_code
+- company_type_name
 fields:
 - name: id
   type: number
@@ -42,20 +51,28 @@ fields:
 - name: product_code
   type: string
   desc: 产品编码
-  dict: [VOUCHER, STORAGE, CROSSBORDER, RVSFACTOR_PC, ORDER, ACCOUNT_PRODUCT, ACFLOW,
-    AMS, BEECREDIT, DEALER, DRAFTQA, DRAFT]
 - name: company_type_code
   type: string
   desc: 企业角色编码
-  dict: [CORE, SUPPLIER, PLATFORM_OPERATOR_COMPANY, FINANCE, PROJECT_COMPANY, CORPORATION_COMPANY,
-    CORE_MANAGER, DEALER]
+  dict:
+  - CORE
+  - SUPPLIER
+  - PLATFORM_OPERATOR_COMPANY
+  - FINANCE
+  - PROJECT_COMPANY
+  - CORPORATION_COMPANY
+  - CORE_MANAGER
+  - DEALER
 - name: company_type_name
   type: string
   desc: 企业角色名称
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -103,32 +120,31 @@ fields:
 ```
 
 ## 关联关系
-
-### unlikely — 值域不支持或冲突
-
 ```ground:relation
 type: EQUI_JOIN
-left: platform_product.code
+left: platform_product.product_code
 right: platform_product_cust_role.product_code
 cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.platform_product_cust_role.product_code;database_profile:lowcode_pplatform.platform_product_cust_role.product_code
-source: name
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_shared_domain;code contains-filter
+source: orphan_repair
 join_role: business_code
 priority: primary
-name_evidence:
-  match: family_suffix
-  stem: product
-  comment: 产品编码
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 12
-  miss: 12
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
+authenticity_note: 产品角色配置↔平台产品业务码
+```
+```ground:relation
+type: EQUI_JOIN
+left: tenant_product.platform_product_code
+right: platform_product_cust_role.product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_shared_domain L→R=1;user code filter
+source: orphan_repair
+join_role: business_code
+priority: primary
+authenticity_note: 内存 contains 同值域可 EQUI
 ```
 
 ## 页面链接
@@ -136,9 +152,9 @@ overlap:
 ### 关联表
 
 - [[tables/platform_product]]
+- [[tables/tenant_product]]
 
 ### 字典
 
-- [[dicts/platform_product_cust_role__product_code]]（`platform_product_cust_role.product_code`）
 - [[dicts/platform_product_cust_role__company_type_code]]（`platform_product_cust_role.company_type_code`）
 - [[dicts/platform_product_cust_role__enable]]（`platform_product_cust_role.enable`）

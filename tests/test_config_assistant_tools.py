@@ -70,11 +70,11 @@ def test_config_turn_is_initialized_before_graph_submission(monkeypatch) -> None
                 return chat
             return None
 
-    async def fake_default_config():
+    async def fake_default_config(*_args, **_kwargs):
         calls.append("model_config")
         return SimpleNamespace(model_id=3, model_name="test")
 
-    monkeypatch.setattr(config_nodes, "get_default_chat_config", fake_default_config)
+    monkeypatch.setattr(config_nodes, "resolve_chat_llm_config", fake_default_config)
     monkeypatch.setattr(
         config_nodes,
         "build_tools",

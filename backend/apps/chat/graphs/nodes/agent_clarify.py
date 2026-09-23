@@ -12,10 +12,7 @@ from langgraph.types import interrupt
 from apps.chat.agent_knowledge import AgentKnowledgePlane
 from apps.chat.caliber_surface import render_caliber_lines
 from apps.conversation.messages import deserialize_messages, serialize_messages
-from apps.conversation.process_timeline import (
-    attach_running_clarification_span,
-    open_process_span,
-)
+from apps.conversation.process_timeline import ensure_clarification_span
 from apps.conversation.run_service import create_interrupt
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
@@ -57,35 +54,17 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
         **card_payload,
     }
     sink = StreamSink.from_state(state)
-    clarify_meta = {
-        "interrupt_id": pending.interrupt_id,
-        "version": pending.version,
-        "clarification_card": card_payload,
-    }
-    # One lifecycle span across interrupt → resume (do not open a duplicate).
-    clarify_span = attach_running_clarification_span(
+    # One interrupt_id ↔ one process span for the whole pause (open → resume).
+    clarify_span = ensure_clarification_span(
         record_id=int(record_id) if record_id is not None else None,
         run_id=run_id,
+        interrupt_id=str(pending.interrupt_id),
+        version=int(pending.version),
+        clarification_card=card_payload,
         sink=sink,
+        ai_modal_id=state.get("ai_modal_id"),
+        ai_modal_name=state.get("ai_modal_name"),
     )
-    if clarify_span is None:
-        clarify_span = open_process_span(
-            kind="clarification",
-            record_id=record_id,
-            sink=sink,
-            run_id=run_id,
-            graph_node="await_clarification",
-            title_key="chat.timeline.clarification",
-            summary_key="chat.summary.clarification_waiting",
-            meta=clarify_meta,
-            local_operation=True,
-        )
-    else:
-        clarify_span.set_meta(clarify_meta)
-        clarify_span.delta(
-            summary_key="chat.summary.clarification_waiting",
-            flush=True,
-        )
 
     if pending.status == "open":
         sink.awaiting_input(public)

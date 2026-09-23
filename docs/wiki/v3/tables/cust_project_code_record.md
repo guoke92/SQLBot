@@ -4,15 +4,21 @@ title: 企业项目码输入记录
 page_key: cust_project_code_record
 belong: tables
 status: draft
-anchors: [cust_project_code_record]
-sources: ['database_schema:lowcode_pplatform.cust_project_code_record', 'code_path:CustProjectRelEnhanceService.java:410']
+anchors:
+- cust_project_code_record
+sources:
+- database_schema:lowcode_pplatform.cust_project_code_record
+- code_path:CustProjectRelEnhanceService.java:410
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_project_code_record__status, cust_project_code_record__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_project_code_record__status
+- cust_project_code_record__enable
 ---
-
 # 企业项目码输入记录
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -24,9 +30,13 @@ table: cust_project_code_record
 database: lowcode_pplatform
 desc: 企业项目码输入记录
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企业录入项目码记录
-name_anchors: [code, name, channel_code]
+name_anchors:
+- code
+- name
+- channel_code
 fields:
 - name: id
   type: number
@@ -50,7 +60,10 @@ fields:
 - name: status
   type: string
   desc: 是否正确状态
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [是, 否]
 - name: company_type
   type: string
   desc: 企业角色
@@ -60,7 +73,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -147,6 +163,12 @@ authenticity_note: 项目码输入记录按企业主键。
 ### 关联表
 
 - [[tables/cust_company_info]]
+
+### 概念
+
+- [[concepts/channel_code_homonym_bundle]]
+- [[concepts/channel_code_term]]
+- [[concepts/project_code_input]]
 
 ### 字典
 

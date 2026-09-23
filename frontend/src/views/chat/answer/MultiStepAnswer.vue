@@ -20,13 +20,13 @@ import type { ChatStreamEvent } from '@/hooks/useChatStream'
 import { useConversationTurn } from '@/features/conversation/useConversationTurn'
 import { useI18n } from 'vue-i18n'
 import icon_sql_outlined from '@/assets/svg/icon_sql_outlined.svg'
-import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
 import QualityStamp from '@/features/conversation/QualityStamp.vue'
 import AgentStagesView from './AgentStagesView.vue'
 import ChatTokenTime from '@/views/chat/ChatTokenTime.vue'
 import {
   applyDelta,
   belongsToRun,
+  bindClarificationInterrupts,
   extractProcessItem,
   itemsForRun,
   removeItem,
@@ -176,14 +176,6 @@ function formatAssumption(item: Record<string, any>): string {
   return answer || question
 }
 
-const timelineItems = computed(() =>
-  itemsForRun(sortedItems(timelineMap.value), props.message?.record?.run_id)
-)
-
-const isMultiStep = computed(
-  () => steps.value.filter((s) => s.sql || s.chart || s.error).length > 1
-)
-
 const allInterrupts = computed<ConversationInterrupt[]>(() => {
   const record = props.message?.record
   const interrupts = (record?.interrupts || []).filter((item) => item.status !== 'cancelled')
@@ -196,31 +188,17 @@ const allInterrupts = computed<ConversationInterrupt[]>(() => {
   return interrupts
 })
 
-/** Fallback cards only when the timeline cannot own the interrupt. */
-const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
-  const interrupts = allInterrupts.value
-  const clarifications = timelineItems.value.filter((item) => item.kind === 'clarification')
-  if (!clarifications.length) return interrupts
+/** Clarification cards are anchored onto request_clarification rows in the chain. */
+const timelineItems = computed(() =>
+  bindClarificationInterrupts(
+    itemsForRun(sortedItems(timelineMap.value), props.message?.record?.run_id),
+    allInterrupts.value
+  )
+)
 
-  const byId = new Set<string>()
-  let hasCardPayload = false
-  for (const item of clarifications) {
-    const interruptId = item.meta?.interrupt_id
-    if (typeof interruptId === 'string' && interruptId) byId.add(interruptId)
-    if (item.meta?.clarification_card && typeof item.meta.clarification_card === 'object') {
-      hasCardPayload = true
-    }
-  }
-
-  return interrupts.filter((interrupt) => {
-    if (byId.has(interrupt.interrupt_id)) return false
-    // AgentStagesView legacy bind: one clarification block + one interrupt.
-    if (interrupts.length === 1) return false
-    // Card body already lives on the timeline span meta.
-    if (hasCardPayload) return false
-    return true
-  })
-})
+const isMultiStep = computed(
+  () => steps.value.filter((s) => s.sql || s.chart || s.error).length > 1
+)
 
 const isAwaitingInput = computed(() => props.message?.record?.run_status === 'awaiting_input')
 
@@ -411,6 +389,9 @@ function hydrateHistory(record: ChatRecord) {
   overallQuality.value = undefined
   assumptions.value = []
   steps.value = []
+  // Drop any prior chain immediately so interrupt binding cannot paint a
+  // card-only flash while the new timeline request is in flight.
+  timelineMap.value = new Map()
 
   if (record.run_status === 'awaiting_input') {
     void hydrateTimeline(record)
@@ -627,9 +608,13 @@ watch(
       props.message?.record?.run_status,
       props.message?.record?.id,
     ] as const,
-  ([runId, status]) => {
+  ([runId, status], previous) => {
     const record = props.message?.record
     if (!record || !runId) return
+    const prevId = previous?.[2]
+    if (prevId != null && prevId !== record.id) {
+      timelineMap.value = new Map()
+    }
     if (status === 'awaiting_input') {
       // Only refresh the timeline; do not attach/ownership — resume must stay free.
       void hydrateTimeline(record)
@@ -689,16 +674,6 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
       :delivered-dataset-ids="deliveredDatasetIds"
       @submit-clarification="resumeClarification"
       @correct-clarification="correctClarification"
-    />
-
-    <ClarificationCard
-      v-for="interrupt in visibleInterrupts"
-      :key="interrupt.interrupt_id"
-      :interrupt="interrupt"
-      :disabled="_loading || isReadOnly()"
-      :correctable="isAwaitingInput && interrupt.status === 'consumed'"
-      @submit="resumeClarification"
-      @correct="correctClarification"
     />
 
     <div v-if="!isAwaitingInput" class="multi-step-container">

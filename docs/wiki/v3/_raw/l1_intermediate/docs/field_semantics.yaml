@@ -1,0 +1,245 @@
+# 字段语义登记（collide / JOIN 复审产出）
+#
+# 两类必须分清：
+# - same_semantic：多表同一业务字段（可冗余拷贝）。先挂 concept；JOIN 仅当值域重合高。
+# - homonym：列名相同、含义不同。禁止 EQUI_JOIN；各自 concept + also_confused_with。
+#
+# 供 L1 reconcile / 人工补 concept 页；不自动改 published。
+
+kind: field_semantics
+domain: cross
+generated_at: '2026-09-22'
+policy: |
+  同名同义 → 术语必建；JOIN 看重合度（高可连，含 B↔C；低只留术语）。
+  同名异义 → 术语分建 + also_confused_with；永不为 EQUI_JOIN。
+
+same_semantic:
+  - semantic_key: platform_product_code_biz
+    title: 平台产品业务码
+    aliases: [platform_product_code, 产品业务码, ACFLOW类产品码]
+    concept_key: platform_product_code_term
+    canonical: platform_product.product_code
+    field_targets:
+      - platform_product.product_code
+      - tenant_product.platform_product_code
+      - tenant_project.platform_product_code
+      - tenant_interworking_product.platform_product_code
+      - tenant_interworking_project.platform_product_code
+      - cust_interworking_product.platform_product_code
+      - authorization_agreement.platform_product_code
+      - cust_auth_application.platform_product_code
+      - argeement_migratory_record.platform_product_code
+      - tenant_migarory_log.platform_product_code
+      - tenant_migarory_log_bak.platform_product_code
+    join_policy: |
+      同语义拷贝。父子/同场景且 live 重合高（如 tenant_product↔tenant_project、
+      interworking product↔project、log↔bak）可 EQUI_JOIN。
+      跨阶段切片（授权书↔迁移日志等）重合低则只留术语。
+      注意：platform_product.code 是 UUID，≠ 本业务码。
+    also_confused_with: [platform_product_uuid_code, product_cate_term]
+    evidence: code_path:authorization_agreement.trace;agreement_migratory_pull.trace
+
+  - semantic_key: funding_product_code_biz
+    title: 资方规则产品码
+    aliases: [funding product_code]
+    concept_key: funding_product_code_term
+    canonical: funding_rule_info.product_code
+    field_targets:
+      - funding_rule_info.product_code
+      - funding_rule_detail.product_code
+      - funding_rule_front_cfg.product_code
+      - funding_exception_resolution.product_code
+    join_policy: |
+      与平台产品业务码同形（常拷贝 platform 产品码）。资方场景内 hub→明细可强连；明细↔front_cfg↔exception B↔C 已 live 确认；funding_rule_info.product_code → platform_product.product_code 已 live 确认（hub FK）。与菜单/审批 product_code 跨场景默认术语对齐。
+    also_confused_with: [platform_product_code_term, tenant_menu_product_code]
+    evidence: code_path:funding_rule/relations_dicts.yaml (真 FK 仍以 rule_info_id 为主)
+
+  - semantic_key: tenant_menu_product_code
+    title: 租户菜单产品码
+    concept_key: tenant_menu_product_code_term
+    canonical: tenant_product_menu.product_code
+    field_targets:
+      - tenant_product_menu.product_code
+      - tenant_product_menu_res.product_code
+    join_policy: |
+      菜单↔按钮同场景，menu_id + product_code 可强连（已确认）。
+      与资方/审批 product_code 同名同义，不默认互链。
+    also_confused_with: [platform_product_code_term, funding_product_code_term]
+
+  - semantic_key: certification_no_uscc
+    title: 企业统一社会信用代码
+    aliases: [统码, certification_no, USCC]
+    concept_key: certification_no_term
+    canonical: cust_company_info.certification_no
+    field_targets:
+      - cust_company_info.certification_no
+      - ca_fee_company.certification_no
+      - ca_fee_order.certification_no
+      - ca_cfca_upgrade_report.certification_no
+      - ca_fee_special_config.certification_no
+    join_policy: |
+      hub（企业/CA 宽表）→ 订单/上报等附属：重合高则强连。
+      附属表之间（order↔special_config↔cfca）重合高也可连；低则只留术语。
+      人员/股东 certification_no 可能是证件号同名异义，见 homonym。
+    also_confused_with: [person_cert_no_homonym]
+    evidence: code_path:ca_fee/relations_dicts.yaml
+
+  - semantic_key: project_invite_channel_code
+    title: 项目邀请码（业务口「项目码/渠道码」）
+    concept_key: channel_code_term
+    canonical: tenant_project.channel_code
+    field_targets:
+      - tenant_project.channel_code
+      - cust_project_rel.channel_code
+      - cust_project_code_record.channel_code
+      - cust_invite_info.channel_code
+    join_policy: |
+      同语义拷贝（项目主档 → 关联/录入记录）。tenant_project.channel_code ↔ cust_project_rel.channel_code 已 live 确认；录入表值域常为切片。
+      **禁止** 与 SSO/建档渠道 channel_code 互连（homonym）。
+    also_confused_with: [open_sso_channel_term, channel_archive_longteng, project_code_input]
+    evidence: code_path:TenantProjectDaoImpl.java:93
+
+  - semantic_key: sso_archive_channel_code
+    title: OpenAPI/SSO 建档渠道码
+    concept_key: channel_archive_longteng
+    canonical: open_sso_channel.channel_code
+    field_targets:
+      - open_sso_channel.channel_code
+      - cust_company_info.channel_code
+      - cust_access_secret.channel
+    join_policy: |
+      建档对齐（非强制 FK）。live 重合高时可 EQUI_JOIN；代码多按值对齐而非 JOIN。
+      **禁止** 与项目邀请码 channel_code_term 互连。
+    also_confused_with: [channel_code_term, app_channel_config_term, tenant_code_vs_db_tenant]
+    evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:44
+
+  - semantic_key: wechat_sp_no
+    title: 企微审批单号
+    aliases: [sp_no, 立项审批编号]
+    concept_key: wechat_apply_term
+    canonical: wechat_project_approval_apply.sp_no
+    field_targets:
+      - wechat_project_approval_apply.sp_no
+      - wechat_project_approval_field_history.sp_no
+      - tenant_project_approval.sp_no
+    join_policy: |
+      企微申请单号。history 优先 apply_id；sp_no 同义冗余，重合高可辅连。
+      tenant_project_approval.sp_no 列注释明示 wechat_project_approval_apply#sp_no
+      （上线审批单引用立项/企微单号）→ comment_fk 可连，勿与「同名异义」混淆。
+      **禁止** 把上线审批主档身份与企微申请单身份当成同一实体互相替代。
+    also_confused_with: [online_approval_wf]
+    evidence: database_schema:tenant_project_approval.sp_no#comment_fk
+
+  - semantic_key: approval_node_code
+    title: 项目上线审批节点编码
+    aliases: [node_code, 审批节点]
+    concept_key: online_approval_wf
+    canonical: tenant_project_approval_flow_config.node_code
+    field_targets:
+      - tenant_project_approval_flow_config.node_code
+      - tenant_project_approval_flow.node_code
+      - tenant_project_approval_flow_node.node_code
+    join_policy: |
+      同属 ProjectApprovalNodeCodeEnum。config=模板，flow=实例节点，flow_node=操作留痕。
+      同名同义；重合高可 EQUI_JOIN（含 B↔C）。真 FK 仍以 approval/flow 的 ref_* / id 为主。
+    also_confused_with: [wechat_apply_term]
+    evidence: code_path:ProjectApprovalNodeCodeEnum.java
+
+  - semantic_key: approval_flow_code
+    title: 项目上线审批流程配置编码
+    aliases: [flow_code]
+    concept_key: online_approval_wf
+    canonical: tenant_project_approval_flow_config.flow_code
+    field_targets:
+      - tenant_project_approval_flow_config.flow_code
+      - tenant_project_approval.flow_code
+    join_policy: |
+      列注释明示 approval.flow_code → flow_config#flow_code（comment_fk）。
+      枚举 ProjectApprovalFlowCodeEnum（NO_ONLINE/STANDARD/REGULAR）。
+    evidence: database_schema:tenant_project_approval.flow_code#comment_fk
+
+homonyms:
+  - column_name: channel_code
+    title: channel_code 同名异义束
+    senses:
+      - concept_key: channel_code_term
+        gloss: 项目邀请码 / 业务口「项目码」
+      - concept_key: open_sso_channel_term
+        gloss: SSO/OpenAPI 渠道主数据码（longteng 等）
+      - concept_key: channel_archive_longteng
+        gloss: 企业建档落库的渠道码（与 SSO 对齐）
+    equi_join: forbidden_across_senses
+    note: 列名相同必须先消歧，再谈 JOIN。
+
+  - column_name: code
+    title: "`*.code` 同名异义提示"
+    senses:
+      - gloss: platform_product.code = 平台产品 UUID
+      - gloss: tenant_product.code / 业务表 code = 行级业务主键码
+      - gloss: platform_product.product_code / *.platform_product_code = 产品业务码
+    equi_join: only_within_confirmed_role
+
+  - column_name: sp_no
+    title: 审批单号同名提示
+    senses:
+      - concept_key: wechat_apply_term
+        gloss: 企微/立项审批单号（含上线审批单上的引用拷贝 tenant_project_approval.sp_no）
+      - concept_key: online_approval_wf
+        gloss: 项目上线审批流程本身（勿用 sp_no 代替 approval.code/id）
+    equi_join: |
+      approval.sp_no ↔ wechat apply.sp_no 允许（注释 FK / 同义引用）。
+      禁止把上线审批实体与企微申请单实体混为同一主键。
+
+  - column_name: certification_no
+    title: 证件/统码同名提示
+    senses:
+      - concept_key: certification_no_term
+        gloss: 企业统一社会信用代码
+      - concept_key: person_cert_no_homonym
+        gloss: 人员/股东证件号（若同列名，勿与企业统码 JOIN）
+    equi_join: only_after_sense_check
+
+  - column_name: product_code
+    title: product_code 同形多场景
+    senses:
+      - concept_key: platform_product_code_term
+        gloss: 平台产品业务码（及各表 platform_product_code 拷贝）
+      - concept_key: funding_product_code_term
+        gloss: 资方规则侧产品码（常同源拷贝）
+      - concept_key: tenant_menu_product_code_term
+        gloss: 菜单/按钮产品码
+    equi_join: |
+      同义拷贝且重合高可连；跨场景默认先术语对齐。
+      platform_product_cust_role.product_code 与 tenant_product.platform_product_code / platform_product.product_code 同值域（代码 contains 过滤）；live 重合高，已编 EQUI_JOIN（orphan_repair）。
+      字典页仅保留 platform_product.product_code 主码表；附属表不做 per-table dict。
+
+  - column_name: node_code
+    title: node_code 同形提示
+    senses:
+      - concept_key: online_approval_wf
+        gloss: 项目上线审批节点编码（flow_config / flow / flow_node 同义）
+    equi_join: same_semantic_high_overlap_ok
+    note: 与企微审批节点无关；勿跨域乱连。
+
+  - semantic_key: wec_project_ops_peer
+    title: 讯易链项目运营（对等产融 tenant_project）
+    concept_key: wec_project_ops_peer
+    canonical: wec_project_operation_rel.wec_project_id
+    field_targets:
+      - wec_project_operation_rel.wec_project_id
+      - wec_project_cust_operation_rel.project_id
+    join_policy: |
+      与产融 tenant_project / cust_project_rel 场景对等、ID 空间隔离。
+      仅 wec 主档↔企业关系可 EQUI_JOIN；禁止与 tenant_project.id / cust_company_info.id 互连。
+    also_confused_with: [channel_code_term]
+    evidence: 'orphan_repair:source分流 产融/讯易链; live impossible cross-join'
+
+  - semantic_key: cust_setting_payment_quota
+    title: 打款次数全局配额（配置灌入，非 JOIN）
+    canonical: cust_setting_config.payment_maximum_number
+    field_targets:
+      - cust_setting_config.payment_maximum_number
+      - cust_account_info.payment_remaining_count
+    join_policy: |
+      配置赋值拷贝，禁止 EQUI_JOIN。
+    evidence: 'code:updatePayCount'

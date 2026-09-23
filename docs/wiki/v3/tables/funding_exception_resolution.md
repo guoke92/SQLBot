@@ -4,16 +4,22 @@ title: 资金方异常解析及建议主表
 page_key: funding_exception_resolution
 belong: tables
 status: draft
-anchors: [funding_exception_resolution]
-sources: ['database_schema:lowcode_pplatform.funding_exception_resolution', 'code_path:FundingPartyExceptionResolutionProviderImpl.java:107']
+anchors:
+- funding_exception_resolution
+sources:
+- database_schema:lowcode_pplatform.funding_exception_resolution
+- code_path:FundingPartyExceptionResolutionProviderImpl.java:107
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [funding_exception_resolution__funding_party_code, funding_exception_resolution__product_code,
-  funding_exception_resolution__enable]
+databases:
+- lowcode_pplatform
+related:
+- funding_rule_detail
+- funding_rule_front_cfg
+- funding_rule_info
+- funding_exception_resolution__enable
 ---
-
 # 资金方异常解析及建议主表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +31,15 @@ table: funding_exception_resolution
 database: lowcode_pplatform
 desc: 资金方异常解析及建议主表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 资金方+产品+报错关键字一行建议
-name_anchors: [funding_party_code, funding_party_name, product_code, code, name]
+name_anchors:
+- funding_party_code
+- funding_party_name
+- product_code
+- code
+- name
 fields:
 - name: id
   type: number
@@ -39,8 +51,6 @@ fields:
 - name: funding_party_code
   type: string
   desc: 对接方标识
-  dict: [abc, hsbc, cgb, szbank, bod, cdrcb, scb, default, lzbank, czbank, icbcProjectLoan,
-    bob, cmbchina, hfbank, boscBeehive, icbc, alipay]
 - name: funding_party_name
   type: string
   desc: 资金方名称
@@ -59,7 +69,6 @@ fields:
 - name: product_code
   type: string
   desc: 产品code
-  dict: [ACFLOW, RVSFACTOR_PC]
 - name: code
   type: string
   desc: 编码
@@ -69,7 +78,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -120,10 +132,64 @@ default_filter:
   evidence: code_path:FundingPartyExceptionResolutionProviderImpl.java:107
 ```
 
+
+## 关联关系
+
+### likely — 值域支持且列名/注释有关联语义
+
+```ground:relation
+type: EQUI_JOIN
+left: funding_rule_info.product_code
+right: funding_exception_resolution.product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;reextract:资金方异常解析
+source: reextract_joins
+join_role: business_code
+priority: primary
+authenticity_note: 资金方异常解析
+```
+```ground:relation
+type: EQUI_JOIN
+left: funding_rule_detail.product_code
+right: funding_exception_resolution.product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_shared_domain B↔C
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: same_semantic
+```
+```ground:relation
+type: EQUI_JOIN
+left: funding_rule_front_cfg.product_code
+right: funding_exception_resolution.product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_shared_domain B↔C
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: same_semantic
+```
+
 ## 页面链接
+
+### 关联表
+
+- [[tables/funding_rule_detail]]
+- [[tables/funding_rule_front_cfg]]
+- [[tables/funding_rule_info]]
+
+### 概念
+
+- [[concepts/funding_exception_hint]]
+- [[concepts/funding_product_code_term]]
 
 ### 字典
 
-- [[dicts/funding_exception_resolution__funding_party_code]]（`funding_exception_resolution.funding_party_code`）
-- [[dicts/funding_exception_resolution__product_code]]（`funding_exception_resolution.product_code`）
 - [[dicts/funding_exception_resolution__enable]]（`funding_exception_resolution.enable`）

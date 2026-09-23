@@ -45,6 +45,7 @@ from apps.conversation.tooling import (
     attach_tool_calls,
     looks_like_tool_markup,
     resolve_message_tool_calls,
+    sanitize_messages_for_model,
     tool_calls_from_message,
     tool_result_from_message,
 )
@@ -90,15 +91,42 @@ def _required_sql_payload(data: Mapping[str, Any] | Any) -> bool:
     return data.get("required") is not False
 
 
+def _messages_for_current_turn(
+    state: Mapping[str, Any], messages: Sequence[Any]
+) -> Sequence[Any]:
+    """Slice to this turn only — same window as ``persist_turn_from_state``.
+
+    Continued chats preload prior ``execute_sql_sandbox`` ToolMessages in the
+    transcript. Completeness checks must not treat those as this turn's result.
+    """
+    start = state.get("turn_message_start")
+    if start is None:
+        return messages
+    try:
+        idx = int(start)
+    except (TypeError, ValueError):
+        return messages
+    if idx <= 0:
+        return messages
+    if idx >= len(messages):
+        return []
+    return messages[idx:]
+
+
 def _agent_has_sql_result(state: Mapping[str, Any], messages: Sequence[Any]) -> bool:
-    """True only when a required=true SQL dataset succeeded. Probes do not count."""
+    """True when *this turn* produced a required=true SQL success.
+
+    ``tool_steps`` is already turn-local. Message history may include prior
+    turns via ``agent_transcript``; only messages from ``turn_message_start``
+    count. Probes (``required=false``) never count.
+    """
     for step in state.get("tool_steps") or []:
         if not isinstance(step, Mapping) or not step.get("ok"):
             continue
         data = (step.get("result") or {}).get("data") or {}
         if _required_sql_payload(data):
             return True
-    for message in messages:
+    for message in _messages_for_current_turn(state, messages):
         if str(getattr(message, "name", "") or "") != "execute_sql_sandbox":
             continue
         payload = tool_result_from_message(message)
@@ -380,6 +408,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Autonomous ReAct loop node: streams thought, calls tools, or finalizes."""
     sink = StreamSink.from_state(state)
     messages = deserialize_messages(list(state.get("messages") or []))
+    messages = sanitize_messages_for_model(messages)
     tools = list(runtime_value(state, "bound_tools") or [])
     rounds = int(state.get("tool_rounds") or 0)
     round_limit = int(state.get("tool_round_limit") or EXECUTION_ROUND_LIMIT)
@@ -421,7 +450,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     calls: list[dict[str, Any]] = []
     text = ""
     usage: Mapping[str, Any] = {}
-    recovered_markup = False
+    recovered_calls = False
 
     def _ensure_thought_span():
         nonlocal thought_span
@@ -444,15 +473,18 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     try:
         bound = llm if finalizing or not tools else llm.bind_tools(tools)
         held_content: list[str] = []
+        saw_model_reasoning = False
 
         def _on_chunk(chunk: Mapping[str, Any]) -> None:
+            nonlocal saw_model_reasoning
             reasoning = str(chunk.get("reasoning_content") or "")
             content = str(chunk.get("content") or "")
-            if reasoning:
+            if reasoning or chunk.get("has_reasoning"):
+                saw_model_reasoning = True
                 span = _ensure_thought_span()
                 if span is not None:
                     span.delta(
-                        thought_content=reasoning,
+                        thought_content=reasoning or None,
                         thought_source="model_reasoning",
                     )
             if not content:
@@ -485,12 +517,12 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
             if response is not None
             else ([], text)
         )
-        recovered_markup = bool(calls) and not native_calls
+        recovered_calls = bool(calls) and not native_calls
         if finalizing:
-            if recovered_markup or looks_like_tool_markup(call.content):
+            if recovered_calls or looks_like_tool_markup(call.content):
                 text = text.strip() or _incomplete_query_message(state)
             calls = []
-        elif recovered_markup and response is not None:
+        elif recovered_calls and response is not None:
             response = attach_tool_calls(response, calls, text)
         if calls and held_content:
             span = _ensure_thought_span()
@@ -504,7 +536,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
             thought_body = str(
                 (thought_span.snapshot().get("thought") or {}).get("content") or ""
             ).strip()
-            if thought_body:
+            if thought_body or saw_model_reasoning:
                 thought_span.set_usage(usage)
                 thought_span.set_input(_messages_for_audit(model_messages))
                 thought_span.set_output(
@@ -574,7 +606,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         }
 
     if looks_like_tool_markup(text) or (
-        recovered_markup and not str(text or "").strip()
+        recovered_calls and not str(text or "").strip()
     ):
         return _incomplete_query_state(state, updated_messages)
 

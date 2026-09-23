@@ -415,21 +415,24 @@
           <div v-else-if="isConfigChat" class="datasource" style="opacity: 0.75">
             {{ t('qa.config_assistant') }}
           </div>
-          <div
-            v-if="computedMessages.length > 0 && currentChat.datasource && !isConfigChat"
-            class="quick_question"
-          >
-            <quick-question
-              ref="quickQuestionRef"
-              :datasource-id="currentChat.datasource"
-              :current-chat="currentChat"
-              :record-id="computedMessages[0].record?.id"
-              :disabled="isTyping"
-              :first-chat="true"
-              @quick-ask="quickAsk"
-              @stop="onChatStop"
-              @loading-over="loadingOver"
-            ></quick-question>
+          <div class="composer-tools">
+            <div
+              v-if="computedMessages.length > 0 && currentChat.datasource && !isConfigChat"
+              class="quick_question"
+            >
+              <quick-question
+                ref="quickQuestionRef"
+                :datasource-id="currentChat.datasource"
+                :current-chat="currentChat"
+                :record-id="computedMessages[0].record?.id"
+                :disabled="isTyping"
+                :first-chat="true"
+                @quick-ask="quickAsk"
+                @stop="onChatStop"
+                @loading-over="loadingOver"
+              ></quick-question>
+            </div>
+            <ReasoningEffortPicker :disabled="isTyping" :chat-id="currentChatId" />
           </div>
           <el-input
             ref="inputRef"
@@ -524,6 +527,7 @@ import { useUserStore } from '@/stores/user'
 import { isMobile } from '@/utils/utils'
 import router from '@/router'
 import QuickQuestion from '@/views/chat/QuickQuestion.vue'
+import ReasoningEffortPicker from '@/views/chat/ReasoningEffortPicker.vue'
 import { useChatConfigStore } from '@/stores/chatConfig.ts'
 import { useChatScroll } from '@/hooks/useChatScroll'
 import { APP_NAME } from '@/constants/branding'
@@ -1282,22 +1286,23 @@ onMounted(() => {
         }
       }
 
+      .composer-tools {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        right: 56px;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 28px;
+      }
+
       .quick_question {
         min-width: 100px;
-        position: absolute;
-        margin-left: 1px;
-        margin-top: 1px;
-        left: 0;
-        bottom: 0;
-        padding-bottom: 12px;
-        padding-left: 12px;
-        z-index: 10;
-        background: transparent;
         line-height: 22px;
         font-size: 14px;
         font-weight: 400;
-        border-top-right-radius: 16px;
-        border-top-left-radius: 16px;
         color: rgba(100, 106, 115, 1);
         display: flex;
         align-items: center;

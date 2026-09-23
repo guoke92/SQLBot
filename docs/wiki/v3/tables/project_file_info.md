@@ -4,16 +4,20 @@ title: 项目运营文件管理
 page_key: project_file_info
 belong: tables
 status: draft
-anchors: [project_file_info]
-sources: ['database_schema:lowcode_pplatform.project_file_info']
+anchors:
+- project_file_info
+sources:
+- database_schema:lowcode_pplatform.project_file_info
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [project_file_info__title, project_file_info__content, project_file_info__file_type,
-  project_file_info__enable]
+databases:
+- lowcode_pplatform
+related:
+- tenant_project
+- project_file_info__file_type
+- project_file_info__enable
 ---
-
 # 项目运营文件管理
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +29,13 @@ table: project_file_info
 database: lowcode_pplatform
 desc: 项目运营文件管理
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 项目运营文件
-name_anchors: [title, code, name]
+name_anchors:
+- title
+- code
+- name
 fields:
 - name: id
   type: number
@@ -36,18 +44,18 @@ fields:
 - name: title
   type: string
   desc: 标题
-  dict: ['1', '2', '3', '4', '5', '22', 自动化测试注册建档文件A1, '233232', '11', '6', 标题1, '7',
-    '23432', qa_other_title_1786619365328, '8', '123', 自动化测试文件标题, '9', aaa, 自动化测试注册建档文件,
-    '10']
 - name: content
   type: string
   desc: 描述
-  dict: ['1', '2', '4', '3', '5', '22', '222', 描述1, '11', '3232424', '10', '9', '8',
-    '7', aaa, '6', '123', '2342342']
 - name: file_type
   type: string
   desc: 文件模块类型
-  dict: [cust, approve, collate, other, check]
+  dict:
+  - cust
+  - approve
+  - collate
+  - other
+  - check
 - name: project_id
   type: number
   desc: 关联项目ID
@@ -60,7 +68,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -107,11 +118,29 @@ fields:
   desc: 机构编号
 ```
 
+## 关联关系
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: project_file_info.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_fk_like R→L=0.96 项目运营文件
+source: orphan_repair
+join_role: identity
+priority: primary
+authenticity_note: 产融项目运营文件→tenant_project
+```
+
 ## 页面链接
+
+### 关联表
+
+- [[tables/tenant_project]]
 
 ### 字典
 
-- [[dicts/project_file_info__title]]（`project_file_info.title`）
-- [[dicts/project_file_info__content]]（`project_file_info.content`）
 - [[dicts/project_file_info__file_type]]（`project_file_info.file_type`）
 - [[dicts/project_file_info__enable]]（`project_file_info.enable`）

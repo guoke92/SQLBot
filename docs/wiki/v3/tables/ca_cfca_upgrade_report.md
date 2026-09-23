@@ -4,16 +4,22 @@ title: CFCA证书升级业务上报与触达记录
 page_key: ca_cfca_upgrade_report
 belong: tables
 status: draft
-anchors: [ca_cfca_upgrade_report]
-sources: ['database_schema:lowcode_pplatform.ca_cfca_upgrade_report']
+anchors:
+- ca_cfca_upgrade_report
+sources:
+- database_schema:lowcode_pplatform.ca_cfca_upgrade_report
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [ca_cfca_upgrade_report__source_system, ca_cfca_upgrade_report__company_type,
-  ca_cfca_upgrade_report__biz_module, ca_cfca_upgrade_report__todo_triggered, ca_cfca_upgrade_report__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_person_info
+- ca_cfca_upgrade_report__company_type
+- ca_cfca_upgrade_report__todo_triggered
+- ca_cfca_upgrade_report__enable
 ---
-
 # CFCA证书升级业务上报与触达记录
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +31,15 @@ table: ca_cfca_upgrade_report
 database: lowcode_pplatform
 desc: CFCA证书升级业务上报与触达记录
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: CFCA 升级上报（catalog 有表；pplatform-web 无 @TableName DO）
-name_anchors: [customer_name, title, authorized_user_name, code, name]
+name_anchors:
+- customer_name
+- title
+- authorized_user_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -39,15 +51,24 @@ fields:
 - name: source_system
   type: string
   desc: 来源系统
-  dict: [ACFLOW, RVSFACTOR_PC, 国内信用证, ORDER]
+  dict:
+  - ACFLOW
+  - RVSFACTOR_PC
+  - 国内信用证
+  - ORDER
 - name: company_id
   type: string
   desc: 企业 ID
 - name: company_type
   type: string
   desc: 企业角色
-  dict: [CORE, SUPPLIER, PLATFORM_COMPANY, PROJECT_COMPANY, PLATFORM_OPERATOR_COMPANY,
-    FINANCE]
+  dict:
+  - CORE
+  - SUPPLIER
+  - PLATFORM_COMPANY
+  - PROJECT_COMPANY
+  - PLATFORM_OPERATOR_COMPANY
+  - FINANCE
 - name: certification_no
   type: string
   desc: 统码
@@ -63,7 +84,9 @@ fields:
 - name: biz_module
   type: string
   desc: 所属模块
-  dict: [CFCA_CA_UPGRADE, CFCA证书升级]
+  dict:
+  - CFCA_CA_UPGRADE
+  - CFCA证书升级
 - name: occur_time
   type: temporal
   desc: 异常发生时间
@@ -79,7 +102,12 @@ fields:
 - name: todo_triggered
   type: string
   desc: 是否曾触发待办/消息 Y/N
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 - name: notify_time
   type: temporal
   desc: 触发时间
@@ -98,7 +126,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -145,7 +178,62 @@ fields:
   desc: 机构编号
 ```
 
+
+## 关联关系
+
+### likely — 值域支持且列名/注释有关联语义
+
+```ground:relation
+type: EQUI_JOIN
+left: cust_company_info.id
+right: ca_cfca_upgrade_report.company_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;reextract:CFCA 升级上报企业
+source: reextract_joins
+join_role: identity
+priority: primary
+authenticity_note: CFCA 升级上报企业
+```
+```ground:relation
+type: EQUI_JOIN
+left: cust_company_info.certification_no
+right: ca_cfca_upgrade_report.certification_no
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: 'live_validate:fk_like;collide_refine:promoted: ca_cfca_upgrade_report.certification_no
+  ⊆ cust_company_info.certification_no'
+source: collide_refine
+join_role: business_code
+priority: primary
+authenticity_note: 'promoted: ca_cfca_upgrade_report.certification_no ⊆ cust_company_info.certification_no'
+```
+```ground:relation
+type: EQUI_JOIN
+left: cust_person_info.user_id
+right: ca_cfca_upgrade_report.authorized_user_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep_cont:live_fk_like;code:write-flow
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:write-flow
+```
+
 ## 页面链接
+
+### 关联表
+
+- [[tables/cust_company_info]]
+- [[tables/cust_person_info]]
+
+### 概念
+
+- [[concepts/certification_no_term]]
 
 ### 字典
 

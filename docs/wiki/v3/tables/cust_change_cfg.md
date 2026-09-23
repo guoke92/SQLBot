@@ -4,17 +4,24 @@ title: 客户变更配置
 page_key: cust_change_cfg
 belong: tables
 status: draft
-anchors: [cust_change_cfg]
-sources: ['database_schema:lowcode_pplatform.cust_change_cfg', 'code_path:CustCompanyInfoApplication.java:4320']
+anchors:
+- cust_change_cfg
+sources:
+- database_schema:lowcode_pplatform.cust_change_cfg
+- code_path:CustCompanyInfoApplication.java:4320
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_change_cfg__cust_type, cust_change_cfg__identify_style, cust_change_cfg__head_company,
-  cust_change_cfg__open_process, cust_change_cfg__item_code, cust_change_cfg__enable,
-  cust_change_cfg__client_type]
+databases:
+- lowcode_pplatform
+related:
+- cust_change_record
+- cust_change_cfg__head_company
+- cust_change_cfg__enable
+- cust_change_cfg__client_type
+- cust_change_cfg__identify_style
+- cust_change_cfg__item_code
 ---
-
 # 客户变更配置
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +33,13 @@ table: cust_change_cfg
 database: lowcode_pplatform
 desc: 客户变更配置
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 变更项配置（按认证方式/客户类型查，不是企业主档）
-name_anchors: [code, name, item_code]
+name_anchors:
+- code
+- name
+- item_code
 fields:
 - name: id
   type: number
@@ -52,33 +63,77 @@ fields:
 - name: cust_type
   type: string
   desc: 客户类型
-  dict: ['2', '1', '3']
-  label: [企业客户, 个人客户, 运营方企业客户]
 - name: identify_style
   type: string
   desc: 认证方式
-  dict: [INVITE, INVITE_AGW, SELF, SIMPLE]
-  label: [邀请认证-客户录入, 邀请认证-内管录入, 自主认证, 简易认证]
+  dict:
+  - INVITE
+  - INVITE_AGW
+  - SELF
+  - SIMPLE
+  label:
+  - 邀请认证-客户录入
+  - 邀请认证-内管录入
+  - 自主认证
+  - 简易认证
 - name: head_company
   type: string
   desc: 是否总公司
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 - name: open_process
   type: string
   desc: 开启流程
-  dict: [N, Y]
 - name: item_code
   type: string
   desc: 变更项编码
-  dict: [UN0001, UN0009, UN0003, UN0002, UN0004, UN0015, UN0013, UN0012, UN0014, UN0005,
-    UN0008, UN0007, UN0016, UN0011, UN0006, UN0010]
-  label: [企业信息变更, 增加企业角色, 法定代表人手机号码变更, 法定代表人变更, 法定代表人证件有效期变更, 企业管理员邮箱期变更, 企业管理员手机号变更,
-    企业管理员变更, 企业管理员证件有效期变更, 总公司法定代表人变更, 企业授权书, 总公司法定代表人证件有效期变更, 总公司变分公司, 总公司企业信息变更,
-    总公司法定代表人手机号变更, 重新建档]
+  dict:
+  - UN0001
+  - UN0009
+  - UN0003
+  - UN0002
+  - UN0004
+  - UN0015
+  - UN0013
+  - UN0012
+  - UN0014
+  - UN0005
+  - UN0008
+  - UN0007
+  - UN0016
+  - UN0011
+  - UN0006
+  - UN0010
+  label:
+  - 企业信息变更
+  - 增加企业角色
+  - 法定代表人手机号码变更
+  - 法定代表人变更
+  - 法定代表人证件有效期变更
+  - 企业管理员邮箱期变更
+  - 企业管理员手机号变更
+  - 企业管理员变更
+  - 企业管理员证件有效期变更
+  - 总公司法定代表人变更
+  - 企业授权书
+  - 总公司法定代表人证件有效期变更
+  - 总公司变分公司
+  - 总公司企业信息变更
+  - 总公司法定代表人手机号变更
+  - 重新建档
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -126,22 +181,49 @@ fields:
 - name: client_type
   type: string
   desc: 端类型
-  dict: [AGW, ACCOUNT_PRODUCT]
-  label: [内管, 客户端]
+  dict:
+  - AGW
+  - ACCOUNT_PRODUCT
+  label:
+  - 内管
+  - 客户端
 default_filter:
   predicate: cust_change_cfg.enable = 'Y'
   trust: confirmed
   evidence: code_path:CustCompanyInfoApplication.java:4320
 ```
 
+```ground:relation
+type: EQUI_JOIN
+left: cust_change_cfg.id
+right: cust_change_record.alter_type_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_shared_domain
+source: full_sweep
+join_role: identity
+priority: primary
+authenticity_note: code+live
+```
+
 ## 页面链接
+
+### 关联表
+
+- [[tables/cust_change_record]]
+
+### 概念
+
+- [[concepts/add_company_role_change]]
+- [[concepts/change_item_code]]
+- [[concepts/head_to_branch_change]]
+- [[concepts/rebuild_archive_change]]
 
 ### 字典
 
-- [[dicts/cust_change_cfg__cust_type]]（`cust_change_cfg.cust_type`）
 - [[dicts/cust_change_cfg__identify_style]]（`cust_change_cfg.identify_style`）
 - [[dicts/cust_change_cfg__head_company]]（`cust_change_cfg.head_company`）
-- [[dicts/cust_change_cfg__open_process]]（`cust_change_cfg.open_process`）
 - [[dicts/cust_change_cfg__item_code]]（`cust_change_cfg.item_code`）
 - [[dicts/cust_change_cfg__enable]]（`cust_change_cfg.enable`）
 - [[dicts/cust_change_cfg__client_type]]（`cust_change_cfg.client_type`）

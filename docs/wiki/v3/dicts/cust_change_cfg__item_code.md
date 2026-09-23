@@ -14,15 +14,15 @@ sources: ['database_profile:cust_change_cfg.item_code', 'database_schema:cust_ch
   'code_path:CustUpdateItemCodeConstants.java:22', 'code_path:CustUpdateItemCodeConstants.java:20',
   'code_path:CustUpdateItemCodeConstants.java:38', 'code_path:CustUpdateItemCodeConstants.java:28',
   'code_path:CustUpdateItemCodeConstants.java:18', 'code_path:CustUpdateItemCodeConstants.java:26']
-created: '2026-09-21'
-updated: '2026-09-21'
+created: '2026-09-23'
+updated: '2026-09-23'
 contract_version: '0.1'
 related: [cust_change_cfg]
 ---
 
 # cust_change_cfg.item_code
 
-L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。 初审 hold：证据不足，保留待人工确认。
+L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。
 物理列 `cust_change_cfg.item_code`，表页 [[tables/cust_change_cfg]]。
 
 ## 取值
@@ -47,6 +47,5 @@ values:
   UN0011: {trust: confirmed, label: 总公司企业信息变更, evidence: 'code_path:CustUpdateItemCodeConstants.java:28'}
   UN0006: {trust: confirmed, label: 总公司法定代表人手机号变更, evidence: 'code_path:CustUpdateItemCodeConstants.java:18'}
   UN0010: {trust: confirmed, label: 重新建档, evidence: 'code_path:CustUpdateItemCodeConstants.java:26'}
-triage: hold
-needs_review: true
+triage: keep
 ```

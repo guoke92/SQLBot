@@ -1,0 +1,46 @@
+ir_keys: 67
+updated_from_ir:
+- ca_fee_order__pay_method
+- cust_change_cfg__identify_style
+- cust_change_cfg__item_code
+- cust_company_info__cust_source
+- cust_company_info__identify_style
+- cust_invite_info__progress
+- funding_rule_detail__rule_layer
+- funding_rule_front_cfg__rule_layer
+- open_sso_channel__open_mode_default
+- platform_product__product_cate
+- tenant_interworking_product__product_cate
+- tenant_interworking_product__scope
+- tenant_product__product_cate
+- tenant_project_approval_flow__node_code
+- tenant_project_approval_flow_config__flow_code
+- tenant_project_approval_flow_config__node_code
+- tenant_project_approval_flow_node__node_code
+- tenant_setting_config__access_mode
+missing_pages:
+- cust_change_cfg__cust_type
+- cust_change_record__alter_mode
+- cust_change_record__oper_channel
+- cust_change_record__status
+- cust_company_info__data_type
+- cust_company_info__need_register_ca
+- cust_person_info__source
+- cust_project_code_record__type
+- tenant_project__project_status
+tables_from_ir:
+- ca_fee_order
+- cust_change_cfg
+- cust_company_info
+- cust_invite_info
+- funding_rule_detail
+- funding_rule_front_cfg
+- open_sso_channel
+- platform_product
+- tenant_interworking_product
+- tenant_product
+- tenant_project_approval_flow
+- tenant_project_approval_flow_config
+- tenant_project_approval_flow_node
+- tenant_setting_config
+field_labels_synced: 0

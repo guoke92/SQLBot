@@ -1,0 +1,416 @@
+present: 44
+missing_identity:
+- &id024
+  left: ca_cfca_upgrade_report.authorized_user_id
+  right: cust_person_info.user_id
+  evidence: write-flow:CaCfcaUpgradeReportService.java
+  kind: fk
+  score: 7
+- &id025
+  left: ca_fee_company.source_project_id
+  right: ca_fee_order.project_id
+  evidence: write-flow:CaFeeOrderService.java
+  kind: fk
+  score: 7
+- &id032
+  left: cust_account_info.ref_cust_company_info
+  right: cust_person_info.ref_cust_company_info
+  evidence: copy:CustPersonController.java
+  kind: SHARED_KEY
+  score: 5
+- &id026
+  left: cust_auth_application.main_data_id
+  right: cust_company_info.id
+  evidence: write-flow:CustProductDomainService.java
+  kind: fk
+  score: 7
+- &id002
+  left: cust_auth_application.ref_cust_auth_application_tenant_product
+  right: tenant_product.code
+  evidence: ref-convention:CustAuthApplicationDO.java
+  kind: fk
+  score: 8
+- &id003
+  left: cust_auth_application.ref_parent_company
+  right: cust_company_info.code
+  evidence: write-flow:CustProductDomainService.java
+  kind: fk
+  score: 8
+- &id004
+  left: cust_certification_info.ref_cust_company_info
+  right: cust_person_info.code
+  evidence: write-flow:MiniFaceServiceImpl.java
+  kind: fk
+  score: 8
+- &id035
+  left: cust_change_record.alter_type_id
+  right: cust_change_cfg.id
+  evidence: read-flow:CustSyncEventProcessor.java
+  kind: fk
+  score: 4
+- &id005
+  left: cust_customized_product.ref_cust_customized_product_cust_company_info
+  right: cust_company_info.code
+  evidence: ref-convention:CustCustomizedProductDO.java
+  kind: fk
+  score: 8
+- &id027
+  left: cust_group_rel.parent_cust_id
+  right: cust_company_info.id
+  evidence: java-eq:CustGroupRelApplication.java
+  kind: fk
+  score: 7
+- &id028
+  left: cust_group_rel.root_cust_id
+  right: cust_company_info.id
+  evidence: java-eq:CustGroupRelApplication.java
+  kind: fk
+  score: 7
+- &id006
+  left: cust_person_info.ref_cust_company_info
+  right: cust_change_cfg.code
+  evidence: java-eq:CustCompanyInfoApplication.java
+  kind: fk
+  score: 8
+- &id007
+  left: cust_person_info.ref_cust_company_info
+  right: cust_change_record.code
+  evidence: java-eq:CustSyncEventProcessor.java
+  kind: fk
+  score: 8
+- &id029
+  left: cust_project_rel.product_id
+  right: tenant_product.id
+  evidence: java-eq:CustProjectController.java
+  kind: fk
+  score: 7
+- &id030
+  left: cust_project_rel.product_id
+  right: cust_change_cfg.id
+  evidence: write-flow:PlatFormMigratoryApplication.java
+  kind: fk
+  score: 7
+- &id031
+  left: cust_project_rel.product_id
+  right: tenant_product.platform_product_id
+  evidence: write-flow:CustCompanyInfoApplication.java
+  kind: fk
+  score: 7
+- &id036
+  left: cust_project_rel.project_id
+  right: cust_project_rel.project_id
+  evidence: mapper:CustCompanyQueryMapper.xml
+  kind: fk
+  score: 4
+- &id008
+  left: cust_project_rel.ref_cust_project_rel_cust_company_info
+  right: ca_fee_company.code
+  evidence: java-eq:CaFeeRuleEngineService.java
+  kind: fk
+  score: 8
+- &id009
+  left: cust_project_rel.ref_cust_project_rel_cust_company_info
+  right: cust_change_record.code
+  evidence: java-eq:CustSyncEventProcessor.java
+  kind: fk
+  score: 8
+- &id010
+  left: cust_project_rel.ref_cust_project_rel_platform_product
+  right: platform_product.code
+  evidence: ref-convention:CustProjectRelDO.java
+  kind: fk
+  score: 8
+- &id011
+  left: cust_project_rel.ref_cust_project_rel_platform_product
+  right: tenant_project.platform_product_code
+  evidence: write-flow:CustCompanyInfoApplication.java
+  kind: fk
+  score: 8
+- &id012
+  left: cust_project_rel.ref_cust_project_rel_platform_product
+  right: tenant_project.ref_tenant_project_platform_product
+  evidence: write-flow:CustCompanyInfoApplication.java
+  kind: fk
+  score: 8
+- &id013
+  left: cust_role_info.ref_cust_auth_application
+  right: cust_auth_application.code
+  evidence: ref-convention:CustRoleInfoDO.java
+  kind: fk
+  score: 8
+- &id014
+  left: cust_role_info.ref_cust_company_info
+  right: cust_change_record.code
+  evidence: java-eq:CustSyncEventProcessor.java
+  kind: fk
+  score: 8
+- &id015
+  left: cust_role_info.ref_cust_company_info
+  right: cust_person_info.ref_cust_company_info
+  evidence: java-eq-same:AbstractSmsMessageService.java
+  kind: SHARED_KEY
+  score: 8
+- &id037
+  left: migratory_user_record.user_id
+  right: cust_person_info.user_id
+  evidence: copy:PlatFormMigratoryApplication.java
+  kind: SHARED_KEY
+  score: 4
+- &id033
+  left: tenant_interworking_product.platform_product_code
+  right: platform_product.product_code
+  evidence: write-flow:TenantInterworkingProductDomainService.java
+  kind: fk
+  score: 5
+- &id016
+  left: tenant_interworking_product.ref_tenant_interworking_product_platform_product
+  right: platform_product.code
+  evidence: ref-convention:TenantInterworkingProductDO.java
+  kind: fk
+  score: 8
+- &id017
+  left: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+  right: tenant_setting_config.code
+  evidence: ref-convention:TenantInterworkingProductDO.java
+  kind: fk
+  score: 8
+- &id018
+  left: tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
+  right: tenant_setting_config.code
+  evidence: ref-convention:TenantInterworkingProjectDO.java
+  kind: fk
+  score: 8
+- &id019
+  left: tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
+  right: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+  evidence: write-flow:TenantInterworkingProjectApplicationService.java
+  kind: fk
+  score: 8
+- &id034
+  left: tenant_product.platform_product_code
+  right: platform_product.product_code
+  evidence: write-flow:TenantProductDomainService.java
+  kind: fk
+  score: 5
+- &id001
+  left: tenant_product.ref_tenant_product_project_code
+  right: platform_product.code
+  evidence: write-flow:TenantProductDomainService.java
+  kind: fk
+  score: 10
+- &id020
+  left: tenant_project.ref_tenant_project_platform_product
+  right: tenant_product.ref_tenant_product_project_code
+  evidence: write-flow:TenantProjectDomainService.java
+  kind: fk
+  score: 8
+- &id021
+  left: tenant_project.ref_tenant_project_tenant_code
+  right: tenant_product.ref_tenant_product_tenant_setting_config
+  evidence: write-flow:TenantProjectDomainService.java
+  kind: fk
+  score: 8
+- &id022
+  left: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config
+  right: tenant_project_approval_flow_config.code
+  evidence: ref-convention:TenantProjectApprovalDO.java
+  kind: fk
+  score: 8
+- &id023
+  left: tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval
+  right: tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval
+  evidence: write-flow:ProjectApprovalDeskApplication.java
+  kind: fk
+  score: 8
+missing_shared:
+- left: ca_fee_company.company_name
+  right: ca_fee_order.company_name
+  evidence: copy:CaFeeOrderService.java
+  kind: SHARED_KEY
+- left: ca_fee_company.service_end
+  right: ca_fee_order.service_end
+  evidence: copy:CaFeeOrderService.java
+  kind: SHARED_KEY
+- left: ca_fee_company.service_start
+  right: ca_fee_order.service_start
+  evidence: copy:CaFeeOrderService.java
+  kind: SHARED_KEY
+- left: cust_company_info.cust_build_status
+  right: cust_person_info.cust_build_status
+  evidence: copy:CustCompanyIfoEnchanceService.java
+  kind: SHARED_KEY
+- left: cust_customized_product.logo_icon_url
+  right: platform_product.logo_icon_url
+  evidence: copy:CustGeneralProductApplication.java
+  kind: SHARED_KEY
+- &id038
+  left: cust_project_rel.channel_code
+  right: tenant_project.channel_code
+  evidence: copy:CustCompanyInfoApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.company_type
+  right: cust_person_info.company_type
+  evidence: copy:PlatFormMigratoryApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.op_contact_a
+  right: tenant_project.op_contact_a
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.op_contact_a_group
+  right: tenant_project.op_contact_a_group
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.op_contact_b
+  right: tenant_project.op_contact_b
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.risk_control_contact_a
+  right: tenant_project.risk_control_contact_a
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.risk_control_contact_a_group
+  right: tenant_project.risk_control_contact_a_group
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.risk_control_contact_b
+  right: tenant_project.risk_control_contact_b
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.tenant_flg_en
+  right: tenant_project.tenant_flg_en
+  evidence: copy:CustCompanyInfoApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.verification_contact
+  right: tenant_project.verification_contact
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_project_rel.verification_contact_group
+  right: tenant_project.verification_contact_group
+  evidence: copy:TenantProjectApplication.java
+  kind: SHARED_KEY
+- left: cust_user_rel.user_type
+  right: cust_person_info.user_type
+  evidence: copy:SubmitCustInfoEnhanceService.java
+  kind: SHARED_KEY
+- left: funding_rule_detail.check_scene
+  right: funding_rule_front_cfg.check_scene
+  evidence: copy:FundingRuleCheckSceneSupport.java
+  kind: SHARED_KEY
+- left: funding_rule_detail.rule_layer
+  right: funding_rule_front_cfg.rule_layer
+  evidence: copy:FundRuleInfoApplication.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.credit_measures
+  right: platform_product.credit_measures
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.customer_group
+  right: platform_product.customer_group
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.max_financing_amount
+  right: platform_product.max_financing_amount
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.max_financing_amount_flag
+  right: platform_product.max_financing_amount_flag
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.max_financing_period
+  right: platform_product.max_financing_period
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.product_cate
+  right: platform_product.product_cate
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.product_description
+  right: platform_product.product_description
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_interworking_product.product_summary
+  right: platform_product.product_summary
+  evidence: copy:TenantInterworkingProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.credit_measures
+  right: platform_product.credit_measures
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.customer_group
+  right: platform_product.customer_group
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.max_financing_amount
+  right: platform_product.max_financing_amount
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.max_financing_amount_flag
+  right: platform_product.max_financing_amount_flag
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.max_financing_period
+  right: platform_product.max_financing_period
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.product_cate
+  right: platform_product.product_cate
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.product_description
+  right: platform_product.product_description
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_product.product_summary
+  right: platform_product.product_summary
+  evidence: copy:TenantProductDomainService.java
+  kind: SHARED_KEY
+- left: tenant_project_approval_business_info.project_config_version
+  right: tenant_project.project_config_version
+  evidence: copy:ProjectBusinessConfigApplication.java
+  kind: SHARED_KEY
+- &id039
+  left: wechat_project_approval_field_history.sp_no
+  right: wechat_project_approval_apply.sp_no
+  evidence: copy:ProjectStatisticsApplication.java
+  kind: SHARED_KEY
+priority_identity:
+- *id001
+- *id002
+- *id003
+- *id004
+- *id005
+- *id006
+- *id007
+- *id008
+- *id009
+- *id010
+- *id011
+- *id012
+- *id013
+- *id014
+- *id015
+- *id016
+- *id017
+- *id018
+- *id019
+- *id020
+- *id021
+- *id022
+- *id023
+- *id024
+- *id025
+- *id026
+- *id027
+- *id028
+- *id029
+- *id030
+- *id031
+- *id032
+- *id033
+- *id034
+- *id035
+- *id036
+- *id037
+biz_shared_missing:
+- *id038
+- *id039

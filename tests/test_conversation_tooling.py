@@ -752,3 +752,126 @@ def test_tool_result_from_message_reads_artifact_and_legacy_json() -> None:
         name="execute_sql_sandbox",
     )
     assert tool_result_from_message(legacy)["data"]["sql"] == "SELECT 1"
+
+
+def test_recover_invalid_tool_calls_parses_trailing_junk_json() -> None:
+    from apps.conversation.tooling import (
+        attach_tool_calls,
+        recover_invalid_tool_calls,
+        resolve_message_tool_calls,
+    )
+
+    # Trailing `]}` mirrors DeepSeek Responses invalid_tool_call args.
+    args = (
+        '{"questions":[{"question":"q1","question_id":"q1","options":'
+        '[{"label":"A","option_id":"a"}]}],"question":"q2","question_id":"q2"}]}'
+    )
+    message = AIMessage(
+        content="clarify",
+        tool_calls=[],
+        invalid_tool_calls=[
+            {
+                "id": "call_orphan",
+                "name": "request_clarification",
+                "args": args,
+                "type": "invalid_tool_call",
+                "error": "Extra data",
+            }
+        ],
+        additional_kwargs={
+            "__openai_function_call_ids__": {"call_orphan": "fc-1"},
+        },
+    )
+    recovered = recover_invalid_tool_calls(message)
+    assert len(recovered) == 1
+    assert recovered[0]["name"] == "request_clarification"
+    calls, _text = resolve_message_tool_calls(message, "clarify")
+    assert calls[0]["id"] == "call_orphan"
+    attached = attach_tool_calls(message, calls, "clarify")
+    assert attached.tool_calls
+    assert not attached.invalid_tool_calls
+
+
+def test_sanitize_messages_for_model_drops_orphan_invalid_tool_calls() -> None:
+    from apps.conversation.tooling import sanitize_messages_for_model
+    from langchain_openai.chat_models.base import _construct_responses_api_input
+
+    answered = AIMessage(
+        content="",
+        tool_calls=[
+            {"id": "call_ok", "name": "get_table_schema", "args": {"tables": ["t"]}, "type": "tool_call"}
+        ],
+    )
+    orphan = AIMessage(
+        content="intend clarify",
+        tool_calls=[],
+        invalid_tool_calls=[
+            {
+                "id": "call_orphan",
+                "name": "request_clarification",
+                "args": '{"questions":[]}',
+                "type": "invalid_tool_call",
+            }
+        ],
+        additional_kwargs={
+            "__openai_function_call_ids__": {"call_orphan": "fc-orphan"},
+        },
+    )
+    messages = [
+        SystemMessage(content="sys"),
+        answered,
+        ToolMessage(content="ok", tool_call_id="call_ok", name="get_table_schema"),
+        orphan,
+    ]
+    sanitized = sanitize_messages_for_model(messages)
+    last = sanitized[-1]
+    assert isinstance(last, AIMessage)
+    assert not last.invalid_tool_calls
+    assert not last.tool_calls
+    assert "__openai_function_call_ids__" not in (last.additional_kwargs or {})
+
+    items = _construct_responses_api_input(sanitized)
+    call_ids = [
+        item.get("call_id")
+        for item in items
+        if isinstance(item, dict) and item.get("type") == "function_call"
+    ]
+    assert "call_orphan" not in call_ids
+    assert "call_ok" in call_ids
+
+
+def test_request_clarification_input_repairs_leaked_options() -> None:
+    from apps.chat.tools.registry import RequestClarificationInput
+
+    payload = {
+        "questions": [
+            {
+                "question": "判定规则？",
+                "question_id": "q1",
+                "options": [
+                    {"label": "任一为空", "option_id": "any", "table": "t", "field": "f"},
+                    {"label": "全部为空", "option_id": "all", "table": "t", "field": "f"},
+                ],
+            },
+            {
+                "label": "仅启用",
+                "option_id": "active",
+                "description": "只看启用",
+                "fields": [{"table": "c", "name": "enable", "value": "Y"}],
+            },
+            {
+                "label": "全部",
+                "option_id": "all_records",
+                "description": "含停用",
+                "table": "c",
+                "field": "enable",
+            },
+        ],
+        "question": "统计范围？",
+        "question_id": "q2",
+    }
+    parsed = RequestClarificationInput.model_validate(payload)
+    assert len(parsed.questions) == 2
+    assert parsed.questions[1].question_id == "q2"
+    assert len(parsed.questions[1].options) == 2
+

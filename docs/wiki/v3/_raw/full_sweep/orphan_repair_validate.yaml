@@ -1,0 +1,840 @@
+generated_at: '2026-09-23T06:47:49.802174+00:00'
+database: lowcode_pplatform
+relation_count: 13
+by_verdict:
+  empty_endpoint: 3
+  fk_like: 4
+  shared_domain: 3
+  impossible: 3
+edges:
+- left: cust_auth_application.code
+  right: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
+  host: cust_auth_application_config
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: affiliate:config
+  left_stats:
+    table: cust_auth_application
+    column: code
+    exists: true
+    row_count: 8376
+    non_null: 8376
+    distinct_non_null: 8376
+    sample:
+    - 0009e9a8f44540e4a3a0060a85147b61
+    - 0011ae6832904abaa11a7dc6d57b59c1
+    - 0027d92b089542dc8712e26c5d2256f0
+    - 004245ef7700436ca972834fbdcc5d56
+    - 00495661e6e24d5faac227ff86bf0c02
+    - 00586426f58e4709b9e40c5634a839c0
+    - 005a757611a34bccac49a4eeb41ac25d
+    - 005d5365919649ab908290244e31f2f5
+    error: ''
+  right_stats:
+    table: cust_auth_application_config
+    column: ref_cust_auth_application_config_cust_auth_application
+    exists: true
+    row_count: 0
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: cust_company_info.code
+  right: cust_company_lifecycle_info.ref_cust_company_info
+  host: cust_company_lifecycle_info
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: ref_convention
+  left_stats:
+    table: cust_company_info
+    column: code
+    exists: true
+    row_count: 6945
+    non_null: 6944
+    distinct_non_null: 6944
+    sample:
+    - 000ba01c643f4d398a98618fcce6914b
+    - 001331b8fd214bda9cd2c849cc2d1950
+    - 0013a1830f7640bb8cce61f83df7f4e9
+    - 0035a396ea45469ba25e9c8c15d06db3
+    - 003a42f8e26b40ee8deb47a049aa94c5
+    - 0040da4bfef04b168fd678952b01ba5e
+    - 005288badfcd4b4cab00635c2838221f
+    - 005531408c5249c288f6cc27fc5477d0
+    error: ''
+  right_stats:
+    table: cust_company_lifecycle_info
+    column: ref_cust_company_info
+    exists: true
+    row_count: 51
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: tenant_project_approval.code
+  right: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval
+  host: tenant_project_approval
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: self_ref:原审批
+  left_stats:
+    table: tenant_project_approval
+    column: code
+    exists: true
+    row_count: 102
+    non_null: 102
+    distinct_non_null: 102
+    sample:
+    - beb3f9d3e85344c2bfb831c3093419b7
+    - 41651d2152564210ad9baedf507c2382
+    - 830699629ae848928c9515a9c93dc9b9
+    - 50eead831f434e879e479de51680817a
+    - 7245332fedda404fa83437c71c8f5713
+    - b51980a23e4d4802a9944e2bb93b5a9f
+    - c7ca9272e74e407c90a679e09d63e48e
+    - a99182262349473da7d8c19bb1641be6
+    error: ''
+  right_stats:
+    table: tenant_project_approval
+    column: ref_tenant_project_approval_tenant_project_approval
+    exists: true
+    row_count: 102
+    non_null: 23
+    distinct_non_null: 23
+    sample:
+    - 830699629ae848928c9515a9c93dc9b9
+    - beb3f9d3e85344c2bfb831c3093419b7
+    - 7245332fedda404fa83437c71c8f5713
+    - a99182262349473da7d8c19bb1641be6
+    - a8c9cdcaef4e4a10859e0c7704fb451f
+    - 50eead831f434e879e479de51680817a
+    - c7ca9272e74e407c90a679e09d63e48e
+    - 813625bf0729487cbc72e726de6a9de0
+    error: ''
+  join_hits: 23
+  left_in_right: 23
+  left_not_in_right: 79
+  right_in_left: 23
+  right_not_in_left: 0
+  left_in_right_ratio: 0.2255
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - beb3f9d3e85344c2bfb831c3093419b7
+  - 41651d2152564210ad9baedf507c2382
+  - 830699629ae848928c9515a9c93dc9b9
+  - 50eead831f434e879e479de51680817a
+  - 7245332fedda404fa83437c71c8f5713
+  - c7ca9272e74e407c90a679e09d63e48e
+  - a99182262349473da7d8c19bb1641be6
+  - a8c9cdcaef4e4a10859e0c7704fb451f
+  left_only_sample:
+  - b51980a23e4d4802a9944e2bb93b5a9f
+  - b25f423dec2743c2b39735d10121b38d
+  - 9c248c5f1b9f464a9bd7a7bccffecf5c
+  - 9960298fa9b847c1b81b8b2ba9a8316a
+  - 7d6ee44133e346898f66ac387d7e46d4
+  - 9e057264ac964689ad67ee22a5d75693
+  - d4368483b97548b7bc10bf724a9d5898
+  - cf9fbc9092a44570848e2cfb40027a12
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: cust_company_info.id
+  right: cust_auth_application_config.cust_id
+  host: cust_auth_application_config
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: affiliate:cust_id
+  left_stats:
+    table: cust_company_info
+    column: id
+    exists: true
+    row_count: 6945
+    non_null: 6945
+    distinct_non_null: 6945
+    sample:
+    - '1787385139422498817'
+    - '1911756589664497665'
+    - '2079488028335845378'
+    - '2069299454190993409'
+    - '1911755363692126209'
+    - '1938516931319115778'
+    - '1945812705981009921'
+    - '1783675878140190722'
+    error: ''
+  right_stats:
+    table: cust_auth_application_config
+    column: cust_id
+    exists: true
+    row_count: 0
+    non_null: 0
+    distinct_non_null: 0
+    sample: []
+    error: ''
+  join_hits: null
+  left_in_right: null
+  left_not_in_right: null
+  right_in_left: null
+  right_not_in_left: null
+  left_in_right_ratio: null
+  right_in_left_ratio: null
+  intersection_sample: []
+  left_only_sample: []
+  right_only_sample: []
+  verdict: empty_endpoint
+  reason: one side has zero usable non-null values
+- left: tenant_project.id
+  right: project_file_info.project_id
+  host: project_file_info
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: project_ops_file
+  left_stats:
+    table: tenant_project
+    column: id
+    exists: true
+    row_count: 3955
+    non_null: 3955
+    distinct_non_null: 3955
+    sample:
+    - '7040501466974679040'
+    - '7201163812199690240'
+    - '7013832178061910016'
+    - '7150312967585423360'
+    - '2029381519250370561'
+    - '2029507051112419329'
+    - '6772446681310121984'
+    - '7170969840847376384'
+    error: ''
+  right_stats:
+    table: project_file_info
+    column: project_id
+    exists: true
+    row_count: 24
+    non_null: 24
+    distinct_non_null: 8
+    sample:
+    - '7094615197321789440'
+    - '7094615197321789440'
+    - '7094615197321789440'
+    - '1993969944331042818'
+    - '1993969944331042818'
+    - '1993969944331042818'
+    - '1993969944331042818'
+    - '1993969944331042818'
+    error: ''
+  join_hits: 7
+  left_in_right: 7
+  left_not_in_right: 3948
+  right_in_left: 23
+  right_not_in_left: 1
+  left_in_right_ratio: 0.0018
+  right_in_left_ratio: 0.9583
+  intersection_sample:
+  - '7094615197321789440'
+  - '1993969944331042818'
+  - '2049324025665343489'
+  - '2062141833007935490'
+  - '2062356626510032897'
+  - '7053998501513113600'
+  - '7064146211620655104'
+  left_only_sample:
+  - '7040501466974679040'
+  - '7201163812199690240'
+  - '7013832178061910016'
+  - '7150312967585423360'
+  - '2029381519250370561'
+  - '2029507051112419329'
+  - '6772446681310121984'
+  - '7170969840847376384'
+  right_only_sample:
+  - '6725338807710781440'
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=0.9583); consistent with
+    FK / identity reference'
+- left: platform_product.product_code
+  right: platform_product_cust_role.product_code
+  host: platform_product_cust_role
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: code:contains_filter
+  left_stats:
+    table: platform_product
+    column: product_code
+    exists: true
+    row_count: 13
+    non_null: 13
+    distinct_non_null: 13
+    sample:
+    - ACFLOW
+    - AMS
+    - BEECREDIT
+    - DEALER
+    - DRAFT
+    - HTCP1
+    - HTCP2
+    - HTCP3
+    error: ''
+  right_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 55
+    non_null: 55
+    distinct_non_null: 10
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 9
+  left_in_right: 9
+  left_not_in_right: 4
+  right_in_left: 48
+  right_not_in_left: 7
+  left_in_right_ratio: 0.6923
+  right_in_left_ratio: 0.8727
+  intersection_sample:
+  - ACFLOW
+  - AMS
+  - BEECREDIT
+  - DEALER
+  - DRAFT
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  left_only_sample:
+  - HTCP1
+  - HTCP2
+  - HTCP3
+  - HTCP4
+  right_only_sample:
+  - CROSSBORDER
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.6923, right->left=0.8727); same value domain
+    / business code space likely
+- left: tenant_product.platform_product_code
+  right: platform_product_cust_role.product_code
+  host: platform_product_cust_role
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: code:contains_filter user
+  left_stats:
+    table: tenant_product
+    column: platform_product_code
+    exists: true
+    row_count: 388
+    non_null: 388
+    distinct_non_null: 7
+    sample:
+    - RVSFACTOR_PC
+    - ACFLOW
+    - BEECREDIT
+    - ORDER
+    - STORAGE
+    - RVSFACTOR_PC
+    - ACFLOW
+    - ORDER
+    error: ''
+  right_stats:
+    table: platform_product_cust_role
+    column: product_code
+    exists: true
+    row_count: 55
+    non_null: 55
+    distinct_non_null: 10
+    sample:
+    - AMS
+    - ACFLOW
+    - ORDER
+    - CROSSBORDER
+    - BEECREDIT
+    - DEALER
+    - VOUCHER
+    - RVSFACTOR_PC
+    error: ''
+  join_hits: 388
+  left_in_right: 388
+  left_not_in_right: 0
+  right_in_left: 40
+  right_not_in_left: 15
+  left_in_right_ratio: 1.0
+  right_in_left_ratio: 0.7273
+  intersection_sample:
+  - ACFLOW
+  - ORDER
+  - BEECREDIT
+  - VOUCHER
+  - RVSFACTOR_PC
+  - STORAGE
+  - DRAFT
+  left_only_sample: []
+  right_only_sample:
+  - AMS
+  - CROSSBORDER
+  - DEALER
+  verdict: shared_domain
+  reason: two-way overlap (left->right=1.0, right->left=0.7273); same value domain
+    / business code space likely
+- left: tenant_project.id
+  right: ca_fee_special_config.project_id
+  host: ca_fee_special_config
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: ca_fee affiliate→project
+  left_stats:
+    table: tenant_project
+    column: id
+    exists: true
+    row_count: 3955
+    non_null: 3955
+    distinct_non_null: 3955
+    sample:
+    - '7040501466974679040'
+    - '7201163812199690240'
+    - '7013832178061910016'
+    - '7150312967585423360'
+    - '2029381519250370561'
+    - '2029507051112419329'
+    - '6772446681310121984'
+    - '7170969840847376384'
+    error: ''
+  right_stats:
+    table: ca_fee_special_config
+    column: project_id
+    exists: true
+    row_count: 172
+    non_null: 171
+    distinct_non_null: 63
+    sample:
+    - '2095457595577200641'
+    - '1985234436653334529'
+    - '2081555932600340482'
+    - '2077301685187833857'
+    - '2081554793423179777'
+    - '7008681813832028160'
+    - '2081554793423179777'
+    - '1985234436653334529'
+    error: ''
+  join_hits: 63
+  left_in_right: 63
+  left_not_in_right: 3892
+  right_in_left: 171
+  right_not_in_left: 0
+  left_in_right_ratio: 0.0159
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '2095457595577200641'
+  - '1985234436653334529'
+  - '2081555932600340482'
+  - '2077301685187833857'
+  - '2081554793423179777'
+  - '7008681813832028160'
+  - '2000809635448430593'
+  - '2079758199390646273'
+  left_only_sample:
+  - '7040501466974679040'
+  - '7201163812199690240'
+  - '7013832178061910016'
+  - '7150312967585423360'
+  - '2029381519250370561'
+  - '2029507051112419329'
+  - '6772446681310121984'
+  - '7170969840847376384'
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: ca_fee_order.project_id
+  right: ca_fee_special_config.project_id
+  host: ca_fee_special_config
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: ca_fee B↔C shared project
+  left_stats:
+    table: ca_fee_order
+    column: project_id
+    exists: true
+    row_count: 520
+    non_null: 520
+    distinct_non_null: 20
+    sample:
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2071776024215285762'
+    - '2000809635448430593'
+    - '2000809635448430593'
+    - '2000809635448430593'
+    - '2000809635448430593'
+    error: ''
+  right_stats:
+    table: ca_fee_special_config
+    column: project_id
+    exists: true
+    row_count: 172
+    non_null: 171
+    distinct_non_null: 63
+    sample:
+    - '2095457595577200641'
+    - '1985234436653334529'
+    - '2081555932600340482'
+    - '2077301685187833857'
+    - '2081554793423179777'
+    - '7008681813832028160'
+    - '2081554793423179777'
+    - '1985234436653334529'
+    error: ''
+  join_hits: 402
+  left_in_right: 402
+  left_not_in_right: 118
+  right_in_left: 116
+  right_not_in_left: 55
+  left_in_right_ratio: 0.7731
+  right_in_left_ratio: 0.6784
+  intersection_sample:
+  - '1985234436653334529'
+  - '2081555932600340482'
+  - '2077301685187833857'
+  - '2081554793423179777'
+  - '7008681813832028160'
+  - '2000809635448430593'
+  - '2079758199390646273'
+  - '1999360669689671682'
+  left_only_sample:
+  - '2076865658692407297'
+  - '7108364188005183488'
+  - '1985538847174086657'
+  - '7298594724977270784'
+  - '1959800725843472386'
+  right_only_sample:
+  - '2095457595577200641'
+  - '6904403585478152192'
+  - '6914231776287858688'
+  - '6916321817842716672'
+  - '7010481667537850368'
+  - '7046041677810253824'
+  - '7057605275235893248'
+  - '7099590211971784704'
+  verdict: shared_domain
+  reason: two-way overlap (left->right=0.7731, right->left=0.6784); same value domain
+    / business code space likely
+- left: wec_project_operation_rel.wec_project_id
+  right: wec_project_cust_operation_rel.project_id
+  host: wec_project_cust_operation_rel
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: wec mirror of tenant_project←cust_project_rel
+  left_stats:
+    table: wec_project_operation_rel
+    column: wec_project_id
+    exists: true
+    row_count: 696
+    non_null: 696
+    distinct_non_null: 696
+    sample:
+    - '100001'
+    - '100002'
+    - '100003'
+    - '100004'
+    - '100005'
+    - '100007'
+    - '100008'
+    - '1187781838639202341'
+    error: ''
+  right_stats:
+    table: wec_project_cust_operation_rel
+    column: project_id
+    exists: true
+    row_count: 2421
+    non_null: 2421
+    distinct_non_null: 452
+    sample:
+    - '100002'
+    - '100004'
+    - '6524489467951058944'
+    - '1233441643701473305'
+    - '100004'
+    - '100007'
+    - '100004'
+    - '100002'
+    error: ''
+  join_hits: 452
+  left_in_right: 452
+  left_not_in_right: 244
+  right_in_left: 2421
+  right_not_in_left: 0
+  left_in_right_ratio: 0.6494
+  right_in_left_ratio: 1.0
+  intersection_sample:
+  - '100001'
+  - '100002'
+  - '100003'
+  - '100004'
+  - '100005'
+  - '100007'
+  - '100008'
+  - '1233441643701473305'
+  left_only_sample:
+  - '1187781838639202341'
+  - '1190242673110290483'
+  - '1193222818926428188'
+  - '1215727201920487511'
+  - '1224738729336242198'
+  - '1231569126833524823'
+  - '1234128859671040072'
+  - '1234130116649422900'
+  right_only_sample: []
+  verdict: fk_like
+  reason: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+- left: wec_project_operation_rel.id
+  right: wec_project_cust_operation_rel.wec_rel_id
+  host: wec_project_cust_operation_rel
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: wec_rel_id→operation_rel.id?
+  left_stats:
+    table: wec_project_operation_rel
+    column: id
+    exists: true
+    row_count: 696
+    non_null: 696
+    distinct_non_null: 696
+    sample:
+    - '2015677352078282754'
+    - '2054167576704897026'
+    - '2054167576507764738'
+    - '2015677351990202369'
+    - '2054167576319021058'
+    - '2015677350778048513'
+    - '2054167576121888769'
+    - '2054167575731818497'
+    error: ''
+  right_stats:
+    table: wec_project_cust_operation_rel
+    column: wec_rel_id
+    exists: true
+    row_count: 2421
+    non_null: 2421
+    distinct_non_null: 2421
+    sample:
+    - '1200476539402059868'
+    - '1233447171253080100'
+    - '22'
+    - '6462586088627113984'
+    - '6462857984866258944'
+    - '6462859473869344768'
+    - '6463230438570725376'
+    - '6463307817318092800'
+    error: ''
+  join_hits: 0
+  left_in_right: 0
+  left_not_in_right: 696
+  right_in_left: 0
+  right_not_in_left: 2421
+  left_in_right_ratio: 0.0
+  right_in_left_ratio: 0.0
+  intersection_sample: []
+  left_only_sample:
+  - '2015677352078282754'
+  - '2054167576704897026'
+  - '2054167576507764738'
+  - '2015677351990202369'
+  - '2054167576319021058'
+  - '2015677350778048513'
+  - '2054167576121888769'
+  - '2054167575731818497'
+  right_only_sample:
+  - '1200476539402059868'
+  - '1233447171253080100'
+  - '22'
+  - '6462586088627113984'
+  - '6462857984866258944'
+  - '6462859473869344768'
+  - '6463230438570725376'
+  - '6463307817318092800'
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: tenant_project.id
+  right: wec_project_operation_rel.wec_project_id
+  host: wec_project_operation_rel
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: PEER_PROBE not expected FK
+  left_stats:
+    table: tenant_project
+    column: id
+    exists: true
+    row_count: 3955
+    non_null: 3955
+    distinct_non_null: 3955
+    sample:
+    - '7040501466974679040'
+    - '7201163812199690240'
+    - '7013832178061910016'
+    - '7150312967585423360'
+    - '2029381519250370561'
+    - '2029507051112419329'
+    - '6772446681310121984'
+    - '7170969840847376384'
+    error: ''
+  right_stats:
+    table: wec_project_operation_rel
+    column: wec_project_id
+    exists: true
+    row_count: 696
+    non_null: 696
+    distinct_non_null: 696
+    sample:
+    - '100001'
+    - '100002'
+    - '100003'
+    - '100004'
+    - '100005'
+    - '100007'
+    - '100008'
+    - '1187781838639202341'
+    error: ''
+  join_hits: 0
+  left_in_right: 0
+  left_not_in_right: 3955
+  right_in_left: 0
+  right_not_in_left: 696
+  left_in_right_ratio: 0.0
+  right_in_left_ratio: 0.0
+  intersection_sample: []
+  left_only_sample:
+  - '7040501466974679040'
+  - '7201163812199690240'
+  - '7013832178061910016'
+  - '7150312967585423360'
+  - '2029381519250370561'
+  - '2029507051112419329'
+  - '6772446681310121984'
+  - '7170969840847376384'
+  right_only_sample:
+  - '100001'
+  - '100002'
+  - '100003'
+  - '100004'
+  - '100005'
+  - '100007'
+  - '100008'
+  - '1187781838639202341'
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'
+- left: cust_company_info.id
+  right: wec_project_cust_operation_rel.company_id
+  host: wec_project_cust_operation_rel
+  trust: proposed
+  authenticity: unknown
+  source: orphan_repair
+  wiki_evidence: wec company_id namespace?
+  left_stats:
+    table: cust_company_info
+    column: id
+    exists: true
+    row_count: 6945
+    non_null: 6945
+    distinct_non_null: 6945
+    sample:
+    - '1787385139422498817'
+    - '1911756589664497665'
+    - '2079488028335845378'
+    - '2069299454190993409'
+    - '1911755363692126209'
+    - '1938516931319115778'
+    - '1945812705981009921'
+    - '1783675878140190722'
+    error: ''
+  right_stats:
+    table: wec_project_cust_operation_rel
+    column: company_id
+    exists: true
+    row_count: 2421
+    non_null: 2421
+    distinct_non_null: 1824
+    sample:
+    - '1'
+    - '1111111111111111111'
+    - '1111111111111111116'
+    - '1233447162264686610'
+    - '1234567890123456011'
+    - '309'
+    - '6462586086752260096'
+    - '6462857984283250688'
+    error: ''
+  join_hits: 0
+  left_in_right: 0
+  left_not_in_right: 6945
+  right_in_left: 0
+  right_not_in_left: 2421
+  left_in_right_ratio: 0.0
+  right_in_left_ratio: 0.0
+  intersection_sample: []
+  left_only_sample:
+  - '1787385139422498817'
+  - '1911756589664497665'
+  - '2079488028335845378'
+  - '2069299454190993409'
+  - '1911755363692126209'
+  - '1938516931319115778'
+  - '1945812705981009921'
+  - '1783675878140190722'
+  right_only_sample:
+  - '1'
+  - '1111111111111111111'
+  - '1111111111111111116'
+  - '1233447162264686610'
+  - '1234567890123456011'
+  - '309'
+  - '6462586086752260096'
+  - '6462857984283250688'
+  verdict: impossible
+  reason: 'no shared values: join_hits=0 and both inclusion counts are 0 (cannot be
+    an equi-join / same business key in this DB)'

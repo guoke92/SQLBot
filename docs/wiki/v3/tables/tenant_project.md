@@ -4,23 +4,38 @@ title: 租户项目配置
 page_key: tenant_project
 belong: tables
 status: draft
-anchors: [tenant_project]
-sources: ['database_schema:lowcode_pplatform.tenant_project', 'code_path:TenantProjectDaoImpl.java:36']
+anchors:
+- tenant_project
+sources:
+- database_schema:lowcode_pplatform.tenant_project
+- code_path:TenantProjectDaoImpl.java:36
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [ca_fee_company, ca_fee_order, ca_fee_project_config, cust_project_pushcust,
-  cust_project_rel, tenant_interworking_project, tenant_product, tenant_project_approval,
-  platform_product, tenant_setting_config, tenant_project__project_status, tenant_project__test_data,
-  tenant_project__ref_tenant_project_platform_product, tenant_project__enable, tenant_project__platform_product_code,
-  tenant_project__source, tenant_project__is_prd, tenant_project__config_model, tenant_project__operater_card_type,
-  tenant_project__cover_operator, tenant_project__share_flag, tenant_project__project_config_version,
-  tenant_project__op_contact_a, tenant_project__verification_contact, tenant_project__risk_control_contact_a,
-  tenant_project__business_group, tenant_project__project_tag, tenant_project__project_relation,
-  tenant_project__top_flag, tenant_project__cust_oper_show, tenant_project__is_add]
+databases:
+- lowcode_pplatform
+related:
+- ca_fee_company
+- ca_fee_order
+- ca_fee_project_config
+- ca_fee_special_config
+- cust_project_pushcust
+- cust_project_rel
+- platform_product
+- project_file_info
+- tenant_interworking_project
+- tenant_product
+- tenant_project_approval
+- tenant_setting_config
+- wec_project_operation_rel
+- tenant_project__test_data
+- tenant_project__enable
+- tenant_project__is_prd
+- tenant_project__operater_card_type
+- tenant_project__cover_operator
+- tenant_project__share_flag
+- tenant_project__is_add
 ---
-
 # 租户项目配置
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -32,10 +47,16 @@ table: tenant_project
 database: lowcode_pplatform
 desc: 租户项目配置
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一租户项目一行
-name_anchors: [code, name, channel_code, ref_tenant_project_tenant_code, ref_tenant_project_product_code,
-  operator_name]
+name_anchors:
+- code
+- name
+- channel_code
+- ref_tenant_project_tenant_code
+- ref_tenant_project_product_code
+- operator_name
 fields:
 - name: id
   type: number
@@ -71,18 +92,18 @@ fields:
 - name: project_status
   type: string
   desc: 项目状态
-  dict: ['1', '0', '2']
-  label: [已生效, 待生效, 已失效]
 - name: test_data
   type: string
   desc: 是否测试数据
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 - name: ref_tenant_project_platform_product
   type: string
   desc: 平台产品-项目关联
-  dict: [b8468d68ba0a4762bda0f7b9164e4f6a, f285fa5cf17f4a8f9eefe93d3a513a6b, f285fa5cf17f4a8f9eefe93d3a513a61,
-    f285fa5cf17f4a8f9eefe93d3a513a63, 007142024a5c425bb3673f753060e534, f285fa5cf17f4a8f9eefe93d3a513a6e,
-    f285fa5cf17f4a8f9eefe93d3a513a65]
 - name: ref_tenant_project_tenant_code
   type: string
   desc: 租户-项目
@@ -92,7 +113,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -139,14 +165,18 @@ fields:
 - name: platform_product_code
   type: string
   desc: 平台产品编码
-  dict: [ACFLOW, RVSFACTOR_PC, ORDER, BEECREDIT, DRAFT, STORAGE, DRAFTQA, VOUCHER]
 - name: source_id
   type: string
   desc: 项目来源id
 - name: source
   type: string
   desc: 项目来源
-  dict: [pplatform, ACFLOW, RVSFACTOR_PC, ORDER, STORAGE]
+  dict:
+  - pplatform
+  - ACFLOW
+  - RVSFACTOR_PC
+  - ORDER
+  - STORAGE
 - name: config_json
   type: string
   desc: 配置详情
@@ -161,33 +191,48 @@ fields:
 - name: is_prd
   type: string
   desc: 是否生产数据
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 - name: config_model
   type: string
   desc: 项目配置模式(XYC)
-  dict: [admin, normal]
 - name: tenant_flg_en
   type: string
   desc: 项目标识（英文）
 - name: operater_card_type
   type: string
   desc: 运营名片类型
-  dict: [WX_WORK, WX]
+  dict:
+  - WX_WORK
+  - WX
 - name: cover_operator
   type: string
   desc: 是否覆盖运营
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+    Y: 是
+    N: 否
 - name: logo_path
   type: string
   desc: logo路径
 - name: share_flag
   type: string
   desc: 共享租户
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+  - 否
+  - 是
 - name: project_config_version
   type: string
   desc: 项目配置版本
-  dict: [config, configPro]
 - name: wechat_audit_no
   type: string
   desc: 企微审批编号
@@ -197,8 +242,6 @@ fields:
 - name: op_contact_a
   type: string
   desc: 运营对接人A
-  dict: ['383', '412', '333', '454', '360', '141', '344', '267', '411', '420', '466',
-    '280', '430', '97', '93', '415', '463', '305', '271']
 - name: op_contact_b
   type: string
   desc: 运营对接人B
@@ -208,15 +251,12 @@ fields:
 - name: verification_contact
   type: string
   desc: 查验对接人
-  dict: ['360', '333', '404', OP001, '430', '383']
 - name: verification_contact_group
   type: string
   desc: 查验组别
 - name: risk_control_contact_a
   type: string
   desc: 风控对接人A
-  dict: ['383', '360', '333', '344', '97', '271', '441', '267', '454', '363', '209',
-    '210', '415', '411']
 - name: risk_control_contact_b
   type: string
   desc: 风控对接人B
@@ -232,7 +272,6 @@ fields:
 - name: business_group
   type: string
   desc: 关联业务部门
-  dict: [部门a, '11']
 - name: first_settlement_time
   type: temporal
   desc: 首笔落地时间
@@ -248,18 +287,18 @@ fields:
 - name: project_tag
   type: string
   desc: 项目标签
-  dict: [PRD, TEST]
+  dict:
+  - PRD
+  - TEST
 - name: project_relation
   type: string
   desc: 项目归属
-  dict: ['111', '1111']
 - name: bussiness_project_relation
   type: string
   desc: 运营项目归属
 - name: top_flag
   type: string
   desc: 置顶标识
-  dict: ['0', '1']
 - name: text
   type: string
 - name: op_update_user
@@ -277,12 +316,15 @@ fields:
 - name: cust_oper_show
   type: string
   desc: 建档运营名片展示
-  dict: [Y, N]
 - name: is_add
   type: string
   desc: 是否新增，Y：是，N：否，默认为N
-  dict: [N, Y]
-  label: [否, 是]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 - name: project_approval_id
   type: number
   desc: 项目线上审批ID
@@ -389,83 +431,218 @@ overlap:
 authenticity_note: 创建审批后回写项目上的审批主键。主查询走 code=ref。
 ```
 
-### unknown — 待复核
-
 ```ground:relation
 type: EQUI_JOIN
 left: platform_product.code
+right: tenant_project.ref_tenant_project_platform_product
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;reextract:项目 ref 存平台产品 UUID code
+source: reextract_joins
+join_role: business_code
+priority: primary
+authenticity_note: 项目 ref 存平台产品 UUID code
+```
+```ground:relation
+type: EQUI_JOIN
+left: tenant_product.platform_product_code
 right: tenant_project.platform_product_code
 cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.tenant_project.platform_product_code;database_profile:lowcode_pplatform.tenant_project.platform_product_code
-source: name
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;collide_refine:同语义产品业务码；父子场景重合高
+source: collide_refine
 join_role: business_code
-priority: secondary
-name_evidence:
-  match: exact_table
-  stem: platform_product
-  comment: 平台产品编码
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 1
-  miss: 1
-  deepened: false
-  query_ok: true
-  authenticity: unknown
+priority: primary
+authenticity_note: 同语义产品业务码；父子场景重合高
 ```
-
-### unlikely — 值域不支持或冲突
 
 ```ground:relation
 type: EQUI_JOIN
-left: tenant_interworking_project.code
-right: tenant_project.project_code
+left: tenant_project.id
+right: ca_fee_company.source_project_id
 cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.tenant_project.project_code;database_profile:lowcode_pplatform.tenant_project.project_code
-source: name
-join_role: business_code
+trust: confirmed
+authenticity: likely
+evidence: code_path:cafee/CaFeeOrderService.java:456
+source: l1_code
+join_role: identity
+priority: primary
+authenticity_note: 首次锁定年费时记下源项目。
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: ca_fee_order.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:cafee/CaFeeOrderService.java:150
+source: l1_code
+join_role: identity
+priority: primary
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: ca_fee_project_config.project_id
+cardinality: one_to_one
+trust: confirmed
+authenticity: likely
+evidence: code_path:cafee/CaFeeProjectConfigService.java:296
+source: l1_code
+join_role: identity
+priority: primary
+authenticity_note: 项目配置按 tenant_project 主键，一项目一行。
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: cust_project_pushcust.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:CustSyncEventProcessor.java:3106
+source: l1_code
+join_role: identity
+priority: primary
+authenticity_note: 默认推送项目 project_id 转 Long 查 tenant_project.id。配置本身按 SSO 渠道查，不是企业
+  JOIN。
+cast: varchar←bigint
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: cust_project_rel.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:CustCompanyQueryMapper.xml:137
+source: l1_code
+join_role: identity
+priority: primary
+authenticity_note: XML 等值 cpl.project_id = tp.id；库列 varchar(512) 对 bigint 主键，Java
+  常把 Long 当字符串存。
+cast: varchar←bigint
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: tenant_interworking_project.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:TenantInterworkingProjectApplicationService.java:64
+source: l1_code
+join_role: identity
 priority: primary
 name_evidence:
   match: family_suffix
   stem: project
-  comment: 项目编码
+  comment: 项目id
 overlap:
   probed: true
-  ratio: 0.0
-  sample_size: 200
-  miss: 200
+  ratio: 1.0
+  sample_size: 9
+  miss: 0
   deepened: false
   query_ok: true
-  authenticity: unlikely
+  authenticity: likely
+authenticity_note: 互通项目绑定的是 tenant_project.id，不是项目 code。
 ```
 
 ```ground:relation
 type: EQUI_JOIN
-left: platform_product.id
-right: tenant_project.ref_tenant_project_platform_product
+left: tenant_project.code
+right: tenant_project_approval.ref_tenant_project_approval_tenant_project
 cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.tenant_project.ref_tenant_project_platform_product;database_profile:lowcode_pplatform.tenant_project.ref_tenant_project_platform_product
-source: name
+trust: confirmed
+authenticity: likely
+evidence: code_path:ProjectApprovalApplication.java:253
+source: l1_code
 join_role: identity
 priority: primary
-name_evidence:
-  match: long_ref
-  stem: platform_product
-  comment: 平台产品-项目关联
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 3
-  miss: 3
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
+authenticity_note: 审批按项目 code 关联，不是 tenant_project.id。最新一笔再加 is_latest=Y。
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: tenant_setting_config.default_project_id
+cardinality: one_to_one
+trust: confirmed
+authenticity: likely
+evidence: code_path:TenantAppliactionService.java:449
+source: l1_code
+join_role: identity
+priority: primary
+authenticity_note: 默认关联项目是租户配置上的项目主键。
+```
+```ground:relation
+type: EQUI_JOIN
+left: platform_product.product_code
+right: tenant_project.platform_product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code+live
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.channel_code
+right: cust_project_rel.channel_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:copy
+```
+
+
+## 关联说明（非 EQUI / 对等场景）
+
+- 与 `wec_project_operation_rel` 为产融 / 讯易链**对等项目运营主档**（按 source 分流），ID 空间不同，不做 EQUI_JOIN。
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: ca_fee_special_config.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_fk_like R→L=1
+source: orphan_repair
+join_role: identity
+priority: primary
+authenticity_note: CA 特殊配置→项目
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project.id
+right: project_file_info.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_fk_like R→L=0.96 项目运营文件
+source: orphan_repair
+join_role: identity
+priority: primary
+authenticity_note: 产融项目运营文件→tenant_project
 ```
 
 ## 页面链接
@@ -475,34 +652,38 @@ overlap:
 - [[tables/ca_fee_company]]
 - [[tables/ca_fee_order]]
 - [[tables/ca_fee_project_config]]
+- [[tables/ca_fee_special_config]]
 - [[tables/cust_project_pushcust]]
 - [[tables/cust_project_rel]]
+- [[tables/platform_product]]
+- [[tables/project_file_info]]
 - [[tables/tenant_interworking_project]]
 - [[tables/tenant_product]]
 - [[tables/tenant_project_approval]]
-- [[tables/platform_product]]
 - [[tables/tenant_setting_config]]
+- [[tables/wec_project_operation_rel]]
+
+### 概念
+
+- [[concepts/channel_code_homonym_bundle]]
+- [[concepts/channel_code_term]]
+- [[concepts/platform_product_code_term]]
+- [[concepts/project_config_model]]
+- [[concepts/project_config_version_term]]
+- [[concepts/project_is_prd]]
+- [[concepts/project_name_term]]
+- [[concepts/project_status_vs_approval]]
+- [[concepts/refer_copy_project]]
+- [[concepts/tenant_project_code_join]]
 
 ### 字典
 
-- [[dicts/tenant_project__project_status]]（`tenant_project.project_status`）
 - [[dicts/tenant_project__test_data]]（`tenant_project.test_data`）
-- [[dicts/tenant_project__ref_tenant_project_platform_product]]（`tenant_project.ref_tenant_project_platform_product`）
 - [[dicts/tenant_project__enable]]（`tenant_project.enable`）
-- [[dicts/tenant_project__platform_product_code]]（`tenant_project.platform_product_code`）
 - [[dicts/tenant_project__source]]（`tenant_project.source`）
 - [[dicts/tenant_project__is_prd]]（`tenant_project.is_prd`）
-- [[dicts/tenant_project__config_model]]（`tenant_project.config_model`）
 - [[dicts/tenant_project__operater_card_type]]（`tenant_project.operater_card_type`）
 - [[dicts/tenant_project__cover_operator]]（`tenant_project.cover_operator`）
 - [[dicts/tenant_project__share_flag]]（`tenant_project.share_flag`）
-- [[dicts/tenant_project__project_config_version]]（`tenant_project.project_config_version`）
-- [[dicts/tenant_project__op_contact_a]]（`tenant_project.op_contact_a`）
-- [[dicts/tenant_project__verification_contact]]（`tenant_project.verification_contact`）
-- [[dicts/tenant_project__risk_control_contact_a]]（`tenant_project.risk_control_contact_a`）
-- [[dicts/tenant_project__business_group]]（`tenant_project.business_group`）
 - [[dicts/tenant_project__project_tag]]（`tenant_project.project_tag`）
-- [[dicts/tenant_project__project_relation]]（`tenant_project.project_relation`）
-- [[dicts/tenant_project__top_flag]]（`tenant_project.top_flag`）
-- [[dicts/tenant_project__cust_oper_show]]（`tenant_project.cust_oper_show`）
 - [[dicts/tenant_project__is_add]]（`tenant_project.is_add`）

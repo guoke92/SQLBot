@@ -4,18 +4,24 @@ title: 企业互通产品
 page_key: cust_interworking_product
 belong: tables
 status: draft
-anchors: [cust_interworking_product]
-sources: ['database_schema:lowcode_pplatform.cust_interworking_product', 'code_path:CustInterworkingProductDaoImpl.java:48']
+anchors:
+- cust_interworking_product
+sources:
+- database_schema:lowcode_pplatform.cust_interworking_product
+- code_path:CustInterworkingProductDaoImpl.java:48
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, platform_product, cust_customized_product, tenant_interworking_product,
-  cust_interworking_product__open_status, cust_interworking_product__platform_product_code,
-  cust_interworking_product__agree_authorization_flag, cust_interworking_product__ref_cust_interworking_product_tenant_interworking_product,
-  cust_interworking_product__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- tenant_interworking_product
+- tenant_setting_config
+- cust_interworking_product__open_status
+- cust_interworking_product__agree_authorization_flag
+- cust_interworking_product__enable
 ---
-
 # 企业互通产品
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -27,9 +33,12 @@ table: cust_interworking_product
 database: lowcode_pplatform
 desc: 企业互通产品
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -44,7 +53,8 @@ fields:
 - name: open_status
   type: string
   desc: 开通状态
-  dict: [OPENED]
+  dict:
+  - OPENED
 - name: cust_id
   type: number
   desc: 企业id
@@ -57,11 +67,13 @@ fields:
 - name: platform_product_code
   type: string
   desc: 平台产品编码
-  dict: [HTCP1, HTCP2, HTCP13, HTCP14, AMS, HTCP5]
 - name: agree_authorization_flag
   type: string
   desc: 是否同意授权
-  dict: [N]
+  dict:
+  - N
+  - Y
+  label: [否, 是]
 - name: agree_authorization_time
   type: temporal
   desc: 同意授权时间
@@ -77,18 +89,13 @@ fields:
 - name: ref_cust_interworking_product_tenant_interworking_product
   type: string
   desc: 关联互通产品
-  dict: [29b4c489bccc4c0f90293b7d22f3ea74, 7d2e4e19006c45d99eba5700ce8d2404, b3770dfd357549058a0ec1344f5144e4,
-    d75957823c444de690d1c2036bb9e844, 5afb2d5a0ac241f395f9dfc9436b7a93, 9d205a2ef8624dd8bdda73e449180cb4,
-    72ee7278ef6641d2a034d977fd9c7c3a, f97f8fc6672e4465a461170b682a85aa, 4264a4d3ef144caf851983a844b15a9d,
-    e43f564036794cfb92a92b0a31098fe1, 14ef19ef031a4b0f9e97223ec1235d0c, a5095d15ebed4eee9a8900bb3d98258f,
-    af0c15eee0bc41a8b3fa39079ea44a97, f5a6ba16bde247da8005652037051571, 4932eca2392d45f8821aba513f379c7f,
-    10947e5d6b9c4ea09ef94c5a80624336, ccf30c163d794060bba0450b455b796c, 2dbc124f73dd4e9eb96cc74685b17645,
-    11050e432dab4b24b9adbff8644ea5a2, 87a6136555544df2adf6295bdd75956f, d6a784c151cf4f8d9ffe8302bd03cbd2,
-    0f93f67a813b4fd79134f46e65017cc2]
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -148,10 +155,10 @@ type: EQUI_JOIN
 left: cust_company_info.id
 right: cust_interworking_product.cust_id
 cardinality: one_to_many
-trust: proposed
+trust: confirmed
 authenticity: likely
-evidence: database_schema:lowcode_pplatform.cust_interworking_product.cust_id;database_profile:lowcode_pplatform.cust_interworking_product.cust_id
-source: name
+evidence: code_path:CustInterworkingProductDaoImpl.java:74
+source: l1_code
 join_role: identity
 priority: primary
 name_evidence:
@@ -166,8 +173,8 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
+authenticity_note: 企业互通产品按 cust_id=企业主键查询（与 ref_* 存 code 的双轨并存）。
 ```
-
 ```ground:relation
 type: EQUI_JOIN
 left: cust_company_info.code
@@ -183,113 +190,45 @@ authenticity_note: 互通产品按企业 code 关联。listCustAllProduct 先 ge
   当成这条查询的 JOIN。
 ```
 
-### disputed — 与已确认边冲突
-
 ```ground:relation
 type: EQUI_JOIN
-left: cust_company_info.id
-right: cust_interworking_product.ref_cust_interworking_product_cust_company_info
-cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_cust_company_info;database_profile:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_cust_company_info
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: long_ref
-  stem: cust_company_info
-  comment: 关联企业
-overlap:
-  probed: true
-  ratio: 0.005
-  sample_size: 200
-  miss: 199
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: cust_company_info.code, right: cust_interworking_product.ref_cust_interworking_product_cust_company_info,
-  trust: confirmed}
-- {source: name, left: cust_company_info.id, right: cust_interworking_product.ref_cust_interworking_product_cust_company_info,
-  trust: proposed}
-```
-
-### unlikely — 值域不支持或冲突
-
-```ground:relation
-type: EQUI_JOIN
-left: platform_product.code
-right: cust_interworking_product.platform_product_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_interworking_product.platform_product_code;database_profile:lowcode_pplatform.cust_interworking_product.platform_product_code
-source: name
-join_role: business_code
-priority: primary
-name_evidence:
-  match: exact_table
-  stem: platform_product
-  comment: 平台产品编码
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 4
-  miss: 4
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-```
-
-```ground:relation
-type: EQUI_JOIN
-left: cust_customized_product.id
-right: cust_interworking_product.product_id
-cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_interworking_product.product_id;database_profile:lowcode_pplatform.cust_interworking_product.product_id
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: family_suffix
-  stem: product
-  comment: 互通产品id
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 14
-  miss: 14
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-```
-
-```ground:relation
-type: EQUI_JOIN
-left: tenant_interworking_product.id
+left: tenant_interworking_product.code
 right: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
 cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product;database_profile:lowcode_pplatform.cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
-source: name
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;reextract:互通产品 code→ref
+source: reextract_joins
+join_role: business_code
+priority: primary
+authenticity_note: 互通产品 code→ref
+```
+```ground:relation
+type: EQUI_JOIN
+left: tenant_setting_config.id
+right: cust_interworking_product.tenant_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;reextract:企业互通产品租户
+source: reextract_joins
 join_role: identity
 priority: primary
-name_evidence:
-  match: long_ref
-  stem: tenant_interworking_product
-  comment: 关联互通产品
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 14
-  miss: 14
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
+authenticity_note: 企业互通产品租户
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: cust_interworking_product.platform_product_code
+right: tenant_interworking_product.platform_product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:shared_domain;collide_refine:企业互通与租户互通产品业务码；重合高可连
+source: collide_refine
+join_role: business_code
+priority: primary
+authenticity_note: 企业互通与租户互通产品业务码；重合高可连
 ```
 
 ## 页面链接
@@ -297,14 +236,15 @@ overlap:
 ### 关联表
 
 - [[tables/cust_company_info]]
-- [[tables/platform_product]]
-- [[tables/cust_customized_product]]
 - [[tables/tenant_interworking_product]]
+- [[tables/tenant_setting_config]]
+
+### 概念
+
+- [[concepts/platform_product_code_term]]
 
 ### 字典
 
 - [[dicts/cust_interworking_product__open_status]]（`cust_interworking_product.open_status`）
-- [[dicts/cust_interworking_product__platform_product_code]]（`cust_interworking_product.platform_product_code`）
 - [[dicts/cust_interworking_product__agree_authorization_flag]]（`cust_interworking_product.agree_authorization_flag`）
-- [[dicts/cust_interworking_product__ref_cust_interworking_product_tenant_interworking_product]]（`cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product`）
 - [[dicts/cust_interworking_product__enable]]（`cust_interworking_product.enable`）

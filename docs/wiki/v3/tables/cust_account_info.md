@@ -4,17 +4,24 @@ title: 客户银行账号信息主表
 page_key: cust_account_info
 belong: tables
 status: draft
-anchors: [cust_account_info]
-sources: ['database_schema:lowcode_pplatform.cust_account_info', 'code_path:CustPersonController.java:288']
+anchors:
+- cust_account_info
+sources:
+- database_schema:lowcode_pplatform.cust_account_info
+- code_path:CustPersonController.java:288
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_account_info__name, cust_account_info__enable, cust_account_info__default_account_flag,
-  cust_account_info__account_type, cust_account_info__status, cust_account_info__error_try_count,
-  cust_account_info__auth_state, cust_account_info__payment_remaining_count, cust_account_info__bank_id]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_setting_config
+- cust_account_info__enable
+- cust_account_info__account_type
+- cust_account_info__status
+- cust_account_info__auth_state
 ---
-
 # 客户银行账号信息主表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,10 +33,20 @@ table: cust_account_info
 database: lowcode_pplatform
 desc: 客户银行账号信息主表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name, account_name, bank_province_name, bank_province_code, bank_city_name,
-  bank_city_code, bank_code, bank_code_name, bank_branch_name]
+name_anchors:
+- code
+- name
+- account_name
+- bank_province_name
+- bank_province_code
+- bank_city_name
+- bank_city_code
+- bank_code
+- bank_code_name
+- bank_branch_name
 fields:
 - name: id
   type: number
@@ -41,11 +58,13 @@ fields:
 - name: name
   type: string
   desc: 名称-废弃
-  dict: [测试账户, '111', '324234']
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -96,12 +115,17 @@ fields:
 - name: default_account_flag
   type: string
   desc: 是否为默认账户
-  dict: ['0', '1']
 - name: account_type
   type: string
   desc: 账户类型
-  dict: [BANK, OPERATION_FEE_ACCOUNT, '1', received]
-  label: {'1': 银行, received: 收款}
+  dict:
+  - BANK
+  - OPERATION_FEE_ACCOUNT
+  - '1'
+  - received
+  label:
+    '1': 银行
+    received: 收款
 - name: receive_payment_type
   type: string
   desc: 收付类型
@@ -141,7 +165,8 @@ fields:
 - name: status
   type: string
   desc: 账户状态
-  dict: [INIT]
+  dict:
+  - INIT
 - name: email
   type: string
   desc: 电子邮箱
@@ -151,21 +176,22 @@ fields:
 - name: error_try_count
   type: number
   desc: 打款金额错误次数
-  dict: ['0']
 - name: error_try_time
   type: temporal
   desc: 最后一次错误时间
 - name: auth_state
   type: string
   desc: 认证状态
-  dict: [APPLY_00, APPLY_40, APPLY_20]
+  dict:
+  - APPLY_00
+  - APPLY_40
+  - APPLY_20
 - name: trace_no
   type: string
   desc: 系统跟踪号
 - name: payment_remaining_count
   type: number
   desc: 剩余打款次数
-  dict: ['3', '5', '2', '0', '1']
 - name: ref_cust_company_info
   type: string
   desc: 客户账号信息
@@ -175,7 +201,6 @@ fields:
 - name: bank_id
   type: string
   desc: 银行ID
-  dict: ['103', '302', '102', '105']
 default_filter:
   predicate: cust_account_info.enable = 'Y'
   trust: confirmed
@@ -200,52 +225,26 @@ priority: primary
 authenticity_note: 银行账户按企业 code 关联，不是 id。
 ```
 
-### disputed — 与已确认边冲突
 
-```ground:relation
-type: EQUI_JOIN
-left: cust_company_info.id
-right: cust_account_info.ref_cust_company_info
-cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_account_info.ref_cust_company_info;database_profile:lowcode_pplatform.cust_account_info.ref_cust_company_info
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: exact_table
-  stem: cust_company_info
-  comment: 客户账号信息
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 200
-  miss: 200
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: cust_company_info.code, right: cust_account_info.ref_cust_company_info,
-  trust: confirmed}
-- {source: name, left: cust_company_info.id, right: cust_account_info.ref_cust_company_info,
-  trust: proposed}
-```
+## 关联说明（非 EQUI / 对等场景）
+
+- `payment_remaining_count` 可由 `cust_setting_config.payment_maximum_number` **配置灌入**（非 JOIN）。
 
 ## 页面链接
 
 ### 关联表
 
 - [[tables/cust_company_info]]
+- [[tables/cust_setting_config]]
+
+### 概念
+
+- [[concepts/bank_account_center]]
+- [[concepts/bank_cnaps]]
 
 ### 字典
 
-- [[dicts/cust_account_info__name]]（`cust_account_info.name`）
 - [[dicts/cust_account_info__enable]]（`cust_account_info.enable`）
-- [[dicts/cust_account_info__default_account_flag]]（`cust_account_info.default_account_flag`）
 - [[dicts/cust_account_info__account_type]]（`cust_account_info.account_type`）
 - [[dicts/cust_account_info__status]]（`cust_account_info.status`）
-- [[dicts/cust_account_info__error_try_count]]（`cust_account_info.error_try_count`）
 - [[dicts/cust_account_info__auth_state]]（`cust_account_info.auth_state`）
-- [[dicts/cust_account_info__payment_remaining_count]]（`cust_account_info.payment_remaining_count`）
-- [[dicts/cust_account_info__bank_id]]（`cust_account_info.bank_id`）

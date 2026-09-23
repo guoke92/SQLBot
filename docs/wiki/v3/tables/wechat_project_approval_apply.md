@@ -4,20 +4,24 @@ title: 企业立项申请表
 page_key: wechat_project_approval_apply
 belong: tables
 status: draft
-anchors: [wechat_project_approval_apply]
-sources: ['database_schema:lowcode_pplatform.wechat_project_approval_apply', 'code_path:approval/ProjectApprovalApplication.java:1347']
+anchors:
+- wechat_project_approval_apply
+sources:
+- database_schema:lowcode_pplatform.wechat_project_approval_apply
+- code_path:approval/ProjectApprovalApplication.java:1347
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [wechat_project_approval_field_history, wechat_project_approval_apply__prd,
-  wechat_project_approval_apply__op_contact, wechat_project_approval_apply__archives_contact,
-  wechat_project_approval_apply__risk_control_contact, wechat_project_approval_apply__enable,
-  wechat_project_approval_apply__act_procinst_status, wechat_project_approval_apply__project_type,
-  wechat_project_approval_apply__ka_white_label, wechat_project_approval_apply__project_phase,
-  wechat_project_approval_apply__data_source, wechat_project_approval_apply__bank_quota]
+databases:
+- lowcode_pplatform
+related:
+- tenant_project_approval
+- wechat_project_approval_field_history
+- wechat_project_approval_apply__prd
+- wechat_project_approval_apply__enable
+- wechat_project_approval_apply__project_type
+- wechat_project_approval_apply__ka_white_label
 ---
-
 # 企业立项申请表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -29,10 +33,18 @@ table: wechat_project_approval_apply
 database: lowcode_pplatform
 desc: 企业立项申请表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企微审批单
-name_anchors: [project_approval_name, main_project_name, project_online_name, code,
-  name, capital_org_full_name, capital_branch_name, enterprise_full_name]
+name_anchors:
+- project_approval_name
+- main_project_name
+- project_online_name
+- code
+- name
+- capital_org_full_name
+- capital_branch_name
+- enterprise_full_name
 fields:
 - name: id
   type: number
@@ -62,28 +74,30 @@ fields:
 - name: prd
   type: string
   desc: 是否投产
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 - name: bussiness_manager
   type: string
   desc: 业务经理
 - name: op_contact
   type: string
   desc: 运营对接人
-  dict: ['454', '383', '466', '463', '280', '257', '333', '93', '412', '411']
 - name: op_contact_group
   type: string
   desc: 运营组别
 - name: archives_contact
   type: string
   desc: 档案对接人
-  dict: ['463', '383', '97', '108']
 - name: archives_contact_group
   type: string
   desc: 档案组别
 - name: risk_control_contact
   type: string
   desc: 风控对接人
-  dict: ['360', '383', '97', '454', '293', '271', '457', '257']
 - name: risk_control_contact_group
   type: string
   desc: 风控对接人组别
@@ -117,7 +131,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -156,7 +175,6 @@ fields:
 - name: act_procinst_status
   type: string
   desc: 当前审批状态
-  dict: ['2', '3', '4', '1']
 - name: act_procinst_date
   type: temporal
   desc: 审批结束时间
@@ -172,15 +190,25 @@ fields:
 - name: project_type
   type: string
   desc: 项目类型
-  dict: [SUB, MAIN]
+  dict:
+  - SUB
+  - MAIN
 - name: ka_white_label
   type: string
   desc: KA是否贴牌
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+    Y: 是
+    N: 否
 - name: project_phase
   type: string
   desc: 项目阶段
-  dict: [IMPLEMENTATION, OPERATION, HANG]
+  dict:
+  - IMPLEMENTATION
+  - OPERATION
+  - HANG
 - name: apply_start_time
   type: temporal
   desc: 发起立项时间
@@ -205,7 +233,9 @@ fields:
 - name: data_source
   type: string
   desc: 数据来源
-  dict: [WECHAT, MANUAL]
+  dict:
+  - WECHAT
+  - MANUAL
 - name: custom_field_statistics_one
   type: string
   desc: 自定义字段一(统计用)
@@ -230,8 +260,6 @@ fields:
 - name: bank_quota
   type: string
   desc: 银行额度(万元)
-  dict: [1000万, 100万, '1000', '10000', '4324324', '100', '200000', '1234567890', '333',
-    2000万, '222', '100000']
 - name: core_enterprise
   type: string
   desc: 核心企业
@@ -253,22 +281,82 @@ default_filter:
   evidence: code_path:approval/ProjectApprovalApplication.java:1347
 ```
 
+```ground:relation
+type: EQUI_JOIN
+left: wechat_project_approval_apply.id
+right: wechat_project_approval_field_history.apply_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:FieldHistoryWriter.java:78
+source: l1_code
+join_role: identity
+priority: primary
+name_evidence:
+  match: family_suffix
+  stem: apply
+  comment: 关联 wechat_project_approval_apply.id
+overlap:
+  probed: true
+  ratio: 1.0
+  sample_size: 23
+  miss: 0
+  deepened: false
+  query_ok: true
+  authenticity: likely
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: wechat_project_approval_apply.sp_no
+right: tenant_project_approval.sp_no
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+source: comment_fk
+join_role: business_code
+priority: primary
+name_evidence:
+  match: comment_fk
+  stem: wechat_project_approval_apply
+  comment: 立项审批编号（wechat_project_approval_apply#sp_no）
+evidence: database_schema:tenant_project_approval.sp_no#comment_fk:wechat_project_approval_apply#sp_no
+authenticity_note: live_validate:fk_like; approval.sp_no ⊆ wechat.apply.sp_no (R→L=1.0);
+  comment_fk + UAT 2026-09-23
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: wechat_project_approval_apply.sp_no
+right: wechat_project_approval_field_history.sp_no
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: full_sweep:live_fk_like R→L=1
+source: full_sweep
+join_role: business_code
+priority: primary
+authenticity_note: code:copy
+```
+
 ## 页面链接
 
 ### 关联表
 
+- [[tables/tenant_project_approval]]
 - [[tables/wechat_project_approval_field_history]]
+
+### 概念
+
+- [[concepts/simulated_project_apply]]
+- [[concepts/wechat_apply_term]]
+- [[concepts/wechat_prd_term]]
 
 ### 字典
 
 - [[dicts/wechat_project_approval_apply__prd]]（`wechat_project_approval_apply.prd`）
-- [[dicts/wechat_project_approval_apply__op_contact]]（`wechat_project_approval_apply.op_contact`）
-- [[dicts/wechat_project_approval_apply__archives_contact]]（`wechat_project_approval_apply.archives_contact`）
-- [[dicts/wechat_project_approval_apply__risk_control_contact]]（`wechat_project_approval_apply.risk_control_contact`）
 - [[dicts/wechat_project_approval_apply__enable]]（`wechat_project_approval_apply.enable`）
-- [[dicts/wechat_project_approval_apply__act_procinst_status]]（`wechat_project_approval_apply.act_procinst_status`）
 - [[dicts/wechat_project_approval_apply__project_type]]（`wechat_project_approval_apply.project_type`）
 - [[dicts/wechat_project_approval_apply__ka_white_label]]（`wechat_project_approval_apply.ka_white_label`）
 - [[dicts/wechat_project_approval_apply__project_phase]]（`wechat_project_approval_apply.project_phase`）
 - [[dicts/wechat_project_approval_apply__data_source]]（`wechat_project_approval_apply.data_source`）
-- [[dicts/wechat_project_approval_apply__bank_quota]]（`wechat_project_approval_apply.bank_quota`）

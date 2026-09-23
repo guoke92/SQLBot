@@ -1,0 +1,553 @@
+# JOIN live validation (lowcode_pplatform)
+
+- generated_at: `2026-09-22T10:13:30.695086+00:00`
+- edges: 96
+- by_verdict: `{'weak_overlap': 55, 'fk_like': 23, 'shared_domain': 17, 'false_friend': 1}`
+
+## false_friend (1)
+
+- `tenant_project.id` → `wec_project_cust_operation_rel.project_id` (host=`wec_project_cust_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: negligible overlap on large domains (left->right=0.0006, right->left=0.0021, join_hits=2, distinct L/R=3586/173); not a usable equi-join
+  - join_hits=2 | left_in_right=2/3586 (0.0006) | right_in_left=5/2331 (0.0021)
+  - intersection sample: ['7383800930013659136', '7384076079942144000']
+  - left-only sample: ['2203106338874073180', '1999381039371583489', '7193142624923394048', '1203026947395813404', '1986272085919219713', '2188980103331987482', '2139595791851864103', '1905464553752363009']
+  - right-only sample: ['100002', '6606082674815668224', '100004', '1247245793941786680', '1251134813386051647', '6837993668279926784', '7267374337280811008', '7267375290331537408']
+
+## weak_overlap (55)
+
+- `tenant_project.channel_code` → `cust_project_code_record.channel_code` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0273, right->left=0.75, join_hits=98)
+  - join_hits=98 | left_in_right=98/3586 (0.0273) | right_in_left=261/348 (0.75)
+  - intersection sample: ['CDMYPDXM8870239217', 'LN1YSYRXM4628939839', 'LN1XM10757644228', '7NZ1G7WM', 'od99O4hg', 'WKCSXM26163244500', '123456', 'JXvUXYZJ']
+  - left-only sample: ['01fLDUJ5', '03AHYUcc', '05o663NI', '06zOQJJO', '0998JU2G', '09rroqeo', '0a1PqKtu', '0AznqMSt']
+  - right-only sample: ['WKCSXM10360224916', 'LN1TXCPXM7227711347', '0902XM1401916398', 'https://ams-fin.qhhrly.cn/', 'XT09035793772183', '12', '123', 'CRSX7237089105']
+- `tenant_project.channel_code` → `cust_project_rel.channel_code` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0151, right->left=0.898, join_hits=54)
+  - join_hits=54 | left_in_right=54/3586 (0.0151) | right_in_left=176/196 (0.898)
+  - intersection sample: ['00p1Z1my', '575AbAfa', 'BLYR050203', 'BLYR098596', 'BLYR407955', 'BLYR595731', 'BLYR814743', 'BLYR899016']
+  - left-only sample: ['01fLDUJ5', '03AHYUcc', '05o663NI', '06zOQJJO', '0998JU2G', '09rroqeo', '0a1PqKtu', '0AznqMSt']
+  - right-only sample: ['1231231', 'DHHKXM08084234978526', 'WKCSXM10360224916', 'WC000011493493272', '0902XM1401916398', 'YSXDXM5085322705', 'CRSX7237089105', 'RYDZYZHXM0014049059398']
+- `ca_fee_special_config.certification_no` → `cust_company_info.certification_no` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.7273, right->left=0.0003, join_hits=40)
+  - join_hits=40 | left_in_right=40/55 (0.7273) | right_in_left=32/94477 (0.0003)
+  - intersection sample: ['538280511140845054', '698241080913565968', '91085866BPCF4NNKQM', '91100000100003962T', '91110102MA00C29B5W', '91110108551385082Q', '91330106MACA91BP4N', '91340100MA2MWW1B93']
+  - left-only sample: ['114500006GR9QBLL7P', '9134000013370212X3', '91440300573106363N', '91441200632828391P', '9144120067138691XD', '91441208MAEJFG6G48', '91441283073460243F', '91441283686387384L']
+  - right-only sample: [',9144200028213222XT', '-', '000000000000000', '00000000000000000X', '000000000000000011', '000000005607170850', '00010107054941260M', '000OAKV6W1J02XQZ68']
+- `ca_cfca_upgrade_report.certification_no` → `cust_company_info.certification_no` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.9859, right->left=0.0004, join_hits=419)
+  - join_hits=419 | left_in_right=419/425 (0.9859) | right_in_left=41/94477 (0.0004)
+  - intersection sample: ['11572642955MCKN80X', '231645787943164946', '232424123213214243', '294403008RR8YXF437', '419488915332808833', '456457657585858568', '464575856865867969', '547457457457658665']
+  - left-only sample: ['914354535WY7C291WT', '91649610GR35EEWT3P']
+  - right-only sample: [',9144200028213222XT', '-', '000000000000000', '00000000000000000X', '000000000000000011', '000000005607170850', '00010107054941260M', '000OAKV6W1J02XQZ68']
+- `tenant_project_approval.sp_no` → `wechat_project_approval_apply.sp_no` (host=`wechat_project_approval_apply`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.4051, join_hits=510)
+  - join_hits=510 | left_in_right=510/510 (1.0) | right_in_left=32/79 (0.4051)
+  - intersection sample: ['202512290002', '202604090001', '202604270003', '202605110011', '202605120011', '202605120015', '202605130016', '202606220001']
+  - right-only sample: ['202512290017', '202512300002', '202512310005', '202601040004', '202601040005', '202601060002', '202601060005', '202601060006']
+- `cust_project_code_record.channel_code` → `cust_project_rel.channel_code` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.4914, right->left=0.898, join_hits=171)
+  - join_hits=171 | left_in_right=171/348 (0.4914) | right_in_left=176/196 (0.898)
+  - intersection sample: ['WKCSXM10360224916', 'CDMYPDXM8870239217', '0902XM1401916398', 'LN1XM10757644228', 'od99O4hg', 'CRSX7237089105', 'RYDZYZHXM0014049059398', 'WKCSXM26163244500']
+  - left-only sample: ['LN1TXCPXM7227711347', 'LN1YSYRXM4628939839', 'https://ams-fin.qhhrly.cn/', 'XT09035793772183', '12', '7NZ1G7WM', '123', '2354534']
+  - right-only sample: ['1231231', 'XMYS7390834775', 'DHHKXM08084234978526', 'WC000011493493272', 'YSXDXM5085322705', 'RYD000022', 'RYD130577', 'RYD072091']
+- `ca_cfca_upgrade_report.certification_no` → `ca_fee_company.certification_no` (host=`ca_fee_company`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.6118, right->left=0.0134, join_hits=260)
+  - join_hits=260 | left_in_right=260/425 (0.6118) | right_in_left=14/1044 (0.0134)
+  - intersection sample: ['456457657585858568', '547457457457658665', '698241080913565968', '91110102MA00C29B5W', '9111010877336966X1', '91130108542037094C', '91330102MA24KBCF2C', '91340100MA2MUWT73J']
+  - left-only sample: ['11572642955MCKN80X', '231645787943164946', '232424123213214243', '294403008RR8YXF437', '419488915332808833', '464575856865867969', '91165363REC655J2TY', '91193211EPC2NRJH77']
+  - right-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+- `ca_fee_order.certification_no` → `ca_fee_special_config.certification_no` (host=`ca_fee_special_config`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0298, right->left=0.4909, join_hits=47)
+  - join_hits=47 | left_in_right=47/1575 (0.0298) | right_in_left=27/55 (0.4909)
+  - intersection sample: ['538280511140845054', '698241080913565968', '91085866BPCF4NNKQM', '91110102MA00C29B5W', '91340100MA2MWW1B93', '91346504AQJK18BTAK', '91420100MA4F5CLCXK', '914409045583945632']
+  - left-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+  - right-only sample: ['114500006GR9QBLL7P', '91100000100003962T', '91110108551385082Q', '91330106MACA91BP4N', '9134000013370212X3', '91350900587527783P', '91440300573106363N', '91441200632828391P']
+- `cust_invite_info.channel_code` → `tenant_project.channel_code` (host=`tenant_project`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.4519, right->left=0.0036, join_hits=47)
+  - join_hits=47 | left_in_right=47/104 (0.4519) | right_in_left=13/3586 (0.0036)
+  - intersection sample: ['RSWXZRYD2586716567', '1', 'RYD971998', 'RYD130577', 'RYD876551', '123456', 'RYD072091', 'RYD399331']
+  - left-only sample: ['00000', '55555', '0', 'xmm01', '111', '0924-wyw项目测试', '0924-WYWXMCS9806393896', '项目001']
+  - right-only sample: ['00p1Z1my', '01fLDUJ5', '03AHYUcc', '05o663NI', '06zOQJJO', '0998JU2G', '09rroqeo', '0a1PqKtu']
+- `tenant_project.id` → `project_file_info.project_id` (host=`project_file_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0033, right->left=0.7719, join_hits=12)
+  - join_hits=12 | left_in_right=12/3586 (0.0033) | right_in_left=44/57 (0.7719)
+  - intersection sample: ['1195688373960839255', '2163913362700771426', '2171576460173660186', '2173276344136245335', '2173359507491549225', '2173642390437371940', '1828341757505560577', '1929723188042915842']
+  - left-only sample: ['2203106338874073180', '1999381039371583489', '7193142624923394048', '1203026947395813404', '1986272085919219713', '2188980103331987482', '2139595791851864103', '1905464553752363009']
+  - right-only sample: ['6839113487803121664', '2173640005270908992', '6710027789166186496', '6725338807710781440', '6760043437930917888', '7322481299712331776']
+- `tenant_project.id` → `wec_project_operation_rel.wec_project_id` (host=`wec_project_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0031, right->left=0.0255, join_hits=11)
+  - join_hits=11 | left_in_right=11/3586 (0.0031) | right_in_left=11/431 (0.0255)
+  - intersection sample: ['1186710408342274116', '1186714623366135831', '1192862188402901028', '1195758296422682692', '1196479687480578141', '7382614407966773248', '7383800930013659136', '7384076079942144000']
+  - left-only sample: ['2203106338874073180', '1999381039371583489', '7193142624923394048', '1203026947395813404', '1986272085919219713', '2188980103331987482', '2139595791851864103', '1905464553752363009']
+  - right-only sample: ['100001', '100002', '100003', '100004', '100005', '100007', '1188418224585179180', '1192527529445949523']
+- `cust_invite_info.channel_code` → `cust_project_code_record.channel_code` (host=`cust_project_code_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.4327, right->left=0.2126, join_hits=45)
+  - join_hits=45 | left_in_right=45/104 (0.4327) | right_in_left=74/348 (0.2126)
+  - intersection sample: ['111', 'RSWXZRYD2586716567', 'RYDZYZHXM0014049059398', '1', '12', 'RYD971998', 'RYD876551', '123456']
+  - left-only sample: ['00000', '55555', '0', 'xmm01', '0924-wyw项目测试', '0924-WYWXMCS9806393896', '项目001', '项目002']
+  - right-only sample: ['WKCSXM10360224916', 'LN1TXCPXM7227711347', 'CDMYPDXM8870239217', 'LN1YSYRXM4628939839', '0902XM1401916398', 'https://ams-fin.qhhrly.cn/', 'XT09035793772183', '7NZ1G7WM']
+- `cust_invite_info.channel_code` → `cust_project_rel.channel_code` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.3942, right->left=0.5153, join_hits=41)
+  - join_hits=41 | left_in_right=41/104 (0.3942) | right_in_left=101/196 (0.5153)
+  - intersection sample: ['RSWXZRYD2586716567', 'RYDZYZHXM0014049059398', 'RYD971998', 'RYD130577', 'RYD876551', 'RYD072091', 'RYD399331', 'RYD247470']
+  - left-only sample: ['00000', '55555', '0', 'xmm01', '111', '0924-wyw项目测试', '0924-WYWXMCS9806393896', '项目001']
+  - right-only sample: ['1231231', 'XMYS7390834775', 'DHHKXM08084234978526', 'WKCSXM10360224916', 'CDMYPDXM8870239217', 'WC000011493493272', '0902XM1401916398', 'YSXDXM5085322705']
+- `authorization_agreement.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1942, right->left=0.8006, join_hits=6094)
+  - join_hits=6094 | left_in_right=6094/31375 (0.1942) | right_in_left=123898/154751 (0.8006)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'ORDER', 'AMS', 'STORAGE']
+  - left-only sample: ['PLATFORM', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR', 'pplatform']
+  - right-only sample: ['["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]']
+- `ca_fee_order.certification_no` → `cust_company_info.certification_no` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.0123, join_hits=1575)
+  - join_hits=1575 | left_in_right=1575/1575 (1.0) | right_in_left=1160/94477 (0.0123)
+  - intersection sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+  - right-only sample: [',9144200028213222XT', '-', '000000000000000', '00000000000000000X', '000000000000000011', '000000005607170850', '00010107054941260M', '000OAKV6W1J02XQZ68']
+- `authorization_agreement.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1942, right->left=0.9147, join_hits=6094)
+  - join_hits=6094 | left_in_right=6094/31375 (0.1942) | right_in_left=4205/4597 (0.9147)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'STORAGE', 'AMS']
+  - left-only sample: ['PLATFORM', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR', 'pplatform']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', '["ORDER"]', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]', '["ACFLOW"]', '[null,null]']
+- `ca_cfca_upgrade_report.certification_no` → `ca_fee_order.certification_no` (host=`ca_fee_order`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.6118, right->left=0.0152, join_hits=260)
+  - join_hits=260 | left_in_right=260/425 (0.6118) | right_in_left=24/1575 (0.0152)
+  - intersection sample: ['456457657585858568', '547457457457658665', '698241080913565968', '91110102MA00C29B5W', '9111010877336966X1', '91130108542037094C', '91330102MA24KBCF2C', '91340100MA2MUWT73J']
+  - left-only sample: ['11572642955MCKN80X', '231645787943164946', '232424123213214243', '294403008RR8YXF437', '419488915332808833', '464575856865867969', '91165363REC655J2TY', '91193211EPC2NRJH77']
+  - right-only sample: ['00371081706233754B', '0234647270626178A5', '03637261646646177M', '09846980651257504T', '104665209868129317', '108387681541414970', '110101198506020011', '110196556122614029']
+- `ca_cfca_upgrade_report.certification_no` → `ca_fee_special_config.certification_no` (host=`ca_fee_special_config`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0965, right->left=0.0545, join_hits=41)
+  - join_hits=41 | left_in_right=41/425 (0.0965) | right_in_left=3/55 (0.0545)
+  - intersection sample: ['698241080913565968', '91110102MA00C29B5W']
+  - left-only sample: ['11572642955MCKN80X', '231645787943164946', '232424123213214243', '294403008RR8YXF437', '419488915332808833', '456457657585858568', '464575856865867969', '547457457457658665']
+  - right-only sample: ['114500006GR9QBLL7P', '538280511140845054', '91085866BPCF4NNKQM', '91100000100003962T', '91110108551385082Q', '91330106MACA91BP4N', '9134000013370212X3', '91340100MA2MWW1B93']
+- `funding_exception_resolution.product_code` → `platform_product.product_code` (host=`platform_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=92)
+  - join_hits=92 | left_in_right=92/92 (1.0) | right_in_left=2/20 (0.1)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13', 'HTCP14']
+- `funding_exception_resolution.product_code` → `platform_product_cust_role.product_code` (host=`platform_product_cust_role`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=92)
+  - join_hits=92 | left_in_right=92/92 (1.0) | right_in_left=11/62 (0.1774)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['AMS', 'ORDER', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'STORAGE', 'DRAFTQA']
+- `funding_rule_front_cfg.product_code` → `platform_product.product_code` (host=`platform_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=47)
+  - join_hits=47 | left_in_right=47/47 (1.0) | right_in_left=2/20 (0.1)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13', 'HTCP14']
+- `funding_rule_front_cfg.product_code` → `platform_product_cust_role.product_code` (host=`platform_product_cust_role`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=47)
+  - join_hits=47 | left_in_right=47/47 (1.0) | right_in_left=11/62 (0.1774)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['AMS', 'ORDER', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'STORAGE', 'DRAFTQA']
+- `funding_rule_info.product_code` → `platform_product.product_code` (host=`platform_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=53)
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=2/20 (0.1)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13', 'HTCP14']
+- `funding_rule_info.product_code` → `platform_product_cust_role.product_code` (host=`platform_product_cust_role`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=53)
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=11/62 (0.1774)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['AMS', 'ORDER', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'STORAGE', 'DRAFTQA']
+- `platform_product.id` → `cust_project_rel.product_id` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.15, right->left=0.0004, join_hits=3)
+  - join_hits=3 | left_in_right=3/20 (0.15) | right_in_left=24/60080 (0.0004)
+  - intersection sample: ['5', '7', '2']
+  - left-only sample: ['11', '13', '12', '1881239448301518849', '14', '15', '16', '17']
+  - right-only sample: ['1795047363653136386', '1823335930310791170', '1828338709404180481', '1829056399900778498', '1797564722686484482', '1830931997592944642', '1829056506230579202', '1797628152482992129']
+- `platform_product.product_code` → `tenant_product_menu.product_code` (host=`tenant_product_menu`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1, right->left=0.9441, join_hits=2)
+  - join_hits=2 | left_in_right=2/20 (0.1) | right_in_left=2396/2538 (0.9441)
+  - intersection sample: ['BEECREDIT', 'RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW', 'AMS', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13', 'HTCP14']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `authorization_agreement.platform_product_code` → `cust_interworking_product.platform_product_code` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0011, right->left=0.0099, join_hits=34)
+  - join_hits=34 | left_in_right=34/31375 (0.0011) | right_in_left=3/304 (0.0099)
+  - intersection sample: ['AMS']
+  - left-only sample: ['PLATFORM', 'ACFLOW', 'BEECREDIT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'VOUCHER', 'RVSFACTOR']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5']
+- `authorization_agreement.platform_product_code` → `tenant_interworking_product.platform_product_code` (host=`tenant_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0011, right->left=0.175, join_hits=34)
+  - join_hits=34 | left_in_right=34/31375 (0.0011) | right_in_left=7/40 (0.175)
+  - intersection sample: ['AMS']
+  - left-only sample: ['PLATFORM', 'ACFLOW', 'BEECREDIT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'VOUCHER', 'RVSFACTOR']
+  - right-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+- `authorization_agreement.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0011, right->left=0.0833, join_hits=34)
+  - join_hits=34 | left_in_right=34/31375 (0.0011) | right_in_left=1/12 (0.0833)
+  - intersection sample: ['AMS']
+  - left-only sample: ['PLATFORM', 'ACFLOW', 'BEECREDIT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'VOUCHER', 'RVSFACTOR']
+  - right-only sample: ['HTCP1', 'HTCP5', 'HTCP13', 'HTCP14']
+- `cust_company_info.certification_no` → `cust_shareholder_info.certification_no` (host=`cust_shareholder_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=1)
+  - join_hits=1 | left_in_right=1/94477 (0.0) | right_in_left=1/3 (0.3333)
+  - intersection sample: ['11']
+  - left-only sample: [',9144200028213222XT', '-', '000000000000000', '00000000000000000X', '000000000000000011', '000000005607170850', '00010107054941260M', '000OAKV6W1J02XQZ68']
+  - right-only sample: ['wertwetew']
+- `cust_company_info.legal_certification_no` → `cust_head_company_info.legal_certification_no` (host=`cust_head_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0008, right->left=0.112, join_hits=41)
+  - join_hits=41 | left_in_right=41/51812 (0.0008) | right_in_left=57/509 (0.112)
+  - intersection sample: ['370281198801161023', '421125198307100961', '110106196508012739', '140522198301107518', '362324199606292418', '32068119821101005X', '131026198203010613', '330724197702275613']
+  - left-only sample: ['0000312c5c3e922714971d79597f2119ab51e94ac867999e2a841b4dfbf394cd', '00005899dd664862265891ad6ef25c5d1892915262f3523aa081c219cd912d47', '00023029a85383ff58e888abd4ab657d2bd37a10566b1f581ec974e0f0de0512', '0002ec91714bc09a004544cd47f91e713a58add70d9c0ac3227712abc31c4b83', '00033693be637d41df94fec81916ab4ea0c68cc6e65f24b33e0a5663f53bc2fe', '0003a0bea5f176b6bc7fcc2401f03c4c3d9d4eef16e3a29e2d50889366863d4f', '0008765d0b28f88c75b117b954ff9d85c8cf4d99cb4808319309d948de6a4afd', '0008cd045939b6cc8e3c6dadc4200a048ebac670878a2878a604e5acc3a8a800']
+  - right-only sample: ['3607891999020252652', '360789199902016526', '360789199902062462', '360789199902243526', '360789199009032622', '65412419460916075X', '320322199412293111', '110101202406264034']
+- `cust_head_company_info.id` → `authorization_agreement.original_cust_id` (host=`authorization_agreement`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0011, right->left=0.1667, join_hits=1)
+  - join_hits=1 | left_in_right=1/881 (0.0011) | right_in_left=1/6 (0.1667)
+  - intersection sample: ['1797504376757383169']
+  - left-only sample: ['1794920497169264642', '1794920498628882433', '1794972034845573122', '1794973494110666754', '1805532396352622594', '1805532472001089537', '1805532603727400962', '1805558886221381633']
+  - right-only sample: ['1796784307050151938', '1798257982988562434']
+- `cust_head_company_info.id` → `cust_company_info.relate_company_id` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0011, right->left=0.027, join_hits=1)
+  - join_hits=1 | left_in_right=1/881 (0.0011) | right_in_left=1/37 (0.027)
+  - intersection sample: ['1824055863570935810']
+  - left-only sample: ['1794920497169264642', '1794920498628882433', '1794972034845573122', '1794973494110666754', '1805532396352622594', '1805532472001089537', '1805532603727400962', '1805558886221381633']
+  - right-only sample: ['43543543543543', '0', '1798612744333221890', '1803255693649825794', '1803267300680802305', '1803305809441464322', '1824277351367680001', '1826824294346235906']
+- `cust_interworking_product.platform_product_code` → `argeement_migratory_record.platform_product_code` (host=`argeement_migratory_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0099, right->left=0.0842, join_hits=3)
+  - join_hits=3 | left_in_right=3/304 (0.0099) | right_in_left=3170/37655 (0.0842)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5']
+  - right-only sample: ['ACFLOW', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'BEECREDIT', 'VOUCHER']
+- `cust_interworking_product.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0099, right->left=0.0007, join_hits=3)
+  - join_hits=3 | left_in_right=3/304 (0.0099) | right_in_left=106/154751 (0.0007)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5']
+  - right-only sample: ['ACFLOW', '["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', 'RVSFACTOR_PC', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]']
+- `cust_interworking_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0099, right->left=0.0041, join_hits=3)
+  - join_hits=3 | left_in_right=3/304 (0.0099) | right_in_left=19/4597 (0.0041)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', 'ORDER', '["ORDER"]', 'ACFLOW', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]']
+- `cust_person_info.certification_no` → `cust_shareholder_info.certification_no` (host=`cust_shareholder_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=2)
+  - join_hits=2 | left_in_right=2/56675 (0.0) | right_in_left=1/3 (0.3333)
+  - intersection sample: ['11']
+  - left-only sample: ['0005844f53407df6149df10fffdae28cb099400302e025da81b709ff2b0df6aa', '00087ca94e0ed95211426a4c468ee387cedca9be8940224f776cba887eff8789', '0008a89464896391f3b05ed2446fb352b9d2b74493a4a7667c2d9afc869c5d2f', '0010cf1085f87037a5d25d7112b8f64fc264cc05cb484c8cd25d82c7a19ea904', '0010ff5dfb3da157b108b68b796f6adbe6c930e84d8d6f2c586c8fa732426fd6', '0011a61a5dd62561c082b084cdfb6a59c69fd214e7303727d527be44a6279ebe', '0014c59484afc76f68a3689715a810863aef4577dea4587189fc28b45d8b588a', '00151ffcca958f06c9a143365bec8df247a854373b05eedb1bee33a3b3880f50']
+  - right-only sample: ['wertwetew']
+- `funding_exception_resolution.product_code` → `tenant_product_menu.product_code` (host=`tenant_product_menu`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.3696, right->left=0.8629, join_hits=34)
+  - join_hits=34 | left_in_right=34/92 (0.3696) | right_in_left=2190/2538 (0.8629)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW']
+  - right-only sample: ['BEECREDIT', 'ACCOUNT_PRODUCT']
+- `funding_exception_resolution.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.3696, right->left=0.0455, join_hits=34)
+  - join_hits=34 | left_in_right=34/92 (0.3696) | right_in_left=5/110 (0.0455)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `funding_rule_detail.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.3124, right->left=0.0455, join_hits=522)
+  - join_hits=522 | left_in_right=522/1671 (0.3124) | right_in_left=5/110 (0.0455)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `funding_rule_front_cfg.product_code` → `tenant_product_menu.product_code` (host=`tenant_product_menu`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.383, right->left=0.8629, join_hits=18)
+  - join_hits=18 | left_in_right=18/47 (0.383) | right_in_left=2190/2538 (0.8629)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW']
+  - right-only sample: ['BEECREDIT', 'ACCOUNT_PRODUCT']
+- `funding_rule_front_cfg.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.383, right->left=0.0455, join_hits=18)
+  - join_hits=18 | left_in_right=18/47 (0.383) | right_in_left=5/110 (0.0455)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `funding_rule_info.product_code` → `tenant_product_menu.product_code` (host=`tenant_product_menu`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.4717, right->left=0.8629, join_hits=25)
+  - join_hits=25 | left_in_right=25/53 (0.4717) | right_in_left=2190/2538 (0.8629)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW']
+  - right-only sample: ['BEECREDIT', 'ACCOUNT_PRODUCT']
+- `funding_rule_info.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.4717, right->left=0.0455, join_hits=25)
+  - join_hits=25 | left_in_right=25/53 (0.4717) | right_in_left=5/110 (0.0455)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `platform_product.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.05, right->left=0.0455, join_hits=1)
+  - join_hits=1 | left_in_right=1/20 (0.05) | right_in_left=5/110 (0.0455)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW', 'AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+- `tenant_interworking_product.platform_product_code` → `argeement_migratory_record.platform_product_code` (host=`argeement_migratory_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.175, right->left=0.0842, join_hits=7)
+  - join_hits=7 | left_in_right=7/40 (0.175) | right_in_left=3170/37655 (0.0842)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+  - right-only sample: ['ACFLOW', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'BEECREDIT', 'VOUCHER']
+- `tenant_interworking_product.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.175, right->left=0.0007, join_hits=7)
+  - join_hits=7 | left_in_right=7/40 (0.175) | right_in_left=106/154751 (0.0007)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+  - right-only sample: ['ACFLOW', '["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', 'RVSFACTOR_PC', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]']
+- `tenant_interworking_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.175, right->left=0.0041, join_hits=7)
+  - join_hits=7 | left_in_right=7/40 (0.175) | right_in_left=19/4597 (0.0041)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP2', 'HTCP13', 'HTCP14', 'HTCP5', 'HTCP19', 'HTCP18', 'HTCP7']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', 'ORDER', '["ORDER"]', 'ACFLOW', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]']
+- `tenant_interworking_project.platform_product_code` → `argeement_migratory_record.platform_product_code` (host=`argeement_migratory_record`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0833, right->left=0.0842, join_hits=1)
+  - join_hits=1 | left_in_right=1/12 (0.0833) | right_in_left=3170/37655 (0.0842)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP5', 'HTCP13', 'HTCP14']
+  - right-only sample: ['ACFLOW', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'BEECREDIT', 'VOUCHER']
+- `tenant_interworking_project.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0833, right->left=0.0007, join_hits=1)
+  - join_hits=1 | left_in_right=1/12 (0.0833) | right_in_left=106/154751 (0.0007)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP5', 'HTCP13', 'HTCP14']
+  - right-only sample: ['ACFLOW', '["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', 'RVSFACTOR_PC', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]']
+- `tenant_interworking_project.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.0833, right->left=0.0041, join_hits=1)
+  - join_hits=1 | left_in_right=1/12 (0.0833) | right_in_left=19/4597 (0.0041)
+  - intersection sample: ['AMS']
+  - left-only sample: ['HTCP1', 'HTCP5', 'HTCP13', 'HTCP14']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', 'ORDER', '["ORDER"]', 'ACFLOW', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]']
+- `tenant_product_menu.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_detail`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.8629, right->left=0.3124, join_hits=2190)
+  - join_hits=2190 | left_in_right=2190/2538 (0.8629) | right_in_left=522/1671 (0.3124)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['BEECREDIT', 'ACCOUNT_PRODUCT']
+  - right-only sample: ['ACFLOW']
+- `tenant_product_menu.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.8629, right->left=0.1742, join_hits=2190)
+  - join_hits=2190 | left_in_right=2190/2538 (0.8629) | right_in_left=77/442 (0.1742)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['BEECREDIT', 'ACCOUNT_PRODUCT']
+  - right-only sample: ['ACFLOW', 'ORDER']
+- `tenant_project.wechat_audit_no` → `wec_project_operation_rel.wechat_audit_no` (host=`wec_project_operation_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1769, right->left=0.2463, join_hits=72)
+  - join_hits=72 | left_in_right=72/407 (0.1769) | right_in_left=33/134 (0.2463)
+  - intersection sample: ['321321', '/', '12312312', '1212', '1', '202605110011', '321', '202605120015']
+  - left-only sample: ['202308190001', 'AS543543543543', '立项审批编号0527', '202512290017', '202601060002', '6766876', '634643636', '202506060048']
+  - right-only sample: ['14142626', '5252452354', '87897797897', '5252345', '759327957', '412414', '12133456', '20220101']
+- `tenant_project_approval_business_info.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: non-empty but thin overlap (left->right=0.1742, right->left=0.0455, join_hits=77)
+  - join_hits=77 | left_in_right=77/442 (0.1742) | right_in_left=5/110 (0.0455)
+  - intersection sample: ['RVSFACTOR_PC']
+  - left-only sample: ['ACFLOW', 'ORDER']
+  - right-only sample: ['ACCOUNT_PRODUCT']
+
+## shared_domain (17)
+
+- `cust_auth_application.platform_product_code` → `argeement_migratory_record.platform_product_code` (host=`argeement_migratory_record`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9968, right->left=0.9158); same value domain / business code space likely
+  - join_hits=31830 | left_in_right=31830/31931 (0.9968) | right_in_left=34485/37655 (0.9158)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'BEECREDIT', 'ORDER', 'STORAGE', 'VOUCHER']
+  - left-only sample: ['DRAFT', 'DRAFTQA']
+  - right-only sample: ['AMS']
+- `cust_auth_application.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9825, right->left=0.7999); same value domain / business code space likely
+  - join_hits=31371 | left_in_right=31371/31931 (0.9825) | right_in_left=123792/154751 (0.7999)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'ORDER', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA']
+  - right-only sample: ['["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]']
+- `tenant_product.platform_product_code` → `argeement_migratory_record.platform_product_code` (host=`argeement_migratory_record`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9681, right->left=0.9158); same value domain / business code space likely
+  - join_hits=485 | left_in_right=485/501 (0.9681) | right_in_left=34485/37655 (0.9158)
+  - intersection sample: ['ACFLOW', 'ORDER', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['DRAFTQA', 'DRAFT']
+  - right-only sample: ['AMS']
+- `tenant_product.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.8403, right->left=0.7999); same value domain / business code space likely
+  - join_hits=421 | left_in_right=421/501 (0.8403) | right_in_left=123792/154751 (0.7999)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'ORDER', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFTQA', 'DRAFT']
+  - right-only sample: ['["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]']
+- `argeement_migratory_record.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.976, right->left=0.8006); same value domain / business code space likely
+  - join_hits=36750 | left_in_right=36750/37655 (0.976) | right_in_left=123898/154751 (0.8006)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'ORDER', 'AMS', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER']
+  - right-only sample: ['["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]']
+- `cust_app_channel_config.code` → `open_sso_channel.channel_code` (host=`open_sso_channel`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain / business code space likely
+  - join_hits=2 | left_in_right=2/2 (1.0) | right_in_left=3/3 (1.0)
+  - intersection sample: ['longteng', 'jingke']
+- `cust_auth_application.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9825, right->left=0.9106); same value domain / business code space likely
+  - join_hits=31371 | left_in_right=31371/31931 (0.9825) | right_in_left=4186/4597 (0.9106)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', '["ORDER"]', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]', '["ACFLOW"]', '[null,null]']
+- `cust_company_info.channel_code` → `open_sso_channel.channel_code` (host=`open_sso_channel`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=1.0); same value domain / business code space likely
+  - join_hits=544 | left_in_right=544/544 (1.0) | right_in_left=3/3 (1.0)
+  - intersection sample: ['longteng', 'jingke']
+- `funding_exception_resolution.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.681); same value domain / business code space likely
+  - join_hits=92 | left_in_right=92/92 (1.0) | right_in_left=301/442 (0.681)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['ORDER']
+- `funding_rule_front_cfg.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.681); same value domain / business code space likely
+  - join_hits=47 | left_in_right=47/47 (1.0) | right_in_left=301/442 (0.681)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['ORDER']
+- `funding_rule_info.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.681); same value domain / business code space likely
+  - join_hits=53 | left_in_right=53/53 (1.0) | right_in_left=301/442 (0.681)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - right-only sample: ['ORDER']
+- `tenant_product.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.8403, right->left=0.9106); same value domain / business code space likely
+  - join_hits=421 | left_in_right=421/501 (0.8403) | right_in_left=4186/4597 (0.9106)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFTQA', 'DRAFT']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', '["ORDER"]', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]', '["ACFLOW"]', '[null,null]']
+- `tenant_project.platform_product_code` → `argeement_migratory_record.platform_product_code` (host=`argeement_migratory_record`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.995, right->left=0.9158); same value domain / business code space likely
+  - join_hits=3568 | left_in_right=3568/3586 (0.995) | right_in_left=34485/37655 (0.9158)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'BEECREDIT', 'VOUCHER', 'STORAGE']
+  - left-only sample: ['DRAFT', 'DRAFTQA']
+  - right-only sample: ['AMS']
+- `tenant_project.platform_product_code` → `tenant_migarory_log.platform_product_code` (host=`tenant_migarory_log`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9724, right->left=0.7999); same value domain / business code space likely
+  - join_hits=3487 | left_in_right=3487/3586 (0.9724) | right_in_left=123792/154751 (0.7999)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC', 'ORDER', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA']
+  - right-only sample: ['["ACFLOW"]', '["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]']
+- `tenant_project.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.9724, right->left=0.9106); same value domain / business code space likely
+  - join_hits=3487 | left_in_right=3487/3586 (0.9724) | right_in_left=4186/4597 (0.9106)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', '["ORDER"]', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]', '["ACFLOW"]', '[null,null]']
+- `tenant_project_approval.sp_no` → `wechat_project_approval_field_history.sp_no` (host=`wechat_project_approval_field_history`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=1.0, right->left=0.5101); same value domain / business code space likely
+  - join_hits=510 | left_in_right=510/510 (1.0) | right_in_left=885/1735 (0.5101)
+  - intersection sample: ['202605110011', '202604270003', '202604090001', '202605120011', '202512290002', 'MN-202606030156', 'MN-202604300059', 'MN-202605060097']
+  - right-only sample: ['202512290017', '202512300002', '202512310005', '202601040004', '202601040005', '202601060002', '202601060005', '202601060006']
+- `argeement_migratory_record.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: two-way overlap (left->right=0.976, right->left=0.9147); same value domain / business code space likely
+  - join_hits=36750 | left_in_right=36750/37655 (0.976) | right_in_left=4205/4597 (0.9147)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'STORAGE', 'AMS']
+  - left-only sample: ['BEECREDIT', 'VOUCHER']
+  - right-only sample: ['["RVSFACTOR_PC"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","VOUCHER","ACFLOW"]', '["ORDER"]', '["RVSFACTOR_PC","ORDER","ACFLOW"]', '["AMS"]', '["ACFLOW"]', '[null,null]']
+
+## fk_like (23)
+
+- `cust_company_info.id` → `gpt_learn_poster_log.company_id` (host=`gpt_learn_poster_log`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=83 | left_in_right=83/94912 (0.0009) | right_in_left=253/253 (1.0)
+  - intersection sample: ['1965235432276299777', '1988519238449090562', '1988161544116027393', '2001169748804505601', '1909443346485325825', '1892501776144211970', '1772468926711316481', '1821447215528402946']
+  - left-only sample: ['1895394035061563393', '1895394043843194882', '1895063219575140353', '1895392101750419457', '1895394046335852546', '1895394056712560642', '1895063216983060482', '1895063224327286786']
+- `tenant_interworking_product.id` → `cust_interworking_product.product_id` (host=`cust_interworking_product`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=22 | left_in_right=22/40 (0.55) | right_in_left=304/304 (1.0)
+  - intersection sample: ['1925378951654162434', '2119658258934280258', '2119658492582187088', '1891732181419941889', '1878625020661809154', '1878625128094711810', '1878647260178628609', '1878649109879275522']
+  - left-only sample: ['1925367905722998786', '2119658036745207837', '1881239523618652161', '1878649275759804418', '1878649244633874434', '1878649218645966849', '1878649189894012929', '1878692839217569794']
+- `tenant_migarory_log.platform_product_code` → `tenant_migarory_log_bak.platform_product_code` (host=`tenant_migarory_log_bak`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9987); consistent with FK / identity reference
+  - join_hits=151868 | left_in_right=151868/154751 (0.9814) | right_in_left=4591/4597 (0.9987)
+  - intersection sample: ['ACFLOW', '["ACFLOW"]', 'RVSFACTOR_PC', '["RVSFACTOR_PC"]', '["ORDER"]', '["ORDER","ACFLOW"]', '["RVSFACTOR_PC","ORDER","BEECREDIT","AMS","STORAGE","VOUCHER","ACFLOW"]', 'ORDER']
+  - left-only sample: ['["RVSFACTOR_PC","ACFLOW"]', '["BEECREDIT","ORDER","ACFLOW","STORAGE","RVSFACTOR_PC"]', '["ORDER","RVSFACTOR_PC","BEECREDIT","ACFLOW"]', '["ORDER","RVSFACTOR_PC","ACFLOW"]', '["ACFLOW","AMS"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","AMS","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","ACFLOW"]', '["RVSFACTOR_PC","BEECREDIT","ORDER","STORAGE","AMS","DRAFT","ACFLOW"]']
+  - right-only sample: ['[null,null]', '["false"]']
+- `tenant_project_approval_flow_config.node_code` → `tenant_project_approval_flow_node.node_code` (host=`tenant_project_approval_flow_node`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=12 | left_in_right=12/15 (0.8) | right_in_left=1094/1094 (1.0)
+  - intersection sample: ['PROJECT_CONFIG', 'PROJECT_MANAGER', 'BUSINESS_MANAGER', 'OPERATION', 'LEGAL_PROCESS', 'LEGAL_REVIEW']
+  - left-only sample: ['OTHER']
+- `authorization_agreement.platform_product_code` → `cust_auth_application.platform_product_code` (host=`cust_auth_application`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9968); consistent with FK / identity reference
+  - join_hits=6083 | left_in_right=6083/31375 (0.1939) | right_in_left=31830/31931 (0.9968)
+  - intersection sample: ['ACFLOW', 'BEECREDIT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'VOUCHER']
+  - left-only sample: ['PLATFORM', 'AMS', 'RVSFACTOR', 'pplatform']
+  - right-only sample: ['DRAFT', 'DRAFTQA']
+- `authorization_agreement.platform_product_code` → `tenant_product.platform_product_code` (host=`tenant_product`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9681); consistent with FK / identity reference
+  - join_hits=6083 | left_in_right=6083/31375 (0.1939) | right_in_left=485/501 (0.9681)
+  - intersection sample: ['ACFLOW', 'ORDER', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR_PC', 'STORAGE']
+  - left-only sample: ['PLATFORM', 'AMS', 'RVSFACTOR', 'pplatform']
+  - right-only sample: ['DRAFTQA', 'DRAFT']
+- `cust_auth_application.platform_product_code` → `tenant_product.platform_product_code` (host=`tenant_product`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=31931 | left_in_right=31931/31931 (1.0) | right_in_left=501/501 (1.0)
+  - intersection sample: ['ACFLOW', 'ORDER', 'BEECREDIT', 'VOUCHER', 'RVSFACTOR_PC', 'DRAFTQA', 'STORAGE', 'DRAFT']
+- `cust_interworking_product.platform_product_code` → `tenant_interworking_project.platform_product_code` (host=`tenant_interworking_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=200 | left_in_right=200/304 (0.6579) | right_in_left=12/12 (1.0)
+  - intersection sample: ['HTCP1', 'HTCP5', 'AMS', 'HTCP13', 'HTCP14']
+  - left-only sample: ['HTCP2']
+- `authorization_agreement.platform_product_code` → `tenant_project.platform_product_code` (host=`tenant_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.995); consistent with FK / identity reference
+  - join_hits=6083 | left_in_right=6083/31375 (0.1939) | right_in_left=3568/3586 (0.995)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'BEECREDIT', 'VOUCHER', 'STORAGE']
+  - left-only sample: ['PLATFORM', 'AMS', 'RVSFACTOR', 'pplatform']
+  - right-only sample: ['DRAFT', 'DRAFTQA']
+- `cust_auth_application.platform_product_code` → `tenant_project.platform_product_code` (host=`tenant_project`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=31931 | left_in_right=31931/31931 (1.0) | right_in_left=3586/3586 (1.0)
+  - intersection sample: ['ORDER', 'ACFLOW', 'RVSFACTOR_PC', 'BEECREDIT', 'VOUCHER', 'DRAFT', 'DRAFTQA', 'STORAGE']
+- `tenant_product.id` → `cust_project_rel.product_id` (host=`cust_project_rel`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=0.9941); consistent with FK / identity reference
+  - join_hits=192 | left_in_right=192/501 (0.3832) | right_in_left=59727/60080 (0.9941)
+  - intersection sample: ['1823335930310791170', '1828338709404180481', '1829056399900778498', '1797564722686484482', '1830931997592944642', '1829056506230579202', '1797628152482992129', '1828331133954285569']
+  - left-only sample: ['1823633623839248385', '1826128361583771649', '1826813600559169538', '1826829436405526530', '1826909844156305410', '1827890533386448897', '1828724865390518273', '1828725468632096769']
+  - right-only sample: ['1795047363653136386', '1795047501020786690', '1797908254370435074', '1797908249651843074', '1798615336261480450', '1797628176004648961', '1797628171562881025', '1803978789475938305']
+- `authorization_agreement.platform_product_code` → `argeement_migratory_record.platform_product_code` (host=`argeement_migratory_record`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=6117 | left_in_right=6117/31375 (0.195) | right_in_left=37655/37655 (1.0)
+  - intersection sample: ['ACFLOW', 'AMS', 'BEECREDIT', 'ORDER', 'RVSFACTOR_PC', 'STORAGE', 'VOUCHER']
+  - left-only sample: ['PLATFORM', 'RVSFACTOR', 'pplatform']
+- `platform_product.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=3 | left_in_right=3/20 (0.15) | right_in_left=442/442 (1.0)
+  - intersection sample: ['ACFLOW', 'ORDER', 'RVSFACTOR_PC']
+  - left-only sample: ['AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13', 'HTCP14']
+- `platform_product_cust_role.product_code` → `tenant_product_menu.product_code` (host=`tenant_product_menu`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=16 | left_in_right=16/62 (0.2581) | right_in_left=2538/2538 (1.0)
+  - intersection sample: ['BEECREDIT', 'RVSFACTOR_PC', 'ACCOUNT_PRODUCT']
+  - left-only sample: ['AMS', 'ACFLOW', 'ORDER', 'CROSSBORDER', 'DEALER', 'VOUCHER', 'STORAGE', 'DRAFTQA']
+- `platform_product_cust_role.product_code` → `tenant_project_approval_business_info.product_code` (host=`tenant_project_approval_business_info`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=17 | left_in_right=17/62 (0.2742) | right_in_left=442/442 (1.0)
+  - intersection sample: ['ACFLOW', 'ORDER', 'RVSFACTOR_PC']
+  - left-only sample: ['AMS', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'STORAGE', 'DRAFTQA', 'DRAFT']
+- `cust_app_channel_config.code` → `cust_company_info.channel_code` (host=`cust_company_info`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=2 | left_in_right=2/2 (1.0) | right_in_left=544/544 (1.0)
+  - intersection sample: ['longteng', 'jingke']
+- `funding_exception_resolution.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_detail`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=92 | left_in_right=92/92 (1.0) | right_in_left=1671/1671 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_exception_resolution.product_code` → `funding_rule_front_cfg.product_code` (host=`funding_rule_front_cfg`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=92 | left_in_right=92/92 (1.0) | right_in_left=47/47 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `funding_rule_front_cfg.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_detail`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=47 | left_in_right=47/47 (1.0) | right_in_left=1671/1671 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+- `platform_product.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_detail`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=2 | left_in_right=2/20 (0.1) | right_in_left=1671/1671 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - left-only sample: ['AMS', 'BEECREDIT', 'DEALER', 'DRAFT', 'DRAFTQA', 'HTCP1', 'HTCP13', 'HTCP14']
+- `platform_product_cust_role.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_detail`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=11 | left_in_right=11/62 (0.1774) | right_in_left=1671/1671 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - left-only sample: ['AMS', 'ORDER', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'STORAGE', 'DRAFTQA']
+- `platform_product_cust_role.product_code` → `tenant_product_menu_res.product_code` (host=`tenant_product_menu_res`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=12 | left_in_right=12/62 (0.1935) | right_in_left=110/110 (1.0)
+  - intersection sample: ['RVSFACTOR_PC', 'ACCOUNT_PRODUCT']
+  - left-only sample: ['AMS', 'ACFLOW', 'ORDER', 'CROSSBORDER', 'BEECREDIT', 'DEALER', 'VOUCHER', 'STORAGE']
+- `tenant_project_approval_business_info.product_code` → `funding_rule_detail.product_code` (host=`funding_rule_detail`, wiki trust=`proposed`/`unknown`)
+  - reason: >=95% of right-side rows resolve on left (ratio=1.0); consistent with FK / identity reference
+  - join_hits=301 | left_in_right=301/442 (0.681) | right_in_left=1671/1671 (1.0)
+  - intersection sample: ['ACFLOW', 'RVSFACTOR_PC']
+  - left-only sample: ['ORDER']

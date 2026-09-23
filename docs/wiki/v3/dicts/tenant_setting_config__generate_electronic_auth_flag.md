@@ -8,7 +8,7 @@ anchors: [tenant_setting_config.generate_electronic_auth_flag]
 sources: ['database_profile:tenant_setting_config.generate_electronic_auth_flag',
   'database_schema:tenant_setting_config.generate_electronic_auth_flag']
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
 related: [tenant_setting_config]
 ---
@@ -26,6 +26,6 @@ fields: [tenant_setting_config.generate_electronic_auth_flag]
 values:
   N: {trust: proposed, label: 否, evidence: 'database_schema:tenant_setting_config.generate_electronic_auth_flag'}
   Y: {trust: proposed, label: 是, evidence: 'database_schema:tenant_setting_config.generate_electronic_auth_flag'}
-  '0': {trust: proposed}
+  '0': {trust: proposed, label: 否}
 triage: keep
 ```

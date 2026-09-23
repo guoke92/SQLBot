@@ -168,6 +168,7 @@ class CreateRunRequest(BaseModel):
     reference_record_ids: list[int] = Field(default_factory=list, max_length=3)
     finish_step: int | None = None
     return_img: bool = True
+    reasoning_effort: Literal["none", "low", "high", "max"] | None = None
 
 
 def prepare_record_for_new_attempt(record: ChatRecord) -> None:
@@ -190,6 +191,7 @@ def create_run(
     user_id: int,
     oid: int,
     assistant_id: int | None = None,
+    reasoning_effort: str | None = None,
 ) -> ConversationRun:
     if record.id is None:
         raise ValueError("Chat record must be persisted before creating its run")
@@ -245,6 +247,11 @@ def create_run(
         oid=oid,
         create_time=now,
         update_time=now,
+        route_snapshot=(
+            {"reasoning_effort": reasoning_effort}
+            if reasoning_effort is not None
+            else {}
+        ),
     )
     session.add(run)
     session.flush()
@@ -1420,7 +1427,11 @@ def create_interrupt(
     _assert_transition(run, "awaiting_input")
     run.status = "awaiting_input"
     run.active_interrupt_id = interrupt.interrupt_id
-    run.worker_token = None
+    # Keep worker_token through the rest of this node (clarification process
+    # span upsert + interrupt park). Clearing it here made ownership checks
+    # reject inline process events, so the card only appeared as a bottom
+    # fallback. Lease is dropped so reconciler will not treat the parked
+    # worker as a live running claim; resume claim_run issues a new token.
     run.lease_expires_at = None
     run.update_time = datetime.now()
     session.add(run)

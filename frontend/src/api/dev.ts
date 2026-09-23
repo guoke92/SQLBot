@@ -44,6 +44,8 @@ export interface DevChatFilters {
   created_from?: string
   created_to?: string
   chat_ids?: Array<string | number>
+  /** chat | config | all; default chat (ordinary conversations only) */
+  chat_type?: string | null
 }
 
 export interface ExtractKeyInfo {
@@ -67,6 +69,11 @@ const queryOf = (filters: DevChatFilters) => {
   if (filters.created_from) params.set('created_from', filters.created_from)
   if (filters.created_to) params.set('created_to', filters.created_to)
   if (filters.chat_ids?.length) params.set('chat_ids', filters.chat_ids.join(','))
+  if (filters.chat_type && filters.chat_type !== 'all') {
+    params.set('chat_type', String(filters.chat_type))
+  } else if (filters.chat_type === 'all') {
+    params.set('chat_type', 'all')
+  }
   return params.toString()
 }
 
@@ -126,6 +133,11 @@ export const qaAdminApi = {
     downloadBlob(
       `/dev/qa-admin/feedback.csv?${queryOf(filters)}`,
       `workspace-${filters.oid}-feedback.csv`
+    ),
+  downloadFeedbackXlsx: (filters: DevChatFilters) =>
+    downloadBlob(
+      `/dev/qa-admin/feedback.xlsx?${queryOf(filters)}`,
+      `workspace-${filters.oid}-qa-chats.xlsx`
     ),
 }
 

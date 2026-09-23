@@ -170,6 +170,123 @@ export function sortedItems(map: TimelineMap): ProcessItem[] {
   )
 }
 
+/**
+ * Anchor clarification interrupts onto the ``request_clarification`` tool row
+ * (or an existing clarification span). Cards render inline in the thought
+ * chain — never as a detached footer list.
+ */
+export function bindClarificationInterrupts(
+  items: ProcessItem[],
+  interrupts: Array<{
+    interrupt_id: string
+    version: number
+    status: string
+    payload?: unknown
+  }> = []
+): ProcessItem[] {
+  const active = interrupts.filter((item) => item.status !== 'cancelled')
+  if (!active.length) return items
+
+  const owned = new Set<string>()
+  for (const item of items) {
+    if (item.kind !== 'clarification') continue
+    const id = item.meta?.interrupt_id
+    if (typeof id === 'string' && id) owned.add(id)
+  }
+
+  const unbound = active.filter((item) => !owned.has(item.interrupt_id))
+  if (!unbound.length) return items
+
+  const next = items.map((item) => ({ ...item }))
+  const claimedTools = new Set<number>()
+
+  for (const interrupt of unbound) {
+    const toolIdx = next.findIndex(
+      (item, index) =>
+        !claimedTools.has(index) &&
+        item.kind === 'tool' &&
+        item.tool?.name === 'request_clarification'
+    )
+    if (toolIdx >= 0) {
+      claimedTools.add(toolIdx)
+      const tool = next[toolIdx]
+      next[toolIdx] = {
+        ...tool,
+        kind: 'clarification',
+        status: interrupt.status === 'open' ? 'running' : 'completed',
+        title_key: 'chat.timeline.clarification',
+        summary_key:
+          interrupt.status === 'open'
+            ? 'chat.summary.clarification_waiting'
+            : 'chat.summary.clarification_confirmed',
+        meta: {
+          ...(tool.meta || {}),
+          interrupt_id: interrupt.interrupt_id,
+          version: interrupt.version,
+          clarification_card: interrupt.payload,
+        },
+      }
+      delete next[toolIdx].tool
+      continue
+    }
+
+    const bareIdx = next.findIndex(
+      (item) =>
+        item.kind === 'clarification' &&
+        !(typeof item.meta?.interrupt_id === 'string' && item.meta.interrupt_id)
+    )
+    if (bareIdx >= 0) {
+      const bare = next[bareIdx]
+      next[bareIdx] = {
+        ...bare,
+        status:
+          interrupt.status === 'open'
+            ? 'running'
+            : bare.status === 'running'
+              ? 'completed'
+              : bare.status,
+        summary_key:
+          interrupt.status === 'open'
+            ? 'chat.summary.clarification_waiting'
+            : bare.summary_key || 'chat.summary.clarification_confirmed',
+        meta: {
+          ...(bare.meta || {}),
+          interrupt_id: interrupt.interrupt_id,
+          version: interrupt.version,
+          clarification_card: interrupt.payload ?? bare.meta?.clarification_card,
+        },
+      }
+      continue
+    }
+
+    // No tool/span anchor left.
+    // Do not invent a card-only chain while the timeline is still empty
+    // (chat switch / history hydrate) — that flashes every interrupt at the
+    // bottom before the real thought chain arrives. Only append an *open*
+    // interrupt once some process rows already exist (live pause fallback).
+    if (next.length === 0 || interrupt.status !== 'open') {
+      continue
+    }
+    next.push({
+      id: `interrupt:${interrupt.interrupt_id}`,
+      sequence: Number(next[next.length - 1]?.sequence ?? next.length) + 1,
+      kind: 'clarification',
+      status: 'running',
+      title_key: 'chat.timeline.clarification',
+      summary_key: 'chat.summary.clarification_waiting',
+      meta: {
+        interrupt_id: interrupt.interrupt_id,
+        version: interrupt.version,
+        clarification_card: interrupt.payload,
+      },
+    })
+  }
+
+  // fold merges consecutive tool + clarification for the same interrupt_id;
+  // do not blanket-drop leftover clarify tools (multi-round may still be open).
+  return foldClarificationFlow(next)
+}
+
 export type NarrativeBlock =
   | { type: 'thought'; key: string; item: ProcessItem }
   | { type: 'tool'; key: string; item: ProcessItem; artifacts: ProcessItem[] }
@@ -254,10 +371,17 @@ export function thoughtSnippet(content: string, limit = THOUGHT_SNIPPET_CHARS): 
   return sentence.slice(0, limit)
 }
 
-/** Collapse request_clarification tool + wait/confirm into one clarification card. */
+/** Collapse tool + wait/confirm for the same interrupt_id into one card.
+ * Different rounds stay separate. A lone request_clarification tool is left as a tool.
+ */
 export function foldClarificationFlow(items: ProcessItem[]): ProcessItem[] {
   const isClarifyTool = (item: ProcessItem) =>
     item.kind === 'tool' && item.tool?.name === 'request_clarification'
+
+  const interruptIdOf = (item: ProcessItem): string | undefined => {
+    const id = item.meta?.interrupt_id
+    return typeof id === 'string' && id.trim() ? id.trim() : undefined
+  }
 
   const mergeGroup = (group: ProcessItem[]): ProcessItem => {
     let preferred: ProcessItem | undefined
@@ -303,33 +427,74 @@ export function foldClarificationFlow(items: ProcessItem[]): ProcessItem[] {
       preferred.summary_key = 'chat.summary.clarification_confirmed'
     }
     delete preferred.tool
+    let bestMeta: ProcessItem['meta'] | undefined
     for (let i = group.length - 1; i >= 0; i -= 1) {
       const meta = group[i].meta
-      if (meta && typeof meta.interrupt_id === 'string') {
-        preferred.meta = { ...meta }
-        break
+      if (!meta || typeof meta.interrupt_id !== 'string') continue
+      if (!bestMeta || meta.clarification_card) {
+        bestMeta = { ...meta }
+        if (meta.clarification_card) break
       }
     }
+    if (bestMeta) preferred.meta = bestMeta
     return preferred
   }
 
   const out: ProcessItem[] = []
-  let group: ProcessItem[] = []
-  const flush = () => {
-    if (group.length) {
-      out.push(mergeGroup(group))
-      group = []
-    }
+  let pendingTools: ProcessItem[] = []
+  let index = 0
+
+  const flushTools = () => {
+    out.push(...pendingTools)
+    pendingTools = []
   }
-  for (const item of items) {
-    if (isClarifyTool(item) || item.kind === 'clarification') {
-      group.push(item)
+
+  while (index < items.length) {
+    const item = items[index]
+    if (isClarifyTool(item)) {
+      pendingTools.push(item)
+      index += 1
       continue
     }
-    flush()
+    if (item.kind === 'clarification') {
+      let groupKey = interruptIdOf(item)
+      const group: ProcessItem[] = [...pendingTools, item]
+      pendingTools = []
+      index += 1
+      while (index < items.length) {
+        const next = items[index]
+        if (isClarifyTool(next)) {
+          let look = index + 1
+          while (look < items.length && isClarifyTool(items[look])) look += 1
+          if (look < items.length && items[look].kind === 'clarification') {
+            const nextKey = interruptIdOf(items[look])
+            if (groupKey && nextKey && nextKey !== groupKey) break
+            while (index < look) {
+              group.push(items[index])
+              index += 1
+            }
+            continue
+          }
+          break
+        }
+        if (next.kind === 'clarification') {
+          const nextKey = interruptIdOf(next)
+          if (groupKey && nextKey && nextKey !== groupKey) break
+          if (nextKey && !groupKey) groupKey = nextKey
+          group.push(next)
+          index += 1
+          continue
+        }
+        break
+      }
+      out.push(mergeGroup(group))
+      continue
+    }
+    flushTools()
     out.push(item)
+    index += 1
   }
-  flush()
+  flushTools()
   return out
 }
 

@@ -4,15 +4,21 @@ title: 建档推送运营记录表
 page_key: cust_build_record
 belong: tables
 status: draft
-anchors: [cust_build_record]
-sources: ['database_schema:lowcode_pplatform.cust_build_record']
+anchors:
+- cust_build_record
+sources:
+- database_schema:lowcode_pplatform.cust_build_record
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_person_info, cust_build_record__enable, cust_build_record__electronic_auth_sign_status]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_person_info
+- cust_build_record__enable
+- cust_build_record__electronic_auth_sign_status
 ---
-
 # 建档推送运营记录表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -24,9 +30,12 @@ table: cust_build_record
 database: lowcode_pplatform
 desc: 建档推送运营记录表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -59,7 +68,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -112,8 +124,18 @@ fields:
   desc: 渠道
 - name: electronic_auth_sign_status
   type: string
-  dict: [SIGNED, PENDING, UPLOAD_FAILED, FAILED, VOIDED]
-  label: [已签署, 待签署, 影像上传失败, 签署失败, 作废]
+  dict:
+  - SIGNED
+  - PENDING
+  - UPLOAD_FAILED
+  - FAILED
+  - VOIDED
+  label:
+  - 已签署
+  - 待签署
+  - 影像上传失败
+  - 签署失败
+  - 作废
 ```
 
 ## 关联关系
@@ -152,10 +174,10 @@ type: EQUI_JOIN
 left: cust_person_info.id
 right: cust_build_record.person_id
 cardinality: one_to_many
-trust: proposed
+trust: confirmed
 authenticity: likely
-evidence: database_schema:lowcode_pplatform.cust_build_record.person_id;database_profile:lowcode_pplatform.cust_build_record.person_id
-source: name
+evidence: code_path:OperCustFacade.java:893
+source: l1_code
 join_role: identity
 priority: primary
 name_evidence:
@@ -171,14 +193,18 @@ overlap:
   deepened: true
   query_ok: true
   authenticity: likely
+authenticity_note: 建档记录保存联系人 personId。
 ```
-
 ## 页面链接
 
 ### 关联表
 
 - [[tables/cust_company_info]]
 - [[tables/cust_person_info]]
+
+### 概念
+
+- [[concepts/electronic_auth_sign_status_term]]
 
 ### 字典
 

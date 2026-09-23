@@ -4,13 +4,19 @@ title: 客户总公司信息
 page_key: cust_head_company_info
 belong: tables
 status: draft
-anchors: [cust_head_company_info]
-sources: ['database_schema:lowcode_pplatform.cust_head_company_info']
+anchors:
+- cust_head_company_info
+sources:
+- database_schema:lowcode_pplatform.cust_head_company_info
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_head_company_info__legal_certification_type, cust_head_company_info__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_head_company_info__legal_certification_type
+- cust_head_company_info__enable
 ---
 
 # 客户总公司信息
@@ -24,10 +30,18 @@ table: cust_head_company_info
 database: lowcode_pplatform
 desc: 客户总公司信息
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 一行一记录（id）
-name_anchors: [code, name, cust_short_name, cust_english_name, cust_english_short_name,
-  legal_name, legal_english_first_name, legal_english_sec_name]
+name_anchors:
+- code
+- name
+- cust_short_name
+- cust_english_name
+- cust_english_short_name
+- legal_name
+- legal_english_first_name
+- legal_english_sec_name
 fields:
 - name: id
   type: number
@@ -78,8 +92,14 @@ fields:
 - name: legal_certification_type
   type: string
   desc: 法人证件类型
-  dict: [CRET_ID, CERT_MAINLAND_PASS, CERT_PASSPORT, 身份证, CERT_GREEN_CARD, CERT_TAIWAN,
-    CRET_ID_HK]
+  dict:
+  - CRET_ID
+  - CERT_MAINLAND_PASS
+  - CERT_PASSPORT
+  - 身份证
+  - CERT_GREEN_CARD
+  - CERT_TAIWAN
+  - CRET_ID_HK
 - name: legal_time_permanent
   type: string
   desc: 法人证件有效期
@@ -89,7 +109,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -169,38 +192,6 @@ source: l1_code
 join_role: identity
 priority: primary
 authenticity_note: 总公司资料按企业 code 关联，不是 id。
-```
-
-### disputed — 与已确认边冲突
-
-```ground:relation
-type: EQUI_JOIN
-left: cust_company_info.id
-right: cust_head_company_info.ref_cust_head_company_info_cust_company_info
-cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.cust_head_company_info.ref_cust_head_company_info_cust_company_info;database_profile:lowcode_pplatform.cust_head_company_info.ref_cust_head_company_info_cust_company_info
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: long_ref
-  stem: cust_company_info
-  comment: 客户信息和总公司信息
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 200
-  miss: 200
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-sides:
-- {source: l1_code, left: cust_company_info.code, right: cust_head_company_info.ref_cust_head_company_info_cust_company_info,
-  trust: confirmed}
-- {source: name, left: cust_company_info.id, right: cust_head_company_info.ref_cust_head_company_info_cust_company_info,
-  trust: proposed}
 ```
 
 ## 页面链接

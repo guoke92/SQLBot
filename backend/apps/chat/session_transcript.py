@@ -59,7 +59,9 @@ def load_agent_transcript(session: Session, chat_id: int) -> list[BaseMessage]:
     if not stored:
         return []
     try:
-        return deserialize_messages(list(stored))
+        from apps.conversation.messages import sanitize_for_checkpoint
+
+        return deserialize_messages(sanitize_for_checkpoint(list(stored)))
     except Exception as exc:
         SQLBotLogUtil.warning(
             f"agent_transcript deserialize failed chat={chat_id}: {exc}"
@@ -162,4 +164,8 @@ def build_continued_messages(
         extra_tokens=estimate_tokens([system, human]),
     )
     messages = [system, *folded, human]
-    return messages, len(messages) - 1, folds
+    from apps.conversation.tooling import sanitize_messages_for_model
+
+    # History may contain invalid_tool_calls / unanswered tool_calls from a
+    # failed turn. Responses API rejects those as orphan function_call items.
+    return sanitize_messages_for_model(messages), len(messages) - 1, folds

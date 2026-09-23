@@ -4,20 +4,19 @@ title: 客户认证配置
 page_key: cust_setting_config
 belong: tables
 status: draft
-anchors: [cust_setting_config]
-sources: ['database_schema:lowcode_pplatform.cust_setting_config']
+anchors:
+- cust_setting_config
+sources:
+- database_schema:lowcode_pplatform.cust_setting_config
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_setting_config__code, cust_setting_config__enable,
-  cust_setting_config__need_verify_no_key, cust_setting_config__user_agreement, cust_setting_config__privacy_policy_agreement,
-  cust_setting_config__authorization_offline, cust_setting_config__need_auth_verify,
-  cust_setting_config__face_recognition, cust_setting_config__payment_verification,
-  cust_setting_config__payment_maximum_number, cust_setting_config__invitation_code_period,
-  cust_setting_config__sending_interval]
+databases:
+- lowcode_pplatform
+related:
+- cust_account_info
+- cust_setting_config__enable
 ---
-
 # 客户认证配置
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -29,9 +28,12 @@ table: cust_setting_config
 database: lowcode_pplatform
 desc: 客户认证配置
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 租户级建档配置，运行时 list().get(0) 取第一条，不是按企业 id 查
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -40,14 +42,16 @@ fields:
 - name: code
   type: string
   desc: 编码
-  dict: ['9999999999']
 - name: name
   type: string
   desc: 配置名称
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -98,22 +102,18 @@ fields:
 - name: need_verify_no_key
   type: string
   desc: 企业非关键信息变更审核
-  dict: ['yes']
 - name: user_agreement
   type: string
   desc: 用户协议
-  dict: [CT-202404031806394575219]
 - name: privacy_policy_agreement
   type: string
   desc: 隐私政策
-  dict: [CT-202404031807156758507]
 - name: authorization_online
   type: string
   desc: 授权确认书-线上签署
 - name: authorization_offline
   type: string
   desc: 授权确认书-线下签署
-  dict: [CT-202404081721209495040]
 - name: authorization_change
   type: string
   desc: 数字证书服务协议
@@ -123,33 +123,27 @@ fields:
 - name: need_auth_verify
   type: string
   desc: 企业认证审核
-  dict: ['yes']
 - name: face_recognition
   type: string
   desc: 人脸识别
-  dict: ['no']
 - name: payment_verification
   type: string
   desc: 打款验证
-  dict: ['yes']
 - name: payment_maximum_number
   type: number
   desc: 最多申请打款次数
-  dict: ['3']
 - name: no_key_word
   type: string
   desc: 企业非关键信息配置
 - name: invitation_code_period
   type: number
   desc: 邀请码有效期
-  dict: ['1']
 - name: invitation_code_period_unit
   type: string
   desc: 邀请码有效期单位
 - name: sending_interval
   type: number
   desc: 邀请码重复发送时间间隔
-  dict: ['1']
 - name: sending_interval_unti
   type: string
   desc: 邀请码重复发送时间间隔单位
@@ -160,49 +154,20 @@ fields:
 
 ## 关联关系
 
-### unknown — 待复核
+_（本页暂无保留的 EQUI_JOIN 边；已移除边见 `_raw/join_validation/removed_relations.md`。）_
 
-```ground:relation
-type: EQUI_JOIN
-left: cust_company_info.id
-right: cust_setting_config.cust_id
-cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.cust_setting_config.cust_id;database_profile:lowcode_pplatform.cust_setting_config.cust_id
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: family_hub
-  stem: cust
-  comment: 企业id
-overlap:
-  probed: true
-  sample_size: 0
-  miss: 0
-  deepened: false
-  query_ok: true
-  authenticity: unknown
-```
+
+## 关联说明（非 EQUI / 对等场景）
+
+- **非 EQUI 依赖**：全局配置；`payment_maximum_number` 在打款次数初始化时**赋值拷贝**到 `cust_account_info.payment_remaining_count`（`updatePayCount`），不是表间外键 / 等值 JOIN。
+- 勿因「被账户使用」而强行挂 EQUI_JOIN。
 
 ## 页面链接
 
 ### 关联表
 
-- [[tables/cust_company_info]]
+- [[tables/cust_account_info]]
 
 ### 字典
 
-- [[dicts/cust_setting_config__code]]（`cust_setting_config.code`）
 - [[dicts/cust_setting_config__enable]]（`cust_setting_config.enable`）
-- [[dicts/cust_setting_config__need_verify_no_key]]（`cust_setting_config.need_verify_no_key`）
-- [[dicts/cust_setting_config__user_agreement]]（`cust_setting_config.user_agreement`）
-- [[dicts/cust_setting_config__privacy_policy_agreement]]（`cust_setting_config.privacy_policy_agreement`）
-- [[dicts/cust_setting_config__authorization_offline]]（`cust_setting_config.authorization_offline`）
-- [[dicts/cust_setting_config__need_auth_verify]]（`cust_setting_config.need_auth_verify`）
-- [[dicts/cust_setting_config__face_recognition]]（`cust_setting_config.face_recognition`）
-- [[dicts/cust_setting_config__payment_verification]]（`cust_setting_config.payment_verification`）
-- [[dicts/cust_setting_config__payment_maximum_number]]（`cust_setting_config.payment_maximum_number`）
-- [[dicts/cust_setting_config__invitation_code_period]]（`cust_setting_config.invitation_code_period`）
-- [[dicts/cust_setting_config__sending_interval]]（`cust_setting_config.sending_interval`）

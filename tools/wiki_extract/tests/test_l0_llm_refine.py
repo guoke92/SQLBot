@@ -110,6 +110,8 @@ def test_llm_hold_keeps_uncertain_enum() -> None:
     model = compile_model(fixture_catalog(), fixture_profile())
 
     def chat(system: str, user: str) -> dict:
+        if "二值" in system:
+            return {"column": "x", "supplement": False, "add": None, "reason": "n/a"}
         if "复核" in system:
             return {
                 "column": "sign_status",
@@ -139,6 +141,12 @@ def test_llm_hold_keeps_uncertain_enum() -> None:
     assert enum["triage"] == "hold"
     assert enum["needs_review"] is True
     assert refined["llm_stats"]["dict_hold"] >= 1
+    field = next(
+        f
+        for f in refined["tables"]["cust_company_info"]["fields"]
+        if f["name"] == "sign_status"
+    )
+    assert "dictionary" not in field
 
 
 def test_auto_reject_audit_not_value_index() -> None:

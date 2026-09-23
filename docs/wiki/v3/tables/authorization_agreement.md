@@ -4,17 +4,25 @@ title: 授权确认书表
 page_key: authorization_agreement
 belong: tables
 status: draft
-anchors: [authorization_agreement]
-sources: ['database_schema:lowcode_pplatform.authorization_agreement', 'code_path:AuthorizationAgreementDaoImpl.java:44']
+anchors:
+- authorization_agreement
+sources:
+- database_schema:lowcode_pplatform.authorization_agreement
+- code_path:AuthorizationAgreementDaoImpl.java:44
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [platform_product, cust_company_info, authorization_agreement__platform_product_code,
-  authorization_agreement__authed_status, authorization_agreement__company_type, authorization_agreement__enable,
-  authorization_agreement__creation_type]
+databases:
+- lowcode_pplatform
+related:
+- cust_auth_application
+- cust_company_info
+- tenant_product
+- authorization_agreement__authed_status
+- authorization_agreement__company_type
+- authorization_agreement__enable
+- authorization_agreement__creation_type
 ---
-
 # 授权确认书表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +34,14 @@ table: authorization_agreement
 database: lowcode_pplatform
 desc: 授权确认书表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企业授权确认书
-name_anchors: [code, name, cust_manager_name, cust_name]
+name_anchors:
+- code
+- name
+- cust_manager_name
+- cust_name
 fields:
 - name: id
   type: number
@@ -46,12 +59,12 @@ fields:
 - name: platform_product_code
   type: string
   desc: 平台产品id
-  dict: [PLATFORM, ACFLOW, RVSFACTOR_PC, ORDER, AMS, STORAGE, BEECREDIT, VOUCHER,
-    pplatform, RVSFACTOR]
 - name: authed_status
   type: string
   desc: 授权书认证状态
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
 - name: cust_id
   type: number
   desc: 企业id
@@ -61,9 +74,20 @@ fields:
 - name: company_type
   type: string
   desc: 企业角色
-  dict: [SUPPLIER, CORE, FINANCE, PROJECT_COMPANY, PLATFORM_OPERATOR_COMPANY, PLATFORM_OPREATOR_COMPANY,
-    CORPORATION_COMPANY, DEALER, CORE_MANAGER, '["CORE"]', '["FINANCE"]', '["PROJECT_COMPANY"]',
-    FACTOR_COMPANY]
+  dict:
+  - SUPPLIER
+  - CORE
+  - FINANCE
+  - PROJECT_COMPANY
+  - PLATFORM_OPERATOR_COMPANY
+  - PLATFORM_OPREATOR_COMPANY
+  - CORPORATION_COMPANY
+  - DEALER
+  - CORE_MANAGER
+  - '["CORE"]'
+  - '["FINANCE"]'
+  - '["PROJECT_COMPANY"]'
+  - FACTOR_COMPANY
 - name: cust_manager_name
   type: string
   desc: 客户管理员名称
@@ -73,7 +97,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -121,7 +148,10 @@ fields:
 - name: creation_type
   type: string
   desc: 创建类型
-  dict: [CUST_BUILD_INIT, AUTO, COMPANY_MANAGER_CHANGE_CODE]
+  dict:
+  - CUST_BUILD_INIT
+  - AUTO
+  - COMPANY_MANAGER_CHANGE_CODE
 default_filter:
   predicate: authorization_agreement.enable = 'Y'
   trust: confirmed
@@ -145,43 +175,49 @@ join_role: identity
 priority: primary
 ```
 
-### unlikely — 值域不支持或冲突
+```ground:relation
+type: EQUI_JOIN
+left: authorization_agreement.platform_product_code
+right: cust_auth_application.platform_product_code
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;collide_refine:授权书与开通申请业务码；fk_like
+source: collide_refine
+join_role: business_code
+priority: primary
+authenticity_note: 授权书与开通申请业务码；fk_like
+```
 
 ```ground:relation
 type: EQUI_JOIN
-left: platform_product.code
-right: authorization_agreement.platform_product_code
+left: authorization_agreement.platform_product_code
+right: tenant_product.platform_product_code
 cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.authorization_agreement.platform_product_code;database_profile:lowcode_pplatform.authorization_agreement.platform_product_code
-source: name
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;collide_refine:授权书与租户产品业务码；fk_like
+source: collide_refine
 join_role: business_code
 priority: primary
-name_evidence:
-  match: exact_table
-  stem: platform_product
-  comment: 平台产品id
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 5
-  miss: 5
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
+authenticity_note: 授权书与租户产品业务码；fk_like
 ```
 
 ## 页面链接
 
 ### 关联表
 
-- [[tables/platform_product]]
+- [[tables/cust_auth_application]]
 - [[tables/cust_company_info]]
+- [[tables/tenant_product]]
+
+### 概念
+
+- [[concepts/authorization_book]]
+- [[concepts/platform_product_code_term]]
 
 ### 字典
 
-- [[dicts/authorization_agreement__platform_product_code]]（`authorization_agreement.platform_product_code`）
 - [[dicts/authorization_agreement__authed_status]]（`authorization_agreement.authed_status`）
 - [[dicts/authorization_agreement__company_type]]（`authorization_agreement.company_type`）
 - [[dicts/authorization_agreement__enable]]（`authorization_agreement.enable`）

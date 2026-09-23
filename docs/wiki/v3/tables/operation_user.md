@@ -4,13 +4,18 @@ title: 运营中台人员数据
 page_key: operation_user
 belong: tables
 status: draft
-anchors: [operation_user]
-sources: ['database_schema:lowcode_pplatform.operation_user', 'code_path:OperCustFacade.java:4166']
+anchors:
+- operation_user
+sources:
+- database_schema:lowcode_pplatform.operation_user
+- code_path:OperCustFacade.java:4166
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [operation_user__deleted, operation_user__enable]
+databases:
+- lowcode_pplatform
+related:
+- operation_user__enable
 ---
 
 # 运营中台人员数据
@@ -24,9 +29,13 @@ table: operation_user
 database: lowcode_pplatform
 desc: 运营中台人员数据
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 运营人员
-name_anchors: [operation_name, code, name]
+name_anchors:
+- operation_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -44,7 +53,6 @@ fields:
 - name: deleted
   type: string
   desc: 删除标识
-  dict: [N, Y]
 - name: operation_name
   type: string
   desc: 运营人员姓名
@@ -57,7 +65,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -112,5 +123,4 @@ default_filter:
 
 ### 字典
 
-- [[dicts/operation_user__deleted]]（`operation_user.deleted`）
 - [[dicts/operation_user__enable]]（`operation_user.enable`）

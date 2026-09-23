@@ -1,0 +1,500 @@
+generated_note: orphan = no EQUI_JOIN neighbor table; unlinked_ref = ref_* column
+  never endpoint of EQUI_JOIN
+stats:
+  tables: 78
+  connected_tables: 58
+  orphan_tables: 20
+  equi_join_edges: 119
+  ref_fields_total: 39
+  ref_fields_linked: 36
+  ref_fields_unlinked: 3
+  fkish_id_unlinked: 228
+orphan_tables:
+- async_io_task
+- ca_fee_special_config
+- client_api_sync_error
+- cust_access_secret
+- cust_auth_application_config
+- cust_config_mapping
+- cust_message_send_policy
+- cust_setting_config
+- cust_sftp
+- gpt_learn_poster_log
+- lc_sql_init_log
+- operation_user
+- org_manage
+- platform_product_cust_role
+- project_file_info
+- short_link
+- tenant_migarory_log
+- tenant_migarory_log_bak
+- wec_project_cust_operation_rel
+- wec_project_operation_rel
+unlinked_ref_fields:
+- fq: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
+  desc: 客户产品开通
+  type: string
+- fq: cust_company_lifecycle_info.ref_cust_company_info
+  desc: 关联企业code
+  type: string
+- fq: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval
+  desc: 关联原审批数据
+  type: string
+linked_ref_fields:
+- fq: cust_account_info.ref_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_auth_application.ref_cust_auth_application_tenant_product
+  n_partners: 1
+  partners:
+  - tenant_product.code
+  trusts:
+  - confirmed
+- fq: cust_auth_application.ref_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_auth_application.ref_parent_company
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_certification_info.ref_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_customized_product.ref_cust_customized_product_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - proposed
+- fq: cust_head_company_info.ref_cust_head_company_info_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_interworking_product.ref_cust_interworking_product_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
+  n_partners: 1
+  partners:
+  - tenant_interworking_product.code
+  trusts:
+  - confirmed
+- fq: cust_person_info.ref_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_project_rel.ref_cust_project_rel_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_project_rel.ref_cust_project_rel_platform_product
+  n_partners: 1
+  partners:
+  - platform_product.code
+  trusts:
+  - confirmed
+- fq: cust_role_info.ref_cust_auth_application
+  n_partners: 1
+  partners:
+  - cust_auth_application.code
+  trusts:
+  - proposed
+- fq: cust_role_info.ref_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: cust_shareholder_info.ref_cust_company_info
+  n_partners: 1
+  partners:
+  - cust_company_info.code
+  trusts:
+  - confirmed
+- fq: tenant_interworking_product.ref_tenant_interworking_product_platform_product
+  n_partners: 1
+  partners:
+  - platform_product.code
+  trusts:
+  - confirmed
+- fq: tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+  n_partners: 1
+  partners:
+  - tenant_setting_config.code
+  trusts:
+  - confirmed
+- fq: tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product
+  n_partners: 1
+  partners:
+  - tenant_interworking_product.code
+  trusts:
+  - confirmed
+- fq: tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
+  n_partners: 1
+  partners:
+  - tenant_setting_config.code
+  trusts:
+  - proposed
+- fq: tenant_product.ref_tenant_product_project_code
+  n_partners: 1
+  partners:
+  - platform_product.code
+  trusts:
+  - confirmed
+- fq: tenant_product.ref_tenant_product_tenant_setting_config
+  n_partners: 1
+  partners:
+  - tenant_setting_config.code
+  trusts:
+  - confirmed
+- fq: tenant_project.ref_tenant_project_platform_product
+  n_partners: 1
+  partners:
+  - platform_product.code
+  trusts:
+  - confirmed
+- fq: tenant_project.ref_tenant_project_product_code
+  n_partners: 1
+  partners:
+  - tenant_product.code
+  trusts:
+  - confirmed
+- fq: tenant_project.ref_tenant_project_tenant_code
+  n_partners: 1
+  partners:
+  - tenant_setting_config.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval.ref_tenant_project_approval_tenant_project
+  n_partners: 1
+  partners:
+  - tenant_project.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config
+  n_partners: 1
+  partners:
+  - tenant_project_approval_flow_config.code
+  trusts:
+  - proposed
+- fq: tenant_project_approval_business_info.ref_tenant_project_approval_business_info_project_approval
+  n_partners: 1
+  partners:
+  - tenant_project_approval.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
+  n_partners: 1
+  partners:
+  - tenant_project_approval.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_comment.ref_tenant_project_approval_flow_comment_approval
+  n_partners: 1
+  partners:
+  - tenant_project_approval.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval
+  n_partners: 1
+  partners:
+  - tenant_project_approval.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node
+  n_partners: 1
+  partners:
+  - tenant_project_approval_flow_node.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_comment
+  n_partners: 1
+  partners:
+  - tenant_project_approval_flow_comment.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval
+  n_partners: 1
+  partners:
+  - tenant_project_approval.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval_flow_node
+  n_partners: 1
+  partners:
+  - tenant_project_approval_flow_node.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval
+  n_partners: 1
+  partners:
+  - tenant_project_approval.code
+  trusts:
+  - confirmed
+- fq: tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval_flow
+  n_partners: 1
+  partners:
+  - tenant_project_approval_flow.code
+  trusts:
+  - confirmed
+fkish_id_unlinked_sample:
+- fq: cust_invite_info.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_invite_info.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_access_secret.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_access_secret.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_access_secret.rel_lls_secret_id
+  desc: 关联平台密钥记录id
+  type: number
+- fq: cust_shareholder_info.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_shareholder_info.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_shareholder_info.main_data_id
+  desc: 主数据id
+  type: number
+- fq: tenant_project_approval_flow_node.operator_user_id
+  desc: 操作人 userId
+  type: string
+- fq: tenant_project_approval_flow_node.transfer_to_user_id
+  desc: 被转审人id
+  type: string
+- fq: tenant_project_approval_flow_node.cc_user_id
+  desc: 抄送相关人员userId列表(JSON数组)
+  type: string
+- fq: tenant_project_approval_flow_node.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_project_approval_flow_node.organization_id
+  desc: 机构编号
+  type: string
+- fq: ca_cfca_upgrade_report.task_id
+  desc: 业务系统任务ID
+  type: string
+- fq: ca_cfca_upgrade_report.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: ca_cfca_upgrade_report.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_project_approval_flow_credit.credited_cust_id
+  desc: 被授信方（核心企业）id
+  type: string
+- fq: tenant_project_approval_flow_credit.crediting_cust_id
+  desc: 授信方（资金方）id
+  type: string
+- fq: tenant_project_approval_flow_credit.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_project_approval_flow_credit.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_setting_config.source_id
+  desc: 租户来源id
+  type: string
+- fq: tenant_setting_config.mp_dbass_app_id
+  desc: 小程序dbassAppId
+  type: string
+- fq: tenant_setting_config.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_setting_config.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_setting_config.uat_mp_app_id
+  desc: UAT小程序appID
+  type: string
+- fq: tenant_setting_config.prd_mp_app_id
+  desc: 生产小程序appID
+  type: string
+- fq: cust_sftp.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_sftp.organization_id
+  desc: 机构编号
+  type: string
+- fq: funding_exception_resolution.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: funding_exception_resolution.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_change_record.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_change_record.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_change_record.oper_cust_id
+  desc: 运营中台客户id
+  type: number
+- fq: tenant_project_approval_flow_file.catg_id
+  desc: 影像分类编码
+  type: string
+- fq: tenant_project_approval_flow_file.file_id
+  desc: 文件id
+  type: string
+- fq: tenant_project_approval_flow_file.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_project_approval_flow_file.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_setting_config_share.source_id
+  desc: 租户来源id
+  type: string
+- fq: tenant_setting_config_share.mp_dbass_app_id
+  desc: 小程序dbassAppId
+  type: string
+- fq: tenant_setting_config_share.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_setting_config_share.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_setting_config_share.uat_mp_app_id
+  desc: UAT小程序appID
+  type: string
+- fq: tenant_setting_config_share.prd_mp_app_id
+  desc: 生产小程序appID
+  type: string
+- fq: open_sso_channel.sso_client_id
+  desc: SSO clientId（每渠道独立）
+  type: string
+- fq: open_sso_channel.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: open_sso_channel.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_project_approval.solution_manager_id
+  desc: 方案经理 userId
+  type: string
+- fq: tenant_project_approval.initiator_user_id
+  desc: 发起人 userId
+  type: string
+- fq: tenant_project_approval.wf_last_operator_id
+  desc: 工作流最近操作人ID
+  type: string
+- fq: tenant_project_approval.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_project_approval.organization_id
+  desc: 机构编号
+  type: string
+- fq: authorization_agreement.cust_manager_id
+  desc: 企业管理员id
+  type: number
+- fq: authorization_agreement.original_cust_id
+  desc: 源系统custid
+  type: string
+- fq: authorization_agreement.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: authorization_agreement.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_message_send_policy.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_message_send_policy.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_company_survey_whitelist.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_company_survey_whitelist.organization_id
+  desc: 机构编号
+  type: string
+- fq: funding_rule_info.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: funding_rule_info.organization_id
+  desc: 机构编号
+  type: string
+- fq: project_file_info.project_id
+  desc: 关联项目ID
+  type: number
+- fq: project_file_info.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: project_file_info.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_product_menu.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_product_menu.organization_id
+  desc: 机构编号
+  type: string
+- fq: short_link.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: short_link.organization_id
+  desc: 机构编号
+  type: string
+- fq: platform_product.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: platform_product.organization_id
+  desc: 机构编号
+  type: string
+- fq: tenant_migarory_log.trace_id
+  desc: trace_id
+  type: string
+- fq: tenant_migarory_log.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_migarory_log.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_person_info.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: cust_person_info.organization_id
+  desc: 机构编号
+  type: string
+- fq: cust_person_info.main_data_id
+  desc: 主数据id
+  type: number
+- fq: cust_person_info.platform_user_id
+  desc: 运营系统用户id
+  type: number
+- fq: tenant_product.act_procinst_id
+  desc: 流程实例ID
+  type: string
+- fq: tenant_product.organization_id
+  desc: 机构编号
+  type: string
+- fq: ca_certification_info.act_procinst_id
+  desc: 流程实例ID
+  type: string

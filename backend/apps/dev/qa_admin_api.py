@@ -15,10 +15,16 @@ from apps.conversation.process_timeline import (
     project_process_timeline,
 )
 from apps.dev.batch_export import load_feedback_rows, render_feedback_csv
-from apps.dev.catalog import list_chats, list_datasources, list_operators, list_workspaces
+from apps.dev.catalog import (
+    list_chats,
+    list_datasources,
+    list_operators,
+    list_workspaces,
+)
 from apps.dev.chat_view import get_chat_for_admin
 from apps.dev.guards import DevAdmin
 from apps.dev.jsonutil import parse_id_list
+from apps.dev.qa_export import build_qa_chats_workbook
 from common.core.deps import SessionDep, Trans
 
 router = APIRouter(prefix="/qa-admin", tags=["dev-qa-admin"])
@@ -81,8 +87,13 @@ async def qa_chats(
     datasource: int | None = None,
     created_from: str | None = None,
     created_to: str | None = None,
+    chat_type: str | None = Query(
+        default="chat",
+        description="chat | config | all; default chat excludes config assistant",
+    ),
 ) -> list[dict[str, Any]]:
     ids = parse_id_list(chat_ids)
+    resolved_type = None if (chat_type or "").strip().lower() in {"", "all"} else chat_type
     return await asyncio.to_thread(
         list_chats,
         session,
@@ -94,6 +105,7 @@ async def qa_chats(
         datasource=datasource,
         created_from=_parse_dt(created_from),
         created_to=_parse_dt(created_to),
+        chat_type=resolved_type,
     )
 
 
@@ -167,7 +179,10 @@ async def qa_feedback_csv(
     datasource: int | None = None,
     created_from: str | None = None,
     created_to: str | None = None,
+    chat_type: str | None = Query(default="chat"),
 ) -> Response:
+    resolved_type = None if (chat_type or "").strip().lower() in {"", "all"} else chat_type
+
     def inner() -> str:
         _summary, rows = load_feedback_rows(
             session,
@@ -179,6 +194,7 @@ async def qa_feedback_csv(
             datasource=datasource,
             created_from=_parse_dt(created_from),
             created_to=_parse_dt(created_to),
+            chat_type=resolved_type,
         )
         return render_feedback_csv(rows)
 
@@ -188,5 +204,47 @@ async def qa_feedback_csv(
         media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="workspace-{oid}-feedback.csv"'
+        },
+    )
+
+
+@router.get("/feedback.xlsx")
+async def qa_feedback_xlsx(
+    session: SessionDep,
+    _admin: DevAdmin,
+    oid: int = Query(...),
+    create_by: int | None = None,
+    q: str | None = None,
+    feedback: str | None = None,
+    chat_ids: str | None = None,
+    datasource: int | None = None,
+    created_from: str | None = None,
+    created_to: str | None = None,
+    chat_type: str | None = Query(default="chat"),
+) -> Response:
+    """Export chats as review Excel (same columns/rules as exports/export_qa_chats.py)."""
+    resolved_type = None if (chat_type or "").strip().lower() in {"", "all"} else chat_type
+
+    def inner() -> bytes:
+        body, _stats = build_qa_chats_workbook(
+            session,
+            oid=oid,
+            create_by=create_by,
+            q=q,
+            feedback=feedback,
+            chat_ids=parse_id_list(chat_ids) or None,
+            datasource=datasource,
+            created_from=_parse_dt(created_from),
+            created_to=_parse_dt(created_to),
+            chat_type=resolved_type,
+        )
+        return body
+
+    body = await asyncio.to_thread(inner)
+    return Response(
+        content=body,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="workspace-{oid}-qa-chats.xlsx"'
         },
     )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from apps.chat.agent_knowledge import PROBE_SQL_LIMIT, AgentKnowledgePlane
+from apps.chat.agent_knowledge import PROBE_SQL_LIMIT
 from apps.chat.chart_presentation import LEGAL_CHART_TYPES, normalize_chart_type
 from apps.chat.plan_policy import ROW_LIMIT
 from apps.chat.result_window import apply_result_window, resolve_exec_row_limit
@@ -53,15 +53,6 @@ def _runtime_snapshot() -> dict[str, Any]:
     if not run_id:
         return {}
     return peek_runtime(run_id) or {}
-
-
-def _schema_ready() -> bool | None:
-    """Session plane gate. None = no agent plane attached (standalone SQL tests)."""
-    snap = _runtime_snapshot()
-    if "knowledge_plane" not in snap:
-        return None
-    plane = AgentKnowledgePlane.from_dump(snap.get("knowledge_plane"))
-    return bool(plane.schema_ready)
 
 
 def _reject_enum_discovery(sql: str, llm_service: Any) -> ToolResult | None:
@@ -149,8 +140,11 @@ def execute_sql_sandbox(
 ) -> ToolResult:
     """Safely execute SQL with permission rewrites and token-safe output.
 
-    JOIN edges from wiki relations are advisory; this sandbox does not reject
-    queries whose tables are missing from the known relation graph.
+    Schema readiness belongs to planning (``get_table_schema`` / wiki recall).
+    Once the model has produced concrete SQL, this sandbox executes it under
+    access-scope validation — it does not re-check the in-memory knowledge
+    plane. Catalog probes and enum-discovery SQL remain blocked separately.
+    JOIN edges from wiki relations are advisory only.
     """
     clean_sql = (sql or "").strip().rstrip(";")
     if not clean_sql:
@@ -183,17 +177,6 @@ def execute_sql_sandbox(
         return enum_block
 
     probe_note = _consume_probe_budget(required)
-
-    if _schema_ready() is False:
-        return failure_result(
-            _with_probe_note(
-                "Wiki did not provide table/enum schema. Do not guess columns or "
-                "query information_schema. Stop and tell the user the knowledge "
-                "base cannot answer this yet.",
-                probe_note,
-            ),
-            retryable=False,
-        )
 
     try:
         proto = getattr(llm_service, "protocol", None)
@@ -275,15 +258,24 @@ def execute_sql_sandbox(
                 "non_null_count": len(vals),
                 "null_count": row_count - len(vals),
             }
-            num_vals = [
-                float(v)
+            # Skip min/max/sum for wide integers (snowflake IDs, codes). Summing
+            # them overflows msgpack int64 and crashes LangGraph interrupt().
+            wide_ids = any(
+                isinstance(v, int)
+                and not isinstance(v, bool)
+                and v.bit_length() > 53
                 for v in vals
-                if isinstance(v, int | float) and not isinstance(v, bool)
-            ]
-            if num_vals:
-                stats["min"] = min(num_vals)
-                stats["max"] = max(num_vals)
-                stats["sum"] = round(sum(num_vals), 2)
+            )
+            if not wide_ids:
+                num_vals = [
+                    float(v)
+                    for v in vals
+                    if isinstance(v, int | float) and not isinstance(v, bool)
+                ]
+                if num_vals:
+                    stats["min"] = min(num_vals)
+                    stats["max"] = max(num_vals)
+                    stats["sum"] = round(sum(num_vals), 2)
             col_stats[field_name] = stats
 
         resolved_dataset_id = dataset_id or new_dataset_id()

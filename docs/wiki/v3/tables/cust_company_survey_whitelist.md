@@ -4,13 +4,19 @@ title: 问卷星白名单企业
 page_key: cust_company_survey_whitelist
 belong: tables
 status: draft
-anchors: [cust_company_survey_whitelist]
-sources: ['database_schema:lowcode_pplatform.cust_company_survey_whitelist', 'code_path:CustCompanySurveyWhitelistDao.java:20']
+anchors:
+- cust_company_survey_whitelist
+sources:
+- database_schema:lowcode_pplatform.cust_company_survey_whitelist
+- code_path:CustCompanySurveyWhitelistDao.java:20
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_company_survey_whitelist__enable]
+databases:
+- lowcode_pplatform
+related:
+- cust_company_info
+- cust_company_survey_whitelist__enable
 ---
 
 # 问卷星白名单企业
@@ -24,9 +30,13 @@ table: cust_company_survey_whitelist
 database: lowcode_pplatform
 desc: 问卷星白名单企业
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 问卷星参与企业白名单
-name_anchors: [company_name, code, name]
+name_anchors:
+- company_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -47,7 +57,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark

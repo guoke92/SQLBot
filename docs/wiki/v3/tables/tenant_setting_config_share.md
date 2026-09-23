@@ -4,24 +4,27 @@ title: 共享租户配置
 page_key: tenant_setting_config_share
 belong: tables
 status: draft
-anchors: [tenant_setting_config_share]
-sources: ['database_schema:lowcode_pplatform.tenant_setting_config_share']
+anchors:
+- tenant_setting_config_share
+sources:
+- database_schema:lowcode_pplatform.tenant_setting_config_share
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [tenant_setting_config_share__code, tenant_setting_config_share__source_id,
-  tenant_setting_config_share__source, tenant_setting_config_share__cust_service_number,
-  tenant_setting_config_share__privacy_policy_agreement, tenant_setting_config_share__user_protocol_agreement,
-  tenant_setting_config_share__auth_agreement, tenant_setting_config_share__dbass_app_id,
-  tenant_setting_config_share__enable, tenant_setting_config_share__act_procinst_status,
-  tenant_setting_config_share__tenant_flg_en, tenant_setting_config_share__uat_mp_app_id,
-  tenant_setting_config_share__prd_mp_app_id, tenant_setting_config_share__need_hfive,
-  tenant_setting_config_share__need_mp_wx, tenant_setting_config_share__status, tenant_setting_config_share__person_auth_agreement,
-  tenant_setting_config_share__self_registration_flag, tenant_setting_config_share__company_share_flag,
-  tenant_setting_config_share__portal_flag, tenant_setting_config_share__share_flag]
+databases:
+- lowcode_pplatform
+related:
+- tenant_setting_config
+- tenant_setting_config_share__enable
+- tenant_setting_config_share__act_procinst_status
+- tenant_setting_config_share__need_hfive
+- tenant_setting_config_share__need_mp_wx
+- tenant_setting_config_share__status
+- tenant_setting_config_share__self_registration_flag
+- tenant_setting_config_share__company_share_flag
+- tenant_setting_config_share__portal_flag
+- tenant_setting_config_share__share_flag
 ---
-
 # 共享租户配置
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -33,11 +36,23 @@ table: tenant_setting_config_share
 database: lowcode_pplatform
 desc: 共享租户配置
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 共享租户配置副本（apaas 生成，业务侧少查）
-name_anchors: [code, name, band_name, apaas_tenant_code, uni_social_credit_code, uat_mp_app_name,
-  uat_mp_wx_login_name, prd_mp_app_name, prd_mp_wx_login_name, operator_name, operator_wechat_code,
-  operator_qr_code, operator_applet_code]
+name_anchors:
+- code
+- name
+- band_name
+- apaas_tenant_code
+- uni_social_credit_code
+- uat_mp_app_name
+- uat_mp_wx_login_name
+- prd_mp_app_name
+- prd_mp_wx_login_name
+- operator_name
+- operator_wechat_code
+- operator_qr_code
+- operator_applet_code
 fields:
 - name: id
   type: number
@@ -46,26 +61,14 @@ fields:
 - name: code
   type: string
   desc: 编码
-  dict: [588b10dfc1394e3cab2425bb75e32401, c5f1dda347dd43aeaafff9f85a776855, 7ec6cd3c49894ac094c5e57367bf2f89,
-    f8bbfcfffde4460380677bb04cf63ae8, 09a8f067d6c14e6eade8b24f1ce0615e, a6c9dbf3c4f145ecbf6539133cfb26d0,
-    547f3006754b46d5a5a995a1b14bbf5e, c5efb99e854749febf64f2e633e2fc12, 6ed5745b4ec947848ee53c310692655c,
-    e93f7a105bd34d99aac6232e0fdb2875, 974d473e73754925b1bfd737decf7bb0, 4e96ca4e9a59481bbfa45305cf6fdd19,
-    bfdf9141f7454175bbc6d7e2b36dcbfe, 6ad1fcd18e1a4fc2870d7e236810494b, e229b2687c02409f8a730a7185783b0f,
-    9278d4dfa17845fc8b4e7abddd539909, 291cf37d756044b1bb05e6ecfc3b38d0, b4065366c1ec4d6db1e81b24d83c0c07,
-    62564b6790aa4d949e49a36cffd00be8, d7aa0e5cbfd44f71b79734740aa99588, 925693fdf69d4f0f9753225c84d841c3,
-    20f68c6a9559400c84ad5982cf1f6e63, ab46bdfbc4ab492fb6d2e4f8c6691f96, 609cc1746f3d42f0a31bb3235f14128c,
-    d24740df39ad4f6eb7be61e78b507bee, 8855fea4d6ed4fbb9f47e3a940d59124, fd958bc7b2564a0ab469368e56984122,
-    1b499346ac034c5fa26f862945d3df3c, aa4c8bc5ea374c28bd13e26c71e89bad]
 - name: source_id
   type: string
   desc: 租户来源id
-  dict: ['105', '134', '116', '6931911680490856448', '102', '130', '112', '145', '125',
-    '109', '141', '120', '6972474653471547392', '106', '139', '117', '6950272254899298304',
-    '104', '133', '115', '146', '126', '110', '144', '121', '108', '140', '119', '6952907435533062144']
 - name: source
   type: string
   desc: 租户来源
-  dict: [ACFLOW]
+  dict:
+  - ACFLOW
 - name: name
   type: string
   desc: 租户名称
@@ -75,7 +78,6 @@ fields:
 - name: cust_service_number
   type: string
   desc: 客服电话
-  dict: [400 025 0059, 0755-86951497]
 - name: web_title
   type: string
   desc: 网站标题
@@ -97,22 +99,18 @@ fields:
 - name: privacy_policy_agreement
   type: string
   desc: 隐私协议
-  dict: [CT-202405311653384958102]
 - name: user_protocol_agreement
   type: string
   desc: 用户协议
-  dict: [CT-202405211357559370074]
 - name: auth_agreement
   type: string
   desc: 授权书协议
-  dict: [CT-202404081721209495040]
 - name: apaas_tenant_code
   type: string
   desc: aPaaS租户编码
 - name: dbass_app_id
   type: string
   desc: dbassAppId
-  dict: [app_ChanRongPin336_20240529]
 - name: mp_dbass_app_id
   type: string
   desc: 小程序dbassAppId
@@ -155,7 +153,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -194,7 +197,8 @@ fields:
 - name: act_procinst_status
   type: string
   desc: 当前审批状态
-  dict: [N]
+  dict:
+  - N
 - name: act_procinst_date
   type: temporal
   desc: 审批结束时间
@@ -222,13 +226,9 @@ fields:
 - name: tenant_flg_en
   type: string
   desc: 项目标识（英文）
-  dict: [huishangbank, hxfl, abc, jjbank, ahf, KTC, bankofdl, lande, beehiveBg, lybank,
-    beehiveICBC, njsteel, bitland, psbc, boc, rongwin, bocom, scbCommon, ceb, sdhs,
-    citicbank, sneb, czbank, spdb, dyr, uwlaser, gtdb, zybank, hsbc]
 - name: uat_mp_app_id
   type: string
   desc: UAT小程序appID
-  dict: [wx3bd724e38dc5df9c, wxd4e6b0c088fb4355, '5434341', wx5a4621f15abc7462, wxdb453231b9e2a54f]
 - name: uat_mp_app_name
   type: string
   desc: UAT小程序名称
@@ -241,7 +241,6 @@ fields:
 - name: prd_mp_app_id
   type: string
   desc: 生产小程序appID
-  dict: [wx0821ca938ea7f8ee, wx2e8254825b33f21e, '85546', wxbb4672250373e63d, wxab90faadcc845329]
 - name: prd_mp_app_name
   type: string
   desc: 生产小程序名称
@@ -254,33 +253,55 @@ fields:
 - name: need_hfive
   type: string
   desc: 是否定制H5
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 - name: mobile_indexpage_bg_logo_url
   type: string
   desc: 移动端首页背景图
 - name: need_mp_wx
   type: string
   desc: 是否定制小程序
-  dict: [N, Y]
+  dict:
+  - N
+  - Y
+  label:
+    N: 否
+    Y: 是
 - name: main_theme_color
   type: string
   desc: 主题色
 - name: status
   type: string
   desc: 生效状态
-  dict: [N]
+  dict:
+  - N
+  label:
+  - 否
 - name: person_auth_agreement
   type: string
   desc: 变更联系人授权书
-  dict: [CT-202404081721209495040]
 - name: self_registration_flag
   type: string
   desc: 是否放开自主注册
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 - name: company_share_flag
   type: string
   desc: 客户认证数据是否可用于其他贴牌平台
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 - name: mobile_indexpage_logo_url
   type: string
   desc: 移动端首页logo
@@ -324,34 +345,55 @@ fields:
 - name: portal_flag
   type: string
   desc: 是否启用门户
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 - name: share_flag
   type: string
   desc: 共享租户
-  dict: [N]
+  dict:
+  - N
+  - Y
+  label:
+  - 否
+  - 是
 ```
 
+
+## 关联关系
+
+### likely — 值域支持且列名/注释有关联语义
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_setting_config.dbass_app_id
+right: tenant_setting_config_share.dbass_app_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: live_validate:fk_like;reextract:共享租户与租户配置
+source: reextract_joins
+join_role: business_code
+priority: primary
+authenticity_note: 共享租户与租户配置
+```
 ## 页面链接
+
+### 关联表
+
+- [[tables/tenant_setting_config]]
 
 ### 字典
 
-- [[dicts/tenant_setting_config_share__code]]（`tenant_setting_config_share.code`）
-- [[dicts/tenant_setting_config_share__source_id]]（`tenant_setting_config_share.source_id`）
 - [[dicts/tenant_setting_config_share__source]]（`tenant_setting_config_share.source`）
-- [[dicts/tenant_setting_config_share__cust_service_number]]（`tenant_setting_config_share.cust_service_number`）
-- [[dicts/tenant_setting_config_share__privacy_policy_agreement]]（`tenant_setting_config_share.privacy_policy_agreement`）
-- [[dicts/tenant_setting_config_share__user_protocol_agreement]]（`tenant_setting_config_share.user_protocol_agreement`）
-- [[dicts/tenant_setting_config_share__auth_agreement]]（`tenant_setting_config_share.auth_agreement`）
-- [[dicts/tenant_setting_config_share__dbass_app_id]]（`tenant_setting_config_share.dbass_app_id`）
 - [[dicts/tenant_setting_config_share__enable]]（`tenant_setting_config_share.enable`）
 - [[dicts/tenant_setting_config_share__act_procinst_status]]（`tenant_setting_config_share.act_procinst_status`）
-- [[dicts/tenant_setting_config_share__tenant_flg_en]]（`tenant_setting_config_share.tenant_flg_en`）
-- [[dicts/tenant_setting_config_share__uat_mp_app_id]]（`tenant_setting_config_share.uat_mp_app_id`）
-- [[dicts/tenant_setting_config_share__prd_mp_app_id]]（`tenant_setting_config_share.prd_mp_app_id`）
 - [[dicts/tenant_setting_config_share__need_hfive]]（`tenant_setting_config_share.need_hfive`）
 - [[dicts/tenant_setting_config_share__need_mp_wx]]（`tenant_setting_config_share.need_mp_wx`）
 - [[dicts/tenant_setting_config_share__status]]（`tenant_setting_config_share.status`）
-- [[dicts/tenant_setting_config_share__person_auth_agreement]]（`tenant_setting_config_share.person_auth_agreement`）
 - [[dicts/tenant_setting_config_share__self_registration_flag]]（`tenant_setting_config_share.self_registration_flag`）
 - [[dicts/tenant_setting_config_share__company_share_flag]]（`tenant_setting_config_share.company_share_flag`）
 - [[dicts/tenant_setting_config_share__portal_flag]]（`tenant_setting_config_share.portal_flag`）

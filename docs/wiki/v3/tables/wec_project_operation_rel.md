@@ -4,18 +4,21 @@ title: 微企链项目关联运营
 page_key: wec_project_operation_rel
 belong: tables
 status: draft
-anchors: [wec_project_operation_rel]
-sources: ['database_schema:lowcode_pplatform.wec_project_operation_rel']
+anchors:
+- wec_project_operation_rel
+sources:
+- database_schema:lowcode_pplatform.wec_project_operation_rel
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [wec_project_operation_rel__op_contact_a, wec_project_operation_rel__verification_contact,
-  wec_project_operation_rel__risk_control_contact_a, wec_project_operation_rel__custom_field_one,
-  wec_project_operation_rel__custom_field_two, wec_project_operation_rel__project_tag,
-  wec_project_operation_rel__enable, wec_project_operation_rel__top_flag]
+databases:
+- lowcode_pplatform
+related:
+- wec_project_cust_operation_rel
+- tenant_project
+- wec_project_operation_rel__enable
+- wec_project_operation_rel__top_flag
 ---
-
 # 微企链项目关联运营
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -27,9 +30,12 @@ table: wec_project_operation_rel
 database: lowcode_pplatform
 desc: 微企链项目关联运营
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 企微项目与运营联系人
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -47,8 +53,6 @@ fields:
 - name: op_contact_a
   type: string
   desc: 运营对接人A
-  dict: ['321', '463', '257', '169', '362', '210', '333', '466', '97', '420', '93',
-    '267']
 - name: op_contact_b
   type: string
   desc: 运营对接人B
@@ -58,14 +62,12 @@ fields:
 - name: verification_contact
   type: string
   desc: 查验对接人
-  dict: ['321', '463', '420', '363', '97', '454', '411', '305']
 - name: verification_contact_group
   type: string
   desc: 查验组别
 - name: risk_control_contact_a
   type: string
   desc: 风控对接人A
-  dict: ['321', '454', '344', '420', '457', '97', '141', '463', '271']
 - name: risk_control_contact_b
   type: string
   desc: 风控对接人B
@@ -87,20 +89,18 @@ fields:
 - name: custom_field_one
   type: string
   desc: 自定义字段一
-  dict: ['1', 字段1, '532423435', '532423434', '532423433', 自动化测试字段一A1, qa_cf1_1786619291710,
-    '532423436']
 - name: custom_field_two
   type: string
   desc: 自定义字段二
-  dict: ['2', 字段2, '543543544', qa_cf2_1786619291710, '543543547', 自动化测试字段二B2, '543543546',
-    '543543545']
 - name: custom_field_three
   type: string
   desc: 自定义字段三
 - name: project_tag
   type: string
   desc: 项目标签
-  dict: [TEST, PRD]
+  dict:
+  - TEST
+  - PRD
 - name: project_relation
   type: string
   desc: 项目归属
@@ -116,7 +116,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -164,20 +167,48 @@ fields:
 - name: top_flag
   type: string
   desc: 置顶标识
-  dict: ['0']
+  dict:
+  - '0'
+  - '1'
+  label: [否, 是]
 - name: text
   type: string
 ```
 
+
+## 关联说明（非 EQUI / 对等场景）
+
+- **对等主档（非 ID 互连）**：产融用 `tenant_project`，讯易链用本表；同一运营接口按 `source` 分流，**UAT 上 `wec_project_id` 与 `tenant_project.id` 值域不相交（impossible）**，禁止 EQUI_JOIN。
+- **可 JOIN**：`wec_project_id` → `wec_project_cust_operation_rel.project_id`（对标 `tenant_project.id` → `cust_project_rel.project_id`）。
+- 运营联系人等字段与 `tenant_project` 同形拷贝，属场景对等，不是外键。
+
+```ground:relation
+type: EQUI_JOIN
+left: wec_project_operation_rel.wec_project_id
+right: wec_project_cust_operation_rel.project_id
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: orphan_repair:live_fk_like R→L=1; peer of cust_project_rel
+source: orphan_repair
+join_role: business_code
+priority: primary
+authenticity_note: 讯易链项目运营主档←企业运营关系
+```
+
 ## 页面链接
+
+### 关联表
+
+- [[tables/wec_project_cust_operation_rel]]
+- [[tables/tenant_project]]
+
+### 概念
+
+- [[concepts/wec_project_ops_peer]]
 
 ### 字典
 
-- [[dicts/wec_project_operation_rel__op_contact_a]]（`wec_project_operation_rel.op_contact_a`）
-- [[dicts/wec_project_operation_rel__verification_contact]]（`wec_project_operation_rel.verification_contact`）
-- [[dicts/wec_project_operation_rel__risk_control_contact_a]]（`wec_project_operation_rel.risk_control_contact_a`）
-- [[dicts/wec_project_operation_rel__custom_field_one]]（`wec_project_operation_rel.custom_field_one`）
-- [[dicts/wec_project_operation_rel__custom_field_two]]（`wec_project_operation_rel.custom_field_two`）
 - [[dicts/wec_project_operation_rel__project_tag]]（`wec_project_operation_rel.project_tag`）
 - [[dicts/wec_project_operation_rel__enable]]（`wec_project_operation_rel.enable`）
 - [[dicts/wec_project_operation_rel__top_flag]]（`wec_project_operation_rel.top_flag`）

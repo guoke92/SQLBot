@@ -4,17 +4,19 @@ title: 租户项目迁移记录表
 page_key: tenant_migarory_log_bak
 belong: tables
 status: draft
-anchors: [tenant_migarory_log_bak]
-sources: ['database_schema:lowcode_pplatform.tenant_migarory_log_bak']
+anchors:
+- tenant_migarory_log_bak
+sources:
+- database_schema:lowcode_pplatform.tenant_migarory_log_bak
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [platform_product, tenant_migarory_log_bak__name, tenant_migarory_log_bak__direction,
-  tenant_migarory_log_bak__type, tenant_migarory_log_bak__status, tenant_migarory_log_bak__success_number,
-  tenant_migarory_log_bak__falied_number, tenant_migarory_log_bak__total_number, tenant_migarory_log_bak__enable]
+databases:
+- lowcode_pplatform
+related:
+- tenant_migarory_log_bak__status
+- tenant_migarory_log_bak__enable
 ---
-
 # 租户项目迁移记录表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -26,9 +28,12 @@ table: tenant_migarory_log_bak
 database: lowcode_pplatform
 desc: 租户项目迁移记录表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 迁移日志备份（无业务 DO）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -40,27 +45,25 @@ fields:
 - name: name
   type: string
   desc: 名称
-  dict: [migratoryProject, syncProject, syncProduct, EFFECTED, migratoryCust, 迁移客户,
-    CREATED, 同步项目, ACTIVE_CFCA_SIGN, PROJECT_SYNC, CHANGED, PROJECT_SYNC_VALIDATE,
-    migratoryTenant, INPUT_project_20240905163839, 迁移租户, 同步产品, DELETED, INPUT_tenant_20240905172700,
-    INPUT_project_20240905164552]
 - name: direction
   type: string
   desc: 数据方向
-  dict: [IN, OUT]
+  dict:
+  - IN
+  - OUT
 - name: type
   type: string
   desc: 类型
-  dict: [migratoryProject, PROJECT_SYNC, CUST_PRODUCT_SYNC, syncProject, TENANT_SYNC,
-    syncProduct, PRODUCT_SYNC, migratoryCust, migratoryTenant, CREATED, DELETED, PROJECT_SYNC_VALIDATE,
-    TENANT_SYNC_VALIDATE, EFFECTED]
 - name: batch_no
   type: string
   desc: 批次号
 - name: status
   type: string
   desc: 迁移状态
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [是, 否]
 - name: req_sn
   type: string
   desc: 请求流水编码
@@ -85,19 +88,19 @@ fields:
 - name: success_number
   type: number
   desc: 成功数量
-  dict: ['1']
 - name: falied_number
   type: number
   desc: 失败数量
-  dict: ['1', '0']
 - name: total_number
   type: number
   desc: 总数量
-  dict: ['1']
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -150,46 +153,16 @@ fields:
 
 ## 关联关系
 
-### unlikely — 值域不支持或冲突
-
-```ground:relation
-type: EQUI_JOIN
-left: platform_product.code
-right: tenant_migarory_log_bak.platform_product_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.tenant_migarory_log_bak.platform_product_code;database_profile:lowcode_pplatform.tenant_migarory_log_bak.platform_product_code
-source: name
-join_role: business_code
-priority: primary
-name_evidence:
-  match: exact_table
-  stem: platform_product
-  comment: 产品编码
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 14
-  miss: 14
-  deepened: false
-  query_ok: true
-  authenticity: unlikely
-```
+_（本页暂无保留的 EQUI_JOIN 边；已移除边见 `_raw/join_validation/removed_relations.md`。）_
 
 ## 页面链接
 
-### 关联表
+### 概念
 
-- [[tables/platform_product]]
+- [[concepts/platform_product_code_term]]
 
 ### 字典
 
-- [[dicts/tenant_migarory_log_bak__name]]（`tenant_migarory_log_bak.name`）
 - [[dicts/tenant_migarory_log_bak__direction]]（`tenant_migarory_log_bak.direction`）
-- [[dicts/tenant_migarory_log_bak__type]]（`tenant_migarory_log_bak.type`）
 - [[dicts/tenant_migarory_log_bak__status]]（`tenant_migarory_log_bak.status`）
-- [[dicts/tenant_migarory_log_bak__success_number]]（`tenant_migarory_log_bak.success_number`）
-- [[dicts/tenant_migarory_log_bak__falied_number]]（`tenant_migarory_log_bak.falied_number`）
-- [[dicts/tenant_migarory_log_bak__total_number]]（`tenant_migarory_log_bak.total_number`）
 - [[dicts/tenant_migarory_log_bak__enable]]（`tenant_migarory_log_bak.enable`）

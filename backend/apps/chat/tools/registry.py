@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Self
 
 from langchain_core.tools import StructuredTool
@@ -101,10 +102,63 @@ class ClarificationQuestionSchema(BaseModel):
     )
 
 
+def _repair_clarification_payload(data: Any) -> Any:
+    """Normalize common model shapes before schema validation.
+
+    Models sometimes emit q2's options as sibling ``questions`` entries and park
+    the real question text on the payload root — repair into one question with
+    options so StructuredTool validation and the runtime coercer agree.
+    """
+    if not isinstance(data, Mapping):
+        return data
+    payload = dict(data)
+    questions = payload.get("questions")
+    if not isinstance(questions, list):
+        return payload
+    fixed: list[Any] = []
+    leaked_options: list[Any] = []
+    for item in questions:
+        if not isinstance(item, Mapping):
+            fixed.append(item)
+            continue
+        if item.get("options") is not None and item.get("question"):
+            fixed.append(dict(item))
+            continue
+        if item.get("label") or item.get("option_id") or item.get("description"):
+            leaked_options.append(dict(item))
+            continue
+        fixed.append(dict(item))
+    dangling_question = str(payload.get("question") or "").strip()
+    dangling_id = str(payload.get("question_id") or "").strip()
+    if leaked_options and dangling_question:
+        fixed.append(
+            {
+                "question": dangling_question,
+                "question_id": dangling_id,
+                "options": leaked_options,
+            }
+        )
+        payload.pop("question", None)
+        payload.pop("question_id", None)
+    elif leaked_options and fixed:
+        last = dict(fixed[-1])
+        options = list(last.get("options") or [])
+        options.extend(leaked_options)
+        last["options"] = options
+        fixed[-1] = last
+    payload["questions"] = fixed
+    return payload
+
+
 class RequestClarificationInput(BaseModel):
     questions: list[ClarificationQuestionSchema] = Field(
         description="List of clarification questions to present to the user. Each item must have 'question' and 'options'."
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def repair_payload(cls, data: Any) -> Any:
+        return _repair_clarification_payload(data)
 
 
 class GetTableSchemaInput(BaseModel):

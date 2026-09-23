@@ -93,14 +93,77 @@ def strip_markup_tool_calls(text: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
+_FUNCTION_CALL_IDS_KEY = "__openai_function_call_ids__"
+
+
+def parse_tool_call_args(raw: Any) -> dict[str, Any] | None:
+    """Parse tool-call arguments from a dict or JSON string (incl. trailing junk)."""
+    if isinstance(raw, Mapping):
+        return dict(raw)
+    if not isinstance(raw, str):
+        return None
+    stripped = raw.strip()
+    if not stripped:
+        return None
+    try:
+        parsed = orjson.loads(stripped)
+    except Exception:
+        try:
+            import json
+
+            parsed, _end = json.JSONDecoder().raw_decode(stripped)
+        except Exception:
+            return None
+    return dict(parsed) if isinstance(parsed, Mapping) else None
+
+
+def recover_invalid_tool_calls(message: AIMessage) -> list[dict[str, Any]]:
+    """Promote ``invalid_tool_calls`` with recoverable args into executable calls.
+
+    Responses providers often emit function_call arguments that fail a strict
+    ``json.loads`` (trailing junk) and land in ``invalid_tool_calls``. Those still
+    carry a call id that the Responses API echoes on the next turn — so the live
+    turn must either execute them or strip them before replay.
+    """
+    recovered: list[dict[str, Any]] = []
+    for index, call in enumerate(getattr(message, "invalid_tool_calls", None) or []):
+        if isinstance(call, Mapping):
+            call_id = call.get("id")
+            name = call.get("name")
+            args_raw = call.get("args")
+        else:
+            call_id = getattr(call, "id", None)
+            name = getattr(call, "name", None)
+            args_raw = getattr(call, "args", None)
+        name_text = str(name or "").strip()
+        if not name_text:
+            continue
+        parsed = parse_tool_call_args(args_raw)
+        if parsed is None:
+            continue
+        recovered.append(
+            {
+                "id": str(call_id or f"tool_call_{index}"),
+                "name": name_text,
+                "args": parsed,
+            }
+        )
+    return recovered
+
+
 def resolve_message_tool_calls(
     message: AIMessage, text: str
 ) -> tuple[list[dict[str, Any]], str]:
-    """Native tool_calls win; otherwise recover DSML markup from content."""
+    """Native tool_calls win; else recover invalid calls; else DSML markup."""
     calls = tool_calls_from_message(message)
     raw = text if text is not None else str(getattr(message, "content", "") or "")
     if calls:
         return calls, strip_markup_tool_calls(raw) if looks_like_tool_markup(
+            raw
+        ) else raw
+    recovered = recover_invalid_tool_calls(message)
+    if recovered:
+        return recovered, strip_markup_tool_calls(raw) if looks_like_tool_markup(
             raw
         ) else raw
     parsed = parse_markup_tool_calls(raw)
@@ -126,13 +189,99 @@ def attach_tool_calls(
         }
         for index, item in enumerate(calls)
     ]
+    extra = dict(getattr(message, "additional_kwargs", None) or {})
+    id_map = extra.get(_FUNCTION_CALL_IDS_KEY)
+    if isinstance(id_map, Mapping):
+        keep = {str(item["id"]) for item in payload}
+        trimmed = {
+            str(key): value for key, value in id_map.items() if str(key) in keep
+        }
+        if trimmed:
+            extra[_FUNCTION_CALL_IDS_KEY] = trimmed
+        else:
+            extra.pop(_FUNCTION_CALL_IDS_KEY, None)
     return AIMessage(
         content=content,
         tool_calls=payload,
+        invalid_tool_calls=[],
         id=getattr(message, "id", None),
-        additional_kwargs=dict(getattr(message, "additional_kwargs", None) or {}),
+        additional_kwargs=extra,
         response_metadata=dict(getattr(message, "response_metadata", None) or {}),
+        usage_metadata=getattr(message, "usage_metadata", None),
     )
+
+
+def sanitize_messages_for_model(
+    messages: Sequence[BaseMessage],
+) -> list[BaseMessage]:
+    """Drop orphan function-call state so Responses replay cannot 400.
+
+    LangChain encodes ``invalid_tool_calls`` as Responses ``function_call`` items
+    without a matching ``function_call_output``. History must only keep tool
+    calls that already have a ToolMessage answer in this message list.
+    """
+    answered: set[str] = set()
+    for message in messages:
+        if not isinstance(message, ToolMessage):
+            continue
+        call_id = str(getattr(message, "tool_call_id", "") or "").strip()
+        if call_id:
+            answered.add(call_id)
+
+    out: list[BaseMessage] = []
+    for message in messages:
+        if not isinstance(message, AIMessage):
+            out.append(message)
+            continue
+        kept_calls = [
+            call
+            for call in tool_calls_from_message(message)
+            if str(call.get("id") or "") in answered
+        ]
+        invalid = list(getattr(message, "invalid_tool_calls", None) or [])
+        extra = dict(getattr(message, "additional_kwargs", None) or {})
+        id_map = extra.get(_FUNCTION_CALL_IDS_KEY)
+        if isinstance(id_map, Mapping):
+            keep_ids = {str(call.get("id") or "") for call in kept_calls}
+            trimmed = {
+                str(key): value
+                for key, value in id_map.items()
+                if str(key) in keep_ids and str(key) in answered
+            }
+            if trimmed:
+                extra[_FUNCTION_CALL_IDS_KEY] = trimmed
+            else:
+                extra.pop(_FUNCTION_CALL_IDS_KEY, None)
+        native_calls = list(getattr(message, "tool_calls", None) or [])
+        if (
+            not invalid
+            and len(kept_calls) == len(native_calls)
+            and extra == dict(getattr(message, "additional_kwargs", None) or {})
+        ):
+            out.append(message)
+            continue
+        out.append(
+            AIMessage(
+                content=message.content,
+                tool_calls=[
+                    {
+                        "name": call["name"],
+                        "args": call["args"],
+                        "id": call["id"],
+                        "type": "tool_call",
+                    }
+                    for call in kept_calls
+                ],
+                invalid_tool_calls=[],
+                id=getattr(message, "id", None),
+                additional_kwargs=extra,
+                response_metadata=dict(
+                    getattr(message, "response_metadata", None) or {}
+                ),
+                usage_metadata=getattr(message, "usage_metadata", None),
+            )
+        )
+    return out
 
 
 class ToolResult(TypedDict):

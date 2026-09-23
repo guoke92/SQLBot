@@ -997,15 +997,26 @@ def attach_running_tool_span(
     return None
 
 
+def _clarification_interrupt_id(item: Mapping[str, Any]) -> str | None:
+    meta = item.get("meta") if isinstance(item.get("meta"), Mapping) else None
+    if not isinstance(meta, Mapping):
+        return None
+    value = meta.get("interrupt_id")
+    text = str(value or "").strip()
+    return text or None
+
+
 def attach_running_clarification_span(
     *,
     record_id: int | None,
+    interrupt_id: str,
     run_id: str | None = None,
     sink: StreamSink | None = None,
     attempt_index: int = 0,
 ) -> ProcessSpan | None:
-    """Reuse the open clarification span across interrupt → resume (one lifecycle)."""
-    if not record_id:
+    """Reuse the open span for this interrupt_id only (resume of the same pause)."""
+    target = str(interrupt_id or "").strip()
+    if not record_id or not target:
         return None
     with audit_session() as session:
         logs = list(
@@ -1026,14 +1037,127 @@ def attach_running_clarification_span(
             detail = dict(envelope.get("detail") or {})
             if detail.get("process_kind") != "clarification":
                 continue
+            meta = detail.get("meta") if isinstance(detail.get("meta"), Mapping) else {}
+            if str(meta.get("interrupt_id") or "").strip() != target:
+                continue
             return _process_span_from_log(
                 log, kind="clarification", sink=sink, attempt_index=attempt_index
             )
     return None
 
 
+def _close_foreign_clarification_spans(
+    *,
+    record_id: int,
+    keep_interrupt_id: str,
+    run_id: str | None = None,
+    sink: StreamSink | None = None,
+) -> None:
+    """Close open clarification spans that belong to other interrupts.
+
+    Multi-round clarify must not reuse a previous pause's open row; otherwise the
+    next card never gets its own process span / meta.
+    """
+    keep = str(keep_interrupt_id or "").strip()
+    with audit_session() as session:
+        logs = list(
+            session.exec(
+                select(ChatLog)
+                .where(
+                    ChatLog.pid == record_id,
+                    ChatLog.finish_time.is_(None),
+                    ChatLog.operate == OperationEnum.CLARIFY_INTENT,
+                )
+                .order_by(ChatLog.id.asc())
+            ).scalars()
+        )
+        stale_ids: list[int] = []
+        for log in logs:
+            if run_id and log.run_id and log.run_id != run_id:
+                continue
+            envelope = parse_audit_envelope(log.messages) or {}
+            detail = dict(envelope.get("detail") or {})
+            meta = detail.get("meta") if isinstance(detail.get("meta"), Mapping) else {}
+            current = str((meta or {}).get("interrupt_id") or "").strip()
+            if current == keep:
+                continue
+            stale_ids.append(int(log.id))
+    for log_id in stale_ids:
+        span = attach_process_span(log_id, sink=sink)
+        if span is None:
+            continue
+        span.close(
+            status="completed",
+            summary_key="chat.summary.clarification_confirmed",
+        )
+
+
+def ensure_clarification_span(
+    *,
+    record_id: int | None,
+    run_id: str | None,
+    interrupt_id: str,
+    version: int,
+    clarification_card: Mapping[str, Any] | None,
+    sink: StreamSink | None = None,
+    attempt_index: int = 0,
+    ai_modal_id: int | None = None,
+    ai_modal_name: str | None = None,
+) -> ProcessSpan | None:
+    """One interrupt_id ↔ one clarification process span for the whole pause.
+
+    Opens a new span for a new interrupt; resumes attach the same row. Foreign
+    open rows from earlier rounds are closed first so they cannot leak.
+    """
+    if not record_id:
+        return None
+    target = str(interrupt_id or "").strip()
+    if not target:
+        return None
+    meta = {
+        "interrupt_id": target,
+        "version": int(version),
+        "clarification_card": dict(clarification_card or {}),
+    }
+    _close_foreign_clarification_spans(
+        record_id=int(record_id),
+        keep_interrupt_id=target,
+        run_id=run_id,
+        sink=sink,
+    )
+    span = attach_running_clarification_span(
+        record_id=int(record_id),
+        interrupt_id=target,
+        run_id=run_id,
+        sink=sink,
+        attempt_index=attempt_index,
+    )
+    if span is None:
+        return open_process_span(
+            kind="clarification",
+            record_id=record_id,
+            sink=sink,
+            run_id=run_id,
+            graph_node="await_clarification",
+            title_key="chat.timeline.clarification",
+            summary_key="chat.summary.clarification_waiting",
+            meta=meta,
+            local_operation=True,
+            ai_modal_id=ai_modal_id,
+            ai_modal_name=ai_modal_name,
+            attempt_index=attempt_index,
+        )
+    span.set_meta(meta)
+    span.delta(summary_key="chat.summary.clarification_waiting", flush=True)
+    return span
+
+
 def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse request_clarification tool + wait/confirm spans into one card."""
+    """Collapse tool + wait/confirm for the *same* interrupt_id into one card.
+
+    Different interrupt rounds stay separate. A lone ``request_clarification``
+    tool is left as a tool — never promoted to a fake "口径已确认" card.
+    """
 
     def _is_clarify_tool(item: Mapping[str, Any]) -> bool:
         tool = item.get("tool") if isinstance(item.get("tool"), Mapping) else {}
@@ -1111,31 +1235,72 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
         }:
             preferred["summary_key"] = "chat.summary.clarification_confirmed"
         preferred.pop("tool", None)
-        # Prefer interrupt linkage / card payload from any clarification row.
+        # Prefer the richest meta for this interrupt (card + interrupt_id).
+        best_meta: Mapping[str, Any] | None = None
         for item in reversed(group):
             meta = item.get("meta")
-            if isinstance(meta, Mapping) and meta.get("interrupt_id"):
-                preferred["meta"] = dict(meta)
-                break
+            if not isinstance(meta, Mapping) or not meta.get("interrupt_id"):
+                continue
+            if best_meta is None or meta.get("clarification_card"):
+                best_meta = meta
+                if meta.get("clarification_card"):
+                    break
+        if best_meta is not None:
+            preferred["meta"] = dict(best_meta)
         return preferred
 
     out: list[dict[str, Any]] = []
-    group: list[dict[str, Any]] = []
+    pending_tools: list[dict[str, Any]] = []
+    seq = [dict(raw) for raw in items]
+    index = 0
 
-    def _flush() -> None:
-        nonlocal group
-        if group:
-            out.append(_merge_group(group))
-            group = []
+    def _flush_tools() -> None:
+        nonlocal pending_tools
+        out.extend(pending_tools)
+        pending_tools = []
 
-    for raw in items:
-        item = dict(raw)
-        if _is_clarify_tool(item) or item.get("kind") == "clarification":
-            group.append(item)
+    while index < len(seq):
+        item = seq[index]
+        if _is_clarify_tool(item):
+            pending_tools.append(item)
+            index += 1
             continue
-        _flush()
+        if item.get("kind") == "clarification":
+            group_key = _clarification_interrupt_id(item)
+            group = [*pending_tools, item]
+            pending_tools = []
+            index += 1
+            while index < len(seq):
+                nxt = seq[index]
+                if _is_clarify_tool(nxt):
+                    look = index + 1
+                    while look < len(seq) and _is_clarify_tool(seq[look]):
+                        look += 1
+                    if look < len(seq) and seq[look].get("kind") == "clarification":
+                        nxt_key = _clarification_interrupt_id(seq[look])
+                        if group_key and nxt_key and nxt_key != group_key:
+                            break
+                        while index < look:
+                            group.append(seq[index])
+                            index += 1
+                        continue
+                    break
+                if nxt.get("kind") == "clarification":
+                    nxt_key = _clarification_interrupt_id(nxt)
+                    if group_key and nxt_key and nxt_key != group_key:
+                        break
+                    if nxt_key and not group_key:
+                        group_key = nxt_key
+                    group.append(nxt)
+                    index += 1
+                    continue
+                break
+            out.append(_merge_group(group))
+            continue
+        _flush_tools()
         out.append(item)
-    _flush()
+        index += 1
+    _flush_tools()
     return out
 
 

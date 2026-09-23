@@ -4,19 +4,28 @@ title: 租户项目审批流程节点表
 page_key: tenant_project_approval_flow_node
 belong: tables
 status: draft
-anchors: [tenant_project_approval_flow_node]
-sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow_node', 'code_path:ProjectApprovalApplication.java:824']
+anchors:
+- tenant_project_approval_flow_node
+sources:
+- database_schema:lowcode_pplatform.tenant_project_approval_flow_node
+- code_path:ProjectApprovalApplication.java:824
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [tenant_project_approval_flow, tenant_project_approval_flow_config, tenant_project_approval_flow_credit,
-  tenant_project_approval_flow_file, tenant_project_approval, tenant_project_approval_flow_node__node_code,
-  tenant_project_approval_flow_node__node_order, tenant_project_approval_flow_node__operate_type,
-  tenant_project_approval_flow_node__approval_type, tenant_project_approval_flow_node__is_low_risk,
-  tenant_project_approval_flow_node__enable, tenant_project_approval_flow_node__is_back_agreement]
+databases:
+- lowcode_pplatform
+related:
+- tenant_project_approval
+- tenant_project_approval_flow
+- tenant_project_approval_flow_credit
+- tenant_project_approval_flow_file
+- tenant_project_approval_flow_node__operate_type
+- tenant_project_approval_flow_node__approval_type
+- tenant_project_approval_flow_node__is_low_risk
+- tenant_project_approval_flow_node__enable
+- tenant_project_approval_flow_node__is_back_agreement
+- tenant_project_approval_flow_node__node_code
 ---
-
 # 租户项目审批流程节点表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -28,9 +37,15 @@ table: tenant_project_approval_flow_node
 database: lowcode_pplatform
 desc: 租户项目审批流程节点表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 节点操作留痕
-name_anchors: [node_code, operator_user_name, transfer_to_user_name, code, name]
+name_anchors:
+- node_code
+- operator_user_name
+- transfer_to_user_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -40,27 +55,44 @@ fields:
   type: string
   desc: 节点编码
   dict: [PROJECT_MANAGER, PROJECT_CONFIG, BUSINESS_MANAGER, OPERATION, LEGAL_PROCESS,
-    LEGAL_REVIEW]
-  label: [方案经理, 方案配置, 业务经理审批, 运营审批, 法务经办, 法务复核]
+    LEGAL_REVIEW, OTHER, SUPPLEMENT_AGREEMENT]
+  label: [方案经理, 方案配置, 业务经理审批, 运营审批, 法务经办, 法务复核, 其他, 补充协议]
 - name: node_order
   type: number
   desc: 审批顺序，从1开始
-  dict: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14',
-    '15', '16']
 - name: operate_type
   type: string
   desc: 操作类型
-  dict: [pass, back, reject, delegate, revoke]
-  label: [同意, 退回, 驳回, 转审, 撤销]
+  dict:
+  - pass
+  - back
+  - reject
+  - delegate
+  - revoke
+  label:
+  - 同意
+  - 退回
+  - 驳回
+  - 转审
+  - 撤销
 - name: approval_type
   type: string
   desc: 审批类型
-  dict: [ONLINE_APPROVAL, BACK_AGREEMENT]
-  label: [项目上线审批, 后补合作协议]
+  dict:
+  - ONLINE_APPROVAL
+  - BACK_AGREEMENT
+  label:
+  - 项目上线审批
+  - 后补合作协议
 - name: is_low_risk
   type: string
   desc: 是否低风险项目
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 - name: approve_comment
   type: string
   desc: 审批意见
@@ -97,7 +129,12 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label:
+  - 启用
+  - 停用
 - name: remark
   type: string
   desc: remark
@@ -145,7 +182,12 @@ fields:
 - name: is_back_agreement
   type: string
   desc: 是否后补合作协议
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label:
+  - 是
+  - 否
 default_filter:
   predicate: tenant_project_approval_flow_node.enable = 'Y'
   trust: confirmed
@@ -208,20 +250,74 @@ overlap:
 authenticity_note: 操作留痕按流程节点实例 code。
 ```
 
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project_approval_flow_node.code
+right: tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:ProjectApprovalDeskApplication.java:634
+source: l1_code
+join_role: business_code
+priority: primary
+name_evidence:
+  match: none
+  stem: ref_tenant_project_approval_flow_credit_project_approval_node
+  comment: 关联项目审批流程节点
+overlap:
+  probed: true
+  ratio: 1.0
+  sample_size: 154
+  miss: 0
+  deepened: false
+  query_ok: true
+  authenticity: likely
+authenticity_note: 额度节点 ref 存 node.getCode()。
+```
+
+```ground:relation
+type: EQUI_JOIN
+left: tenant_project_approval_flow_node.code
+right: tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval_flow_node
+cardinality: one_to_many
+trust: confirmed
+authenticity: likely
+evidence: code_path:ProjectApprovalDeskApplication.java:966
+source: l1_code
+join_role: business_code
+priority: primary
+name_evidence:
+  match: none
+  stem: ref_tenant_project_approval_flow_file_project_approval_flow_node
+  comment: 关联项目流程节点
+overlap:
+  probed: true
+  ratio: 1.0
+  sample_size: 139
+  miss: 0
+  deepened: false
+  query_ok: true
+  authenticity: likely
+authenticity_note: 文件按 flow_node.code 关联。
+```
+
 ## 页面链接
 
 ### 关联表
 
+- [[tables/tenant_project_approval]]
 - [[tables/tenant_project_approval_flow]]
-- [[tables/tenant_project_approval_flow_config]]
 - [[tables/tenant_project_approval_flow_credit]]
 - [[tables/tenant_project_approval_flow_file]]
-- [[tables/tenant_project_approval]]
+
+### 概念
+
+- [[concepts/online_approval_wf]]
 
 ### 字典
 
 - [[dicts/tenant_project_approval_flow_node__node_code]]（`tenant_project_approval_flow_node.node_code`）
-- [[dicts/tenant_project_approval_flow_node__node_order]]（`tenant_project_approval_flow_node.node_order`）
 - [[dicts/tenant_project_approval_flow_node__operate_type]]（`tenant_project_approval_flow_node.operate_type`）
 - [[dicts/tenant_project_approval_flow_node__approval_type]]（`tenant_project_approval_flow_node.approval_type`）
 - [[dicts/tenant_project_approval_flow_node__is_low_risk]]（`tenant_project_approval_flow_node.is_low_risk`）

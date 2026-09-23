@@ -4,16 +4,22 @@ title: 租户项目审批流程授信表
 page_key: tenant_project_approval_flow_credit
 belong: tables
 status: draft
-anchors: [tenant_project_approval_flow_credit]
-sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow_credit']
+anchors:
+- tenant_project_approval_flow_credit
+sources:
+- database_schema:lowcode_pplatform.tenant_project_approval_flow_credit
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [tenant_project_approval, tenant_project_approval_flow_node, tenant_project_approval_flow_credit__is_group_limit,
-  tenant_project_approval_flow_credit__is_recyclable, tenant_project_approval_flow_credit__enable]
+databases:
+- lowcode_pplatform
+related:
+- tenant_project_approval
+- tenant_project_approval_flow_node
+- tenant_project_approval_flow_credit__is_group_limit
+- tenant_project_approval_flow_credit__is_recyclable
+- tenant_project_approval_flow_credit__enable
 ---
-
 # 租户项目审批流程授信表
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -25,9 +31,14 @@ table: tenant_project_approval_flow_credit
 database: lowcode_pplatform
 desc: 租户项目审批流程授信表
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 审批单授信行
-name_anchors: [credited_cust_name, crediting_cust_name, code, name]
+name_anchors:
+- credited_cust_name
+- crediting_cust_name
+- code
+- name
 fields:
 - name: id
   type: number
@@ -48,7 +59,10 @@ fields:
 - name: is_group_limit
   type: string
   desc: 是否为集团额度：Y/N
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [是, 否]
 - name: limit_begin_date
   type: temporal
   desc: 额度有效期开始
@@ -61,7 +75,10 @@ fields:
 - name: is_recyclable
   type: string
   desc: 额度是否可循环：Y/N
-  dict: [Y, N]
+  dict:
+  - Y
+  - N
+  label: [是, 否]
 - name: finance_email
   type: string
   desc: 资金方邮箱（需格式校验）
@@ -80,7 +97,10 @@ fields:
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark
@@ -162,10 +182,10 @@ type: EQUI_JOIN
 left: tenant_project_approval_flow_node.code
 right: tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node
 cardinality: one_to_many
-trust: proposed
+trust: confirmed
 authenticity: likely
-evidence: database_profile:lowcode_pplatform.tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node
-source: overlap
+evidence: code_path:ProjectApprovalDeskApplication.java:634
+source: l1_code
 join_role: business_code
 priority: primary
 name_evidence:
@@ -180,14 +200,18 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
+authenticity_note: 额度节点 ref 存 node.getCode()。
 ```
-
 ## 页面链接
 
 ### 关联表
 
 - [[tables/tenant_project_approval]]
 - [[tables/tenant_project_approval_flow_node]]
+
+### 概念
+
+- [[concepts/approval_credit_not_quota]]
 
 ### 字典
 

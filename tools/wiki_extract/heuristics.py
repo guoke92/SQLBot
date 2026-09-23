@@ -42,6 +42,26 @@ _PAIR_DIGIT = re.compile(
     r"(?P<code>\d{1,4})\s*[,，:：]\s*(?P<label>[\u4e00-\u9fff]{1,24})"
 )
 _BARE_YN = re.compile(r"(?<![A-Za-z0-9_])Y\s*[/|、,，]\s*N(?![A-Za-z0-9_])", re.I)
+# Column comments like「…（tenant_project_approval_flow_config#flow_code）」
+_COMMENT_FK = re.compile(
+    r"(?P<table>[A-Za-z_][A-Za-z0-9_]*)\s*#\s*(?P<column>[A-Za-z_][A-Za-z0-9_]*)"
+)
+
+
+def parse_comment_fk(comment: str) -> list[tuple[str, str]]:
+    """Extract explicit ``table#column`` FK hints from a column comment."""
+    text = str(comment or "")
+    if "#" not in text:
+        return []
+    out: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for match in _COMMENT_FK.finditer(text):
+        pair = (match.group("table"), match.group("column"))
+        if pair in seen:
+            continue
+        seen.add(pair)
+        out.append(pair)
+    return out
 
 
 def dict_page_key(table: str, column: str) -> str:
@@ -87,7 +107,11 @@ def compile_model(
             )
 
     for tname, compiled in tables.items():
-        compiled["relations"] = _identity_relations(tname, compiled, tables)
+        # comment_fk first so explicit table#column wins over name heuristics.
+        compiled["relations"] = _merge_relations(
+            _comment_fk_relations(tname, compiled, tables),
+            _identity_relations(tname, compiled, tables),
+        )
         stamp_join_meta(compiled)
         _exclude_join_rights_from_anchors(compiled)
 
@@ -329,6 +353,72 @@ def _compile_table(
     }
 
 
+def _merge_relations(
+    *batches: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Dedupe by (left, right); earlier batches win (comment_fk before name)."""
+    seen: set[tuple[str, str]] = set()
+    out: list[dict[str, Any]] = []
+    for batch in batches:
+        for rel in batch:
+            pair = (str(rel.get("left") or ""), str(rel.get("right") or ""))
+            if not pair[0] or not pair[1] or pair in seen:
+                continue
+            seen.add(pair)
+            out.append(rel)
+    return out
+
+
+def _comment_fk_relations(
+    tname: str,
+    compiled: dict[str, Any],
+    tables: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Nominate EQUI_JOIN from explicit ``table#column`` in column comments."""
+    relations: list[dict[str, Any]] = []
+    pk_here = set(compiled.get("primary_key") or [])
+    for field in compiled.get("fields") or []:
+        col = str(field.get("name") or "")
+        if not col or col in pk_here or col in TENANT_FIELDS:
+            continue
+        comment = str(field.get("description") or "")
+        for target, target_col in parse_comment_fk(comment):
+            if target not in tables or target == tname:
+                continue
+            peer = tables[target]
+            peer_cols = set(peer.get("column_names") or [])
+            if target_col not in peer_cols or target_col in TENANT_FIELDS:
+                continue
+            if child_endpoint_reason(col, mysql_type_of(compiled, col)):
+                continue
+            left = f"{target}.{target_col}"
+            right = f"{tname}.{col}"
+            if may_nominate_join({"tables": tables}, left, right):
+                continue
+            relations.append(
+                {
+                    "type": "EQUI_JOIN",
+                    "left": left,
+                    "right": right,
+                    "cardinality": "one_to_many",
+                    "trust": "proposed",
+                    "authenticity": "unknown",
+                    "source": "comment_fk",
+                    "name_evidence": {
+                        "match": "comment_fk",
+                        "stem": target,
+                        "comment": comment[:80],
+                    },
+                    "overlap": {"probed": False},
+                    "evidence": (
+                        f"database_schema:{compiled.get('database')}.{tname}.{col}"
+                        f"#comment_fk:{target}#{target_col}"
+                    ),
+                }
+            )
+    return relations
+
+
 def _identity_relations(
     tname: str,
     compiled: dict[str, Any],
@@ -337,8 +427,15 @@ def _identity_relations(
     relations: list[dict[str, Any]] = []
     pk_here = set(compiled.get("primary_key") or [])
     seen: set[tuple[str, str]] = set()
+    comment_owned = {
+        str(field.get("name") or "")
+        for field in compiled.get("fields") or []
+        if parse_comment_fk(str(field.get("description") or ""))
+    }
     for col in compiled.get("column_names") or []:
         if col in pk_here or col in TENANT_FIELDS:
+            continue
+        if col in comment_owned:
             continue
         if not is_fk_like(col):
             continue
@@ -545,12 +642,18 @@ def _indexed_columns(tmeta: dict[str, Any]) -> list[str]:
 
 
 def _target_key(target: dict[str, Any], local_col: str) -> str | None:
-    """Map B.xxx_id → A.id (or single PK); B.xxx_code → A.code. Never cross-wire."""
+    """Map B.xxx_id → A.id; B.xxx_code → A.xxx_code when present, else A.code.
+
+    Prefer same-name business code columns (``flow_code``→``flow_code``) over
+    blindly wiring every ``*_code`` onto peer ``code`` (UUID/row key).
+    """
     names = set(target.get("column_names") or [])
     pk = list(target.get("primary_key") or [])
     match = _FK_ID.match(local_col)
     kind = match.group(2).lower() if match else ""
     if kind == "code":
+        if local_col in names:
+            return local_col
         return "code" if "code" in names else None
     if "id" in names:
         return "id"

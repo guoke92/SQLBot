@@ -281,11 +281,7 @@ def test_clarify_resume_resets_tool_rounds_and_refreshes_system(monkeypatch) -> 
         lambda *_a, **_k: pending,
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.attach_running_clarification_span",
-        lambda **_k: dummy_span,
-    )
-    monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.open_process_span",
+        "apps.chat.graphs.nodes.agent_clarify.ensure_clarification_span",
         lambda **_k: dummy_span,
     )
     monkeypatch.setattr(
@@ -385,6 +381,39 @@ def test_agent_has_sql_result_ignores_probes() -> None:
     assert _agent_has_sql_result(required, []) is True
 
 
+def test_agent_has_sql_result_ignores_prior_turn_transcript() -> None:
+    """Continue turns preload prior execute_sql ToolMessages; they must not count."""
+    prior = ToolMessage(
+        content="Query executed successfully",
+        name="execute_sql_sandbox",
+        tool_call_id="prior-1",
+        artifact={
+            "ok": True,
+            "data": {"sql": "SELECT 1 AS prior", "required": True, "row_count": 1},
+        },
+    )
+    human = HumanMessage(content="哪些企业运营人员为空")
+    state = {"turn_message_start": 1, "tool_steps": []}
+    assert _agent_has_sql_result(state, [prior, human]) is False
+
+    current = ToolMessage(
+        content="Query executed successfully",
+        name="execute_sql_sandbox",
+        tool_call_id="cur-1",
+        artifact={
+            "ok": True,
+            "data": {"sql": "SELECT 2 AS cur", "required": True, "row_count": 1},
+        },
+    )
+    assert (
+        _agent_has_sql_result(
+            state,
+            [prior, human, AIMessage(content="", tool_calls=[]), current],
+        )
+        is True
+    )
+
+
 def test_self_budgeted_tool_calls_do_not_advance_execution_rounds() -> None:
     """Categorical budgets: clarification and search_wiki have their own limits,
     so a round made only of them must not consume the execution round budget."""
@@ -462,22 +491,22 @@ def test_wiki_page_key_overwrite_does_not_append() -> None:
     assert "第二版口径" not in rendered
 
 
-def test_execute_sql_blocked_when_session_schema_missing() -> None:
-    run_id = "schema-missing"
+def test_execute_sql_does_not_gate_on_schema_ready() -> None:
+    """Once SQL is generated, plane.schema_ready must not block execution."""
+    run_id = "schema-ready-not-gate"
     attach_runtime(run_id, knowledge_plane=AgentKnowledgePlane().to_dump())
     llm = SimpleNamespace()
     try:
         with worker_scope(run_id, "tok"):
-            blocked = execute_sql_sandbox(
+            result = execute_sql_sandbox(
                 llm, "SELECT * FROM cust_company_info LIMIT 1"
             )
     finally:
         detach_runtime(run_id)
-    assert blocked["ok"] is False
-    assert blocked["failure"]["retryable"] is False
-    assert "schema" in (blocked.get("error") or "").lower() or "Wiki" in (
-        blocked.get("error") or ""
-    )
+    assert result["ok"] is False
+    err = result.get("error") or ""
+    assert "Wiki did not provide" not in err
+    assert "Datasource or protocol" in err
 
 
 def test_probe_sql_limit_soft_warns_instead_of_blocking() -> None:

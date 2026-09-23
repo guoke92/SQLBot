@@ -4,13 +4,18 @@ title: 短链接
 page_key: short_link
 belong: tables
 status: draft
-anchors: [short_link]
-sources: ['database_schema:lowcode_pplatform.short_link']
+anchors:
+- short_link
+sources:
+- database_schema:lowcode_pplatform.short_link
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [short_link__type, short_link__is_forever, short_link__enable]
+databases:
+- lowcode_pplatform
+related:
+- short_link__is_forever
+- short_link__enable
 ---
 
 # 短链接
@@ -24,9 +29,12 @@ table: short_link
 database: lowcode_pplatform
 desc: 短链接
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 短链
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -50,15 +58,23 @@ fields:
 - name: type
   type: string
   desc: 类型
-  dict: [NORMAL, FILE]
+  dict:
+  - NORMAL
+  - FILE
 - name: is_forever
   type: string
   desc: 到期类型
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [是, 否]
 - name: enable
   type: string
   desc: enable
-  dict: [Y]
+  dict:
+  - Y
+  - N
+  label: [启用, 停用]
 - name: remark
   type: string
   desc: remark

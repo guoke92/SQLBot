@@ -36,7 +36,13 @@ _current_tool_call_id: ContextVar[str | None] = ContextVar(
 
 
 @contextmanager
-def worker_scope(run_id: str, token: str) -> Iterator[None]:
+def worker_scope(
+    run_id: str,
+    token: str,
+    *,
+    chat_id: int | None = None,
+    chat_record_id: int | None = None,
+) -> Iterator[None]:
     """Bind one claimed worker to this execution context.
 
     The token is intentionally context-local rather than stored in the shared
@@ -44,10 +50,13 @@ def worker_scope(run_id: str, token: str) -> Iterator[None]:
     old thread is still unwinding; context-local fencing prevents that stale
     thread from borrowing the new owner's token.
     """
+    from apps.ai_model.call_log import llm_call_log_scope
+
     run_handle = _worker_run_id.set(run_id)
     token_handle = _worker_token.set(token)
     try:
-        yield
+        with llm_call_log_scope(chat_id=chat_id, chat_record_id=chat_record_id):
+            yield
     finally:
         _worker_token.reset(token_handle)
         _worker_run_id.reset(run_handle)
@@ -145,7 +154,17 @@ def _hydrate_chat(run: ConversationRun) -> dict[str, Any]:
             chat_id=record.chat_id,
             question=record.question or "",
         )
-        service = run_coro_sync(LLMService.create(session, user, question, assistant))
+        snap = run.route_snapshot if isinstance(run.route_snapshot, dict) else {}
+        reasoning_effort = snap.get("reasoning_effort")
+        service = run_coro_sync(
+            LLMService.create(
+                session,
+                user,
+                question,
+                assistant,
+                reasoning_effort=reasoning_effort,
+            )
+        )
         service.set_record(ChatRecord(**record.model_dump()))
         values: dict[str, Any] = {"llm_service": service}
         if run.graph_key == "chat":

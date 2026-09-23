@@ -1,0 +1,93 @@
+generated_at: '2026-09-23T06:49:31.242814+00:00'
+written:
+- left: cust_auth_application.code
+  right: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
+  trust: proposed
+  wrote: true
+  host: cust_auth_application_config
+- left: cust_company_info.id
+  right: cust_auth_application_config.cust_id
+  trust: proposed
+  wrote: true
+  host: cust_auth_application_config
+- left: cust_company_info.code
+  right: cust_company_lifecycle_info.ref_cust_company_info
+  trust: proposed
+  wrote: true
+  host: cust_company_lifecycle_info
+- left: tenant_project_approval.code
+  right: tenant_project_approval.ref_tenant_project_approval_tenant_project_approval
+  trust: confirmed
+  wrote: true
+  host: tenant_project_approval
+- left: tenant_project.id
+  right: project_file_info.project_id
+  trust: confirmed
+  wrote: true
+  host: project_file_info
+- left: platform_product.product_code
+  right: platform_product_cust_role.product_code
+  trust: confirmed
+  wrote: true
+  host: platform_product_cust_role
+- left: tenant_product.platform_product_code
+  right: platform_product_cust_role.product_code
+  trust: confirmed
+  wrote: true
+  host: platform_product_cust_role
+- left: tenant_project.id
+  right: ca_fee_special_config.project_id
+  trust: confirmed
+  wrote: true
+  host: ca_fee_special_config
+- left: ca_fee_order.project_id
+  right: ca_fee_special_config.project_id
+  trust: confirmed
+  wrote: true
+  host: ca_fee_special_config
+- left: ca_fee_company.certification_no
+  right: ca_fee_special_config.certification_no
+  trust: confirmed
+  wrote: true
+  host: ca_fee_special_config
+- left: cust_company_info.certification_no
+  right: ca_fee_special_config.certification_no
+  trust: confirmed
+  wrote: true
+  host: ca_fee_special_config
+- left: wec_project_operation_rel.wec_project_id
+  right: wec_project_cust_operation_rel.project_id
+  trust: confirmed
+  wrote: true
+  host: wec_project_cust_operation_rel
+stats:
+  tables: 78
+  connected: 64
+  orphans: 14
+  edges: 131
+  by_trust:
+    confirmed: 122
+    proposed: 9
+  ref_total: 39
+  ref_linked: 39
+  ref_unlinked: 0
+orphan_tables: &id001
+- async_io_task
+- client_api_sync_error
+- cust_access_secret
+- cust_config_mapping
+- cust_message_send_policy
+- cust_setting_config
+- cust_sftp
+- gpt_learn_poster_log
+- lc_sql_init_log
+- operation_user
+- org_manage
+- short_link
+- tenant_migarory_log
+- tenant_migarory_log_bak
+unlinked_ref_fields: []
+notes:
+  wec_peer: wec_* 与 tenant_project/cust_project_rel 对等但不跨域 JOIN
+  cust_setting_config: payment 配额配置灌入，非 EQUI_JOIN
+  true_orphans_left: *id001

@@ -147,3 +147,39 @@ concepts:
       建档初始化：按企业 db_tenant_code 幂等写 cust_app_channel_config；app_id 来自 open_sso_channel.app_id（UUID）。
       app_tenant_code 写入 channel_code（如 longteng），不要当成租户 db_tenant_code。
     evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:53
+
+  - concept_key: platform_product_code_term
+    title: 平台产品业务码
+    aliases: [platform_product_code, 产品业务码]
+    maps_to: platform_product.product_code
+    field_targets:
+      - platform_product.product_code
+      - tenant_product.platform_product_code
+      - tenant_project.platform_product_code
+      - authorization_agreement.platform_product_code
+      - cust_auth_application.platform_product_code
+      - tenant_interworking_product.platform_product_code
+      - tenant_interworking_project.platform_product_code
+      - cust_interworking_product.platform_product_code
+      - argeement_migratory_record.platform_product_code
+      - tenant_migarory_log.platform_product_code
+      - tenant_migarory_log_bak.platform_product_code
+    also_confused_with: [platform_product_master, product_cate_term, funding_product_code_term, tenant_menu_product_code_term]
+    adjudication: boundary
+    explanation: |
+      多表同一业务字段（产品业务码）。≠ platform_product.code(UUID)。
+      JOIN：重合高可连（含 B↔C）；低则只留术语。详见 field_semantics.yaml。
+    evidence: field_semantics:platform_product_code_biz
+
+  - concept_key: channel_code_homonym_bundle
+    title: 同名异义字段对照
+    aliases: [同名异义, channel_code 消歧]
+    maps_to: ""
+    field_targets: []
+    also_confused_with: [channel_code_term, open_sso_channel_term, channel_archive_longteng]
+    adjudication: boundary
+    explanation: |
+      channel_code / code / sp_no / product_code 同名异义索引。跨义禁止 EQUI_JOIN。
+      权威：docs/wiki/v3/_raw/l1_intermediate/docs/field_semantics.yaml
+    evidence: field_semantics:homonyms
+

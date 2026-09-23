@@ -4,14 +4,16 @@ title: 客户消息发送策略
 page_key: cust_message_send_policy
 belong: tables
 status: draft
-anchors: [cust_message_send_policy]
-sources: ['database_schema:lowcode_pplatform.cust_message_send_policy']
+anchors:
+- cust_message_send_policy
+sources:
+- database_schema:lowcode_pplatform.cust_message_send_policy
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
+databases:
+- lowcode_pplatform
 ---
-
 # 客户消息发送策略
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -23,9 +25,12 @@ table: cust_message_send_policy
 database: lowcode_pplatform
 desc: 客户消息发送策略
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 客户消息发送策略（现网 0 行；pplatform-web 无 @TableName / 业务引用）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -96,5 +101,3 @@ fields:
 ```
 
 ## 页面链接
-
-- [[concepts/catalog_summary]]

@@ -1,0 +1,1247 @@
+generated_at: '2026-09-22T10:13:30.809097+00:00'
+source: tools.wiki_extract.refine_collide
+stats:
+  raw_priority: 3632
+  nominated: 97
+  to_validate: 96
+  accepted: 40
+  review: 55
+  rejected: 2
+  written: 40
+candidates:
+- left: tenant_project.channel_code
+  right: cust_project_code_record.channel_code
+  signal: same_name
+  hit_count: 98
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0273, right->left=0.75, join_hits=98)
+  note: same-name `channel_code`
+- left: tenant_project.channel_code
+  right: cust_project_rel.channel_code
+  signal: same_name
+  hit_count: 54
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0151, right->left=0.898, join_hits=54)
+  note: same-name `channel_code`
+- left: cust_company_info.id
+  right: gpt_learn_poster_log.company_id
+  signal: hub_id
+  hit_count: 42
+  how: sql_right_in_left
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: 'pattern: company_id → cust_company_info.id'
+- left: ca_fee_special_config.certification_no
+  right: cust_company_info.certification_no
+  signal: same_name
+  hit_count: 24
+  how: sql_left_in_right
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.7273, right->left=0.0003, join_hits=40)
+  note: same-name `certification_no`
+- left: ca_cfca_upgrade_report.certification_no
+  right: cust_company_info.certification_no
+  signal: same_name
+  hit_count: 20
+  how: sql_left_in_right
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.9859, right->left=0.0004, join_hits=419)
+  note: same-name `certification_no`
+- left: tenant_interworking_product.id
+  right: cust_interworking_product.product_id
+  signal: hub_id
+  hit_count: 19
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: 'pattern: product_id → tenant_interworking_product.id'
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_apply.sp_no
+  signal: same_name
+  hit_count: 18
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.4051, join_hits=510)
+  note: same-name `sp_no`
+- left: cust_project_code_record.channel_code
+  right: cust_project_rel.channel_code
+  signal: same_name
+  hit_count: 16
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.4914, right->left=0.898, join_hits=171)
+  note: same-name `channel_code`
+- left: ca_cfca_upgrade_report.certification_no
+  right: ca_fee_company.certification_no
+  signal: same_name
+  hit_count: 14
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.6118, right->left=0.0134, join_hits=260)
+  note: same-name `certification_no`
+- left: ca_fee_order.certification_no
+  right: ca_fee_special_config.certification_no
+  signal: same_name
+  hit_count: 14
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0298, right->left=0.4909, join_hits=47)
+  note: same-name `certification_no`
+- left: cust_invite_info.channel_code
+  right: tenant_project.channel_code
+  signal: same_name
+  hit_count: 13
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.4519, right->left=0.0036, join_hits=47)
+  note: same-name `channel_code`
+- left: tenant_project.id
+  right: project_file_info.project_id
+  signal: hub_id
+  hit_count: 12
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0033, right->left=0.7719, join_hits=12)
+  note: 'pattern: project_id → tenant_project.id'
+- left: tenant_project.id
+  right: wec_project_operation_rel.wec_project_id
+  signal: fk_to_id
+  hit_count: 11
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0031, right->left=0.0255, join_hits=11)
+  note: wec_project_id → tenant_project.id
+- left: cust_invite_info.channel_code
+  right: cust_project_code_record.channel_code
+  signal: same_name
+  hit_count: 6
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.4327, right->left=0.2126, join_hits=45)
+  note: same-name `channel_code`
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 6
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9987); consistent with
+    FK / identity reference'
+  note: same-name `platform_product_code`
+- left: tenant_project_approval_flow_config.node_code
+  right: tenant_project_approval_flow_node.node_code
+  signal: same_name
+  hit_count: 6
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `node_code`
+- left: authorization_agreement.platform_product_code
+  right: cust_auth_application.platform_product_code
+  signal: same_name
+  hit_count: 5
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9968); consistent with
+    FK / identity reference'
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_product.platform_product_code
+  signal: same_name
+  hit_count: 5
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9681); consistent with
+    FK / identity reference'
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: tenant_product.platform_product_code
+  signal: same_name
+  hit_count: 5
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `platform_product_code`
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  signal: same_name
+  hit_count: 5
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `platform_product_code`
+- left: cust_invite_info.channel_code
+  right: cust_project_rel.channel_code
+  signal: same_name
+  hit_count: 5
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.3942, right->left=0.5153, join_hits=41)
+  note: same-name `channel_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_project.platform_product_code
+  signal: same_name
+  hit_count: 4
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.995); consistent with
+    FK / identity reference'
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: tenant_project.platform_product_code
+  signal: same_name
+  hit_count: 4
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `platform_product_code`
+- left: tenant_product.id
+  right: cust_project_rel.product_id
+  signal: hub_id
+  hit_count: 4
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=0.9941); consistent with
+    FK / identity reference'
+  note: 'pattern: product_id → tenant_product.id'
+- left: authorization_agreement.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1942, right->left=0.8006, join_hits=6094)
+  note: same-name `platform_product_code`
+- left: ca_fee_order.certification_no
+  right: cust_company_info.certification_no
+  signal: same_name
+  hit_count: 3
+  how: bag_in_distinct_left
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.0123, join_hits=1575)
+  note: same-name `certification_no`
+- left: cust_auth_application.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9968, right->left=0.9158); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9825, right->left=0.7999); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: cust_company_info.id
+  right: authorization_agreement.original_cust_id
+  signal: fk_to_id
+  hit_count: 3
+  how: sql_left_in_right
+  status: rejected
+  verdict: ''
+  detail: 'shared-endpoint: `cust_company_info.id` already has confirmed join into
+    `authorization_agreement`'
+  note: original_cust_id → cust_company_info.id
+- left: platform_product.product_code
+  right: tenant_project_approval_business_info.product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu.product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: platform_product_cust_role.product_code
+  right: tenant_project_approval_business_info.product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: tenant_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9681, right->left=0.9158); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 3
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.8403, right->left=0.7999); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.976, right->left=0.8006); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1942, right->left=0.9147, join_hits=6094)
+  note: same-name `platform_product_code`
+- left: ca_cfca_upgrade_report.certification_no
+  right: ca_fee_order.certification_no
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.6118, right->left=0.0152, join_hits=260)
+  note: same-name `certification_no`
+- left: ca_cfca_upgrade_report.certification_no
+  right: ca_fee_special_config.certification_no
+  signal: same_name
+  hit_count: 2
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0965, right->left=0.0545, join_hits=41)
+  note: same-name `certification_no`
+- left: cust_app_channel_config.code
+  right: cust_company_info.channel_code
+  signal: fk_to_code
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: channel_code → cust_app_channel_config.code
+- left: cust_app_channel_config.code
+  right: open_sso_channel.channel_code
+  signal: fk_to_code
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=1.0); same value domain /
+    business code space likely
+  note: channel_code → cust_app_channel_config.code
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9825, right->left=0.9106); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: cust_company_info.channel_code
+  right: open_sso_channel.channel_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=1.0); same value domain /
+    business code space likely
+  note: same-name `channel_code`
+- left: funding_exception_resolution.product_code
+  right: funding_rule_detail.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: funding_exception_resolution.product_code
+  right: funding_rule_front_cfg.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: funding_exception_resolution.product_code
+  right: platform_product.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=92)
+  note: same-name `product_code`
+- left: funding_exception_resolution.product_code
+  right: platform_product_cust_role.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=92)
+  note: same-name `product_code`
+- left: funding_exception_resolution.product_code
+  right: tenant_project_approval_business_info.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.681); same value domain
+    / business code space likely
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: funding_rule_detail.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: platform_product.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=47)
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: platform_product_cust_role.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=47)
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: tenant_project_approval_business_info.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.681); same value domain
+    / business code space likely
+  note: same-name `product_code`
+- left: funding_rule_info.product_code
+  right: platform_product.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.1, join_hits=53)
+  note: same-name `product_code`
+- left: funding_rule_info.product_code
+  right: platform_product_cust_role.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=1.0, right->left=0.1774, join_hits=53)
+  note: same-name `product_code`
+- left: funding_rule_info.product_code
+  right: tenant_project_approval_business_info.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.681); same value domain
+    / business code space likely
+  note: same-name `product_code`
+- left: platform_product.id
+  right: cust_project_rel.product_id
+  signal: hub_id
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.15, right->left=0.0004, join_hits=3)
+  note: 'pattern: product_id → platform_product.id'
+- left: platform_product.product_code
+  right: funding_rule_detail.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: platform_product.product_code
+  right: tenant_product_menu.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1, right->left=0.9441, join_hits=2)
+  note: same-name `product_code`
+- left: platform_product_cust_role.product_code
+  right: funding_rule_detail.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu_res.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.8403, right->left=0.9106); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: tenant_project.id
+  right: wec_project_cust_operation_rel.project_id
+  signal: hub_id
+  hit_count: 2
+  how: sample_intersect
+  status: rejected
+  verdict: false_friend
+  detail: negligible overlap on large domains (left->right=0.0006, right->left=0.0021,
+    join_hits=2, distinct L/R=3586/173); not a usable equi-join
+  note: 'pattern: project_id → tenant_project.id'
+- left: tenant_project.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.995, right->left=0.9158); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9724, right->left=0.7999); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.9724, right->left=0.9106); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=1.0, right->left=0.5101); same value domain
+    / business code space likely
+  note: same-name `sp_no`
+- left: tenant_project_approval_business_info.product_code
+  right: funding_rule_detail.product_code
+  signal: same_name
+  hit_count: 2
+  how: sample_intersect
+  status: accepted
+  verdict: fk_like
+  detail: '>=95% of right-side rows resolve on left (ratio=1.0); consistent with FK
+    / identity reference'
+  note: same-name `product_code`
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: accepted
+  verdict: shared_domain
+  detail: two-way overlap (left->right=0.976, right->left=0.9147); same value domain
+    / business code space likely
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: cust_interworking_product.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0011, right->left=0.0099, join_hits=34)
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_interworking_product.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0011, right->left=0.175, join_hits=34)
+  note: same-name `platform_product_code`
+- left: authorization_agreement.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0011, right->left=0.0833, join_hits=34)
+  note: same-name `platform_product_code`
+- left: cust_company_info.certification_no
+  right: cust_shareholder_info.certification_no
+  signal: same_name
+  hit_count: 1
+  how: sql_right_in_left
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=1)
+  note: same-name `certification_no`
+- left: cust_company_info.legal_certification_no
+  right: cust_head_company_info.legal_certification_no
+  signal: same_name
+  hit_count: 1
+  how: sql_right_in_left
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0008, right->left=0.112, join_hits=41)
+  note: same-name `legal_certification_no`
+- left: cust_head_company_info.id
+  right: authorization_agreement.original_cust_id
+  signal: fk_to_id
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0011, right->left=0.1667, join_hits=1)
+  note: original_cust_id → cust_head_company_info.id
+- left: cust_head_company_info.id
+  right: cust_company_info.relate_company_id
+  signal: fk_to_id
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0011, right->left=0.027, join_hits=1)
+  note: relate_company_id → cust_head_company_info.id
+- left: cust_interworking_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0099, right->left=0.0842, join_hits=3)
+  note: same-name `platform_product_code`
+- left: cust_interworking_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0099, right->left=0.0007, join_hits=3)
+  note: same-name `platform_product_code`
+- left: cust_interworking_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0099, right->left=0.0041, join_hits=3)
+  note: same-name `platform_product_code`
+- left: cust_person_info.certification_no
+  right: cust_shareholder_info.certification_no
+  signal: same_name
+  hit_count: 1
+  how: sql_right_in_left
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0, right->left=0.3333, join_hits=2)
+  note: same-name `certification_no`
+- left: funding_exception_resolution.product_code
+  right: tenant_product_menu.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.3696, right->left=0.8629, join_hits=34)
+  note: same-name `product_code`
+- left: funding_exception_resolution.product_code
+  right: tenant_product_menu_res.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.3696, right->left=0.0455, join_hits=34)
+  note: same-name `product_code`
+- left: funding_rule_detail.product_code
+  right: tenant_product_menu_res.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.3124, right->left=0.0455, join_hits=522)
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: tenant_product_menu.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.383, right->left=0.8629, join_hits=18)
+  note: same-name `product_code`
+- left: funding_rule_front_cfg.product_code
+  right: tenant_product_menu_res.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.383, right->left=0.0455, join_hits=18)
+  note: same-name `product_code`
+- left: funding_rule_info.product_code
+  right: tenant_product_menu.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.4717, right->left=0.8629, join_hits=25)
+  note: same-name `product_code`
+- left: funding_rule_info.product_code
+  right: tenant_product_menu_res.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.4717, right->left=0.0455, join_hits=25)
+  note: same-name `product_code`
+- left: platform_product.product_code
+  right: tenant_product_menu_res.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.05, right->left=0.0455, join_hits=1)
+  note: same-name `product_code`
+- left: tenant_interworking_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.175, right->left=0.0842, join_hits=7)
+  note: same-name `platform_product_code`
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.175, right->left=0.0007, join_hits=7)
+  note: same-name `platform_product_code`
+- left: tenant_interworking_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.175, right->left=0.0041, join_hits=7)
+  note: same-name `platform_product_code`
+- left: tenant_interworking_project.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0833, right->left=0.0842, join_hits=1)
+  note: same-name `platform_product_code`
+- left: tenant_interworking_project.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: distinct_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0833, right->left=0.0007, join_hits=1)
+  note: same-name `platform_product_code`
+- left: tenant_interworking_project.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.0833, right->left=0.0041, join_hits=1)
+  note: same-name `platform_product_code`
+- left: tenant_product_menu.product_code
+  right: funding_rule_detail.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.8629, right->left=0.3124, join_hits=2190)
+  note: same-name `product_code`
+- left: tenant_product_menu.product_code
+  right: tenant_project_approval_business_info.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.8629, right->left=0.1742, join_hits=2190)
+  note: same-name `product_code`
+- left: tenant_project.wechat_audit_no
+  right: wec_project_operation_rel.wechat_audit_no
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1769, right->left=0.2463, join_hits=72)
+  note: same-name `wechat_audit_no`
+- left: tenant_project_approval_business_info.product_code
+  right: tenant_product_menu_res.product_code
+  signal: same_name
+  hit_count: 1
+  how: sample_intersect
+  status: review
+  verdict: weak_overlap
+  detail: non-empty but thin overlap (left->right=0.1742, right->left=0.0455, join_hits=77)
+  note: same-name `product_code`
+written:
+- left: cust_company_info.id
+  right: gpt_learn_poster_log.company_id
+  host: gpt_learn_poster_log
+  verdict: fk_like
+  signal: hub_id
+  note: 'pattern: company_id → cust_company_info.id'
+  hit_count: 42
+  wrote: true
+- left: tenant_interworking_product.id
+  right: cust_interworking_product.product_id
+  host: cust_interworking_product
+  verdict: fk_like
+  signal: hub_id
+  note: 'pattern: product_id → tenant_interworking_product.id'
+  hit_count: 19
+  wrote: true
+- left: tenant_migarory_log.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 6
+  wrote: true
+- left: tenant_project_approval_flow_config.node_code
+  right: tenant_project_approval_flow_node.node_code
+  host: tenant_project_approval_flow_node
+  verdict: fk_like
+  signal: same_name
+  note: same-name `node_code`
+  hit_count: 6
+  wrote: true
+- left: authorization_agreement.platform_product_code
+  right: cust_auth_application.platform_product_code
+  host: cust_auth_application
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 5
+  wrote: true
+- left: authorization_agreement.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 5
+  wrote: true
+- left: cust_auth_application.platform_product_code
+  right: tenant_product.platform_product_code
+  host: tenant_product
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 5
+  wrote: true
+- left: cust_interworking_product.platform_product_code
+  right: tenant_interworking_project.platform_product_code
+  host: tenant_interworking_project
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 5
+  wrote: true
+- left: authorization_agreement.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 4
+  wrote: true
+- left: cust_auth_application.platform_product_code
+  right: tenant_project.platform_product_code
+  host: tenant_project
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 4
+  wrote: true
+- left: tenant_product.id
+  right: cust_project_rel.product_id
+  host: cust_project_rel
+  verdict: fk_like
+  signal: hub_id
+  note: 'pattern: product_id → tenant_product.id'
+  hit_count: 4
+  wrote: true
+- left: authorization_agreement.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: fk_like
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 3
+  wrote: true
+- left: cust_auth_application.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 3
+  wrote: true
+- left: tenant_product.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 3
+  wrote: true
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 3
+  wrote: true
+- left: platform_product.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 3
+  wrote: true
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu.product_code
+  host: tenant_product_menu
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 3
+  wrote: true
+- left: platform_product_cust_role.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 3
+  wrote: true
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 3
+  wrote: true
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 2
+  wrote: true
+- left: tenant_project.platform_product_code
+  right: argeement_migratory_record.platform_product_code
+  host: argeement_migratory_record
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 2
+  wrote: true
+- left: cust_app_channel_config.code
+  right: cust_company_info.channel_code
+  host: cust_company_info
+  verdict: fk_like
+  signal: fk_to_code
+  note: channel_code → cust_app_channel_config.code
+  hit_count: 2
+  wrote: true
+- left: cust_app_channel_config.code
+  right: open_sso_channel.channel_code
+  host: open_sso_channel
+  verdict: shared_domain
+  signal: fk_to_code
+  note: channel_code → cust_app_channel_config.code
+  hit_count: 2
+  wrote: true
+- left: cust_auth_application.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 2
+  wrote: true
+- left: cust_company_info.channel_code
+  right: open_sso_channel.channel_code
+  host: open_sso_channel
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `channel_code`
+  hit_count: 2
+  wrote: true
+- left: funding_exception_resolution.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: funding_exception_resolution.product_code
+  right: funding_rule_front_cfg.product_code
+  host: funding_rule_front_cfg
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: funding_exception_resolution.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: funding_rule_front_cfg.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: platform_product.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: platform_product_cust_role.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: tenant_project_approval_business_info.product_code
+  right: funding_rule_detail.product_code
+  host: funding_rule_detail
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: funding_rule_front_cfg.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: funding_rule_info.product_code
+  right: tenant_project_approval_business_info.product_code
+  host: tenant_project_approval_business_info
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: platform_product_cust_role.product_code
+  right: tenant_product_menu_res.product_code
+  host: tenant_product_menu_res
+  verdict: fk_like
+  signal: same_name
+  note: same-name `product_code`
+  hit_count: 2
+  wrote: true
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log.platform_product_code
+  host: tenant_migarory_log
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 2
+  wrote: true
+- left: tenant_product.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 2
+  wrote: true
+- left: tenant_project.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 2
+  wrote: true
+- left: tenant_project_approval.sp_no
+  right: wechat_project_approval_field_history.sp_no
+  host: wechat_project_approval_field_history
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `sp_no`
+  hit_count: 2
+  wrote: true
+- left: argeement_migratory_record.platform_product_code
+  right: tenant_migarory_log_bak.platform_product_code
+  host: tenant_migarory_log_bak
+  verdict: shared_domain
+  signal: same_name
+  note: same-name `platform_product_code`
+  hit_count: 1
+  wrote: true

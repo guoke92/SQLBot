@@ -93,6 +93,14 @@ emit 会清空目标下历史遗留的 `enums/` 与 `value_index.yaml`。不再�
 
 L0 JOIN / 字典甄别 / 实例清单口径见 `join_policy.py`、`dict_triage.py`、`instance_index.py`（与契约 §4① 一致）。
 
+存量 L1 树（如 `docs/wiki/v3`）不要整树 `compile` 覆盖。清洗假字典 + 注释 FK：
+
+```bash
+backend/venv/bin/python -m tools.wiki_extract scrub-wiki --wiki docs/wiki/v3
+# 可选：配置 WIKI_EXTRACT_LLM_* 后自动补全 enable/是否 仅有 Y 或 N 的对立码
+backend/venv/bin/python -m tools.wiki_extract sync-wiki-related --wiki docs/wiki/v3
+```
+
 ## L1
 
 Coding Agent 按 [docs/wiki/l1_agent_playbook.md](../../docs/wiki/l1_agent_playbook.md) 写 `_raw/l1_intermediate/`，再：
@@ -108,8 +116,79 @@ backend/venv/bin/python -m tools.wiki_extract l1 \
 
 导入 DB 前请明确是否需 promote 为 `published`（运行时默认只召回 published；若环境已放行 draft 则可直接导入 `docs/wiki/v3`）。
 
+## JOIN 真库验证
+
+对 L1 表页上每条 `ground:relation` EQUI_JOIN 边，连只读 MySQL 做全表探针（非 TopK 抽样）：
+
+1. 两端 row / non-null / distinct
+2. `COUNT(*)` equi-join（`CAST` 对齐后 `A.x = B.y`）
+3. `A.x IN / NOT IN (DISTINCT B.y)` 与反向
+4. 交集 / 单边差集样本
+
+判决：`fk_like` / `shared_domain` / `weak_overlap` / `false_friend` / `impossible` / `empty_endpoint` / `missing_column` / `query_error`。**不改写 wiki 页**，只写报告。
+
+```bash
+export WIKI_EXTRACT_DSN='mysql://user:pass@host:port/lowcode_pplatform'
+backend/venv/bin/python -m tools.wiki_extract validate-joins \
+  --wiki docs/wiki/v3 \
+  --out docs/wiki/v3/_raw/join_validation
+```
+
+可选：`--trust high,medium`、`--table-prefix cust_`、`--limit 20`。产物：`join_validate.yaml` + `join_validate.md`。
+
+## JOIN 笛卡尔 TopK 碰撞（召回优先）
+
+旧 L0 / 启发式重提都会漏边。先做**全字段笛卡尔碰撞**，用 TopK 值域存在性丢掉零命中，再精加工：
+
+1. 每列采样 TopK：最新行 + `ORDER BY col DESC` + `ORDER BY col ASC`
+2. 与其他表类型兼容列做 IN 探针；袋内交集或任一侧命中则保留
+3. 忽略 `A.id↔B.id`、date/datetime、text/json/blob
+4. 产物 `survivors.yaml` 供后续 validate / pattern / 代码确认；**不自动改 wiki**
+
+```bash
+export WIKI_EXTRACT_DSN='mysql://…'
+backend/venv/bin/python -m tools.wiki_extract collide-joins \
+  --wiki docs/wiki/v3 \
+  --out docs/wiki/v3/_raw/join_collide \
+  --k 50 --workers 8
+```
+
+可 `--limit N` 试跑；默认读 `progress_meta.json` 断点续跑（`--no-resume` 全量重扫）。
+
+产物：`hits.jsonl`（全量召回）、`priority_candidates.jsonl`（同名/`*_id→id`/`*_code`）、`survivors.yaml`。
+
+## JOIN 碰撞精加工
+
+对 priority 候选做 pattern 定向 + live validate，接受 `fk_like` / `shared_domain`：
+
+```bash
+backend/venv/bin/python -m tools.wiki_extract refine-collide \
+  --wiki docs/wiki/v3 \
+  --out docs/wiki/v3/_raw/join_collide \
+  --write
+```
+
+`--write` 才会把 accepted 边追加到子表 `ground:relation`。产物：`refine_summary.md`、`refine_validate.yaml`、`confirmed_written.md`。
+
+改完 relation 后同步 `related` / 页面链接（两端镜像 fence）：
+
+```bash
+backend/venv/bin/python -m tools.wiki_extract sync-wiki-related --wiki docs/wiki/v3
+```
+
+## JOIN 启发式重提（旧，易漏）
+
+同名/hub/ref 提名（会被笛卡尔结果取代）：
+
+```bash
+export WIKI_EXTRACT_DSN='mysql://…'
+backend/venv/bin/python -m tools.wiki_extract reextract-joins \
+  --wiki docs/wiki/v3 \
+  --out docs/wiki/v3/_raw/join_reextract
+```
+
 ## 测试
 
 ```bash
-backend/venv/bin/python -m pytest tools/wiki_extract/tests -v
+backend/venv/bin/python -m pytest tools/wiki_extract/tests tests/test_wiki_extract_validate_joins.py -v
 ```

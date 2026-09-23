@@ -299,7 +299,7 @@ def get_engine(ds: CoreDatasource, timeout: int = 0) -> Engine:
 
         floor = int(EXECUTE_TIMEOUT_SEC or 0)
     except Exception:
-        floor = 45
+        floor = 60
     ct = int(conf.timeout or 0)
     if ct <= 0 and floor > 0:
         conf.timeout = floor
@@ -321,8 +321,8 @@ def get_engine(ds: CoreDatasource, timeout: int = 0) -> Engine:
         ssl_mode = {"require": True} if conf.ssl else None
         connect_args = {
             "connect_timeout": ct or floor or 10,
-            "read_timeout": ct or floor or 45,
-            "write_timeout": ct or floor or 45,
+            "read_timeout": ct or floor or 60,
+            "write_timeout": ct or floor or 60,
         }
         if ssl_mode:
             connect_args["ssl"] = ssl_mode

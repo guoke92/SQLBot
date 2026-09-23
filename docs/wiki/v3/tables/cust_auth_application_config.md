@@ -4,15 +4,19 @@ title: 客户产品开通配置
 page_key: cust_auth_application_config
 belong: tables
 status: draft
-anchors: [cust_auth_application_config]
-sources: ['database_schema:lowcode_pplatform.cust_auth_application_config']
+anchors:
+- cust_auth_application_config
+sources:
+- database_schema:lowcode_pplatform.cust_auth_application_config
 created: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-23'
 contract_version: '0.1'
-databases: [lowcode_pplatform]
-related: [cust_company_info, cust_auth_application]
+databases:
+- lowcode_pplatform
+related:
+- cust_auth_application
+- cust_company_info
 ---
-
 # 客户产品开通配置
 
 L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。
@@ -24,9 +28,12 @@ table: cust_auth_application_config
 database: lowcode_pplatform
 desc: 客户产品开通配置
 inactive: false
-primary_key: [id]
+primary_key:
+- id
 grain: 客户产品开通配置（现网 0 行；pplatform-web 无 DO / 业务引用）
-name_anchors: [code, name]
+name_anchors:
+- code
+- name
 fields:
 - name: id
   type: number
@@ -107,8 +114,20 @@ fields:
 
 ## 关联关系
 
-### unknown — 待复核
-
+_（本页暂无保留的 EQUI_JOIN 边；已移除边见 `_raw/join_validation/removed_relations.md`。）_
+```ground:relation
+type: EQUI_JOIN
+left: cust_auth_application.code
+right: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
+cardinality: one_to_many
+trust: proposed
+authenticity: unknown
+evidence: orphan_repair:affiliate UAT empty
+source: orphan_repair
+join_role: business_code
+priority: secondary
+authenticity_note: config 附属 auth_application
+```
 ```ground:relation
 type: EQUI_JOIN
 left: cust_company_info.id
@@ -116,50 +135,16 @@ right: cust_auth_application_config.cust_id
 cardinality: one_to_many
 trust: proposed
 authenticity: unknown
-evidence: database_schema:lowcode_pplatform.cust_auth_application_config.cust_id;database_profile:lowcode_pplatform.cust_auth_application_config.cust_id
-source: name
+evidence: orphan_repair:affiliate UAT empty
+source: orphan_repair
 join_role: identity
-priority: primary
-name_evidence:
-  match: family_hub
-  stem: cust
-  comment: 企业id
-overlap:
-  probed: true
-  sample_size: 0
-  miss: 0
-  deepened: false
-  query_ok: true
-  authenticity: unknown
-```
-
-```ground:relation
-type: EQUI_JOIN
-left: cust_auth_application.id
-right: cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
-cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application;database_profile:lowcode_pplatform.cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
-source: name
-join_role: identity
-priority: primary
-name_evidence:
-  match: long_ref
-  stem: cust_auth_application
-  comment: 客户产品开通
-overlap:
-  probed: true
-  sample_size: 0
-  miss: 0
-  deepened: false
-  query_ok: true
-  authenticity: unknown
+priority: secondary
+authenticity_note: config.cust_id
 ```
 
 ## 页面链接
 
 ### 关联表
 
-- [[tables/cust_company_info]]
 - [[tables/cust_auth_application]]
+- [[tables/cust_company_info]]
