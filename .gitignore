@@ -212,3 +212,10 @@ data/logs/
 
 # Local embedding cache (large JSON, do not commit)
 docs/wiki-knowledge/**/embeddings-cache/
+
+# Wiki/DB profiling dumps often embed COS signed URLs (q-ak=AKID…) — keep local only
+docs/wiki-knowledge/**/db/
+docs/wiki-knowledge/**/l0/_raw/
+docs/wiki-knowledge/**/l0/value_index.yaml
+docs/wiki/**/_raw/
+docs/wiki/**/instance_index.yaml
