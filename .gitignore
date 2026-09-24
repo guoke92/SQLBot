@@ -209,3 +209,6 @@ data/logs/
 
 # Local quarantine for retired wiki/knowledge trees (path-preserving moves)
 .tmp/
+
+# Local embedding cache (large JSON, do not commit)
+docs/wiki-knowledge/**/embeddings-cache/
