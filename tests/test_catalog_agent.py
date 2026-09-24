@@ -11,7 +11,7 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
-from apps.chat.agent_knowledge import AgentKnowledgePlane, KNOWLEDGE_TOOLS  # noqa: E402
+from apps.chat.agent_knowledge import KNOWLEDGE_TOOLS, AgentKnowledgePlane  # noqa: E402
 from apps.chat.steps.schema_outline import render_schema_outline  # noqa: E402
 from apps.chat.task.agent_prompt import _SYSTEM_PROMPT_TEMPLATE  # noqa: E402
 from apps.chat.tools.catalog_tools import (  # noqa: E402
@@ -22,7 +22,11 @@ from apps.chat.tools.catalog_tools import (  # noqa: E402
     render_tables_schema,
     strip_relation_lines,
 )
-from apps.chat.tools.registry import build_agent_tools  # noqa: E402
+from apps.chat.tools.registry import (  # noqa: E402
+    ClarificationOptionSchema,
+    CompleteWithoutSqlInput,
+    build_agent_tools,
+)
 from apps.knowledge.wiki.recall import InMemoryWikiStore, recall  # noqa: E402
 
 
@@ -362,6 +366,27 @@ def test_prompt_guardrails_name_the_four_tools() -> None:
     assert "轮次建议" not in _SYSTEM_PROMPT_TEMPLATE
     assert "按需调用" in _SYSTEM_PROMPT_TEMPLATE
     assert "全对话最多" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "用户可见文案" in _SYSTEM_PROMPT_TEMPLATE
+    assert "禁对比否定" in _SYSTEM_PROMPT_TEMPLATE
+    assert "先结论" in _SYSTEM_PROMPT_TEMPLATE
+    assert "分析 / 预测" in _SYSTEM_PROMPT_TEMPLATE
+
+
+def test_user_facing_tool_schema_copy() -> None:
+    option_desc = (
+        ClarificationOptionSchema.model_fields["description"].description or ""
+    )
+    assert "field name" not in option_desc.lower()
+    assert "Physical mapping belongs only in" in option_desc
+    label_desc = ClarificationOptionSchema.model_fields["label"].description or ""
+    assert "No physical table" in label_desc
+    complete_desc = CompleteWithoutSqlInput.model_fields["content"].description or ""
+    assert "Lead with" in complete_desc
+    tools = build_agent_tools(SimpleNamespace(ds=None, datasource=None))
+    clarify = next(item for item in tools if item.name == "request_clarification")
+    assert "user-facing" in (clarify.description or "")
+    complete = next(item for item in tools if item.name == "complete_without_sql")
+    assert "business language" in (complete.description or "")
 
 
 def test_plane_renders_outline_and_full_opened_table() -> None:

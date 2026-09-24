@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, model_validator
 
+from apps.chat.chart_presentation import LEGAL_CHART_TYPES
 from apps.chat.tools.catalog_tools import (
     get_dict_values,
     get_table_relations,
@@ -20,6 +21,23 @@ from apps.chat.tools.compare_results import compare_query_results
 from apps.chat.tools.complete_answer import complete_without_sql
 from apps.chat.tools.execute_sql import execute_sql_sandbox
 from apps.chat.tools.patch_sql import patch_and_compile_sql
+
+PatchAction = Literal[
+    "add_dimension",
+    "add_filter",
+    "replace_filter",
+    "change_limit",
+    "change_order",
+]
+ChartType = Literal["", "table", "line", "bar", "column", "pie"]
+
+_PATCH_PAYLOAD_KEYS: dict[str, frozenset[str]] = {
+    "add_dimension": frozenset({"fields"}),
+    "add_filter": frozenset({"condition"}),
+    "replace_filter": frozenset({"old_field", "new_condition"}),
+    "change_limit": frozenset({"limit"}),
+    "change_order": frozenset({"order"}),
+}
 
 
 def _clarification_catalog(llm_service: Any, access_scope: Any) -> dict[str, set[str]]:
@@ -42,11 +60,16 @@ def _clarification_catalog(llm_service: Any, access_scope: Any) -> dict[str, set
 class ClarificationFieldRefSchema(BaseModel):
     name: str = Field(
         default="",
-        description="Physical field name this mapping cites. Prefer this over field.",
+        description=(
+            "Physical field name this mapping cites. Prefer this; leave field empty."
+        ),
     )
     field: str = Field(
         default="",
-        description="Alias of name. Either name or field is required.",
+        description=(
+            "Legacy alias of name. Omit when name is set; either name or field is "
+            "required."
+        ),
     )
     table: str = Field(
         default="",
@@ -68,10 +91,20 @@ class ClarificationFieldRefSchema(BaseModel):
 
 
 class ClarificationOptionSchema(BaseModel):
-    label: str = Field(description="Display label of this candidate option.")
+    label: str = Field(
+        description=(
+            "One short business sentence for the difference this option makes. "
+            "No physical table/field/enum names. No contrastive phrasing such as "
+            "'not A but B'."
+        )
+    )
     description: str = Field(
         default="",
-        description="Business explanation, field name, or condition meaning of this option.",
+        description=(
+            "Optional extra business meaning of this option (what rows or values "
+            "the user would get). No physical table/field/enum names. Physical "
+            "mapping belongs only in table, field, or fields."
+        ),
     )
     option_id: str = Field(default="", description="Unique identifier for this option.")
     table: str = Field(
@@ -93,7 +126,12 @@ class ClarificationOptionSchema(BaseModel):
 
 
 class ClarificationQuestionSchema(BaseModel):
-    question: str = Field(description="The concrete business question to ask the user.")
+    question: str = Field(
+        description=(
+            "Business question shown to the user. No physical table, field, or "
+            "enum identifiers."
+        )
+    )
     options: list[ClarificationOptionSchema] = Field(
         description="List of mutually exclusive candidate options."
     )
@@ -212,10 +250,6 @@ class LookupValuesInput(BaseModel):
             "Caps: 3 tables + 3 fields. Required (field-level) when phrases is empty."
         ),
     )
-    hint_table: str = Field(
-        default="",
-        description="Deprecated: pass a table name in scope instead.",
-    )
 
     @model_validator(mode="after")
     def _phrases_or_field_scope(self) -> Self:
@@ -223,9 +257,6 @@ class LookupValuesInput(BaseModel):
             str(item).strip() for item in self.phrases or [] if str(item).strip()
         ]
         tokens = [str(item).strip() for item in self.scope or [] if str(item).strip()]
-        hint = str(self.hint_table or "").strip()
-        if hint:
-            tokens.append(hint)
         field_items = [item for item in tokens if "." in item]
         if phrases or field_items:
             return self
@@ -259,12 +290,52 @@ class GetDictValuesInput(BaseModel):
 
 class PatchSqlInput(BaseModel):
     base_sql: str = Field(description="The existing valid base SQL to be modified.")
-    action: str = Field(
-        description="Action: add_dimension, add_filter, replace_filter, change_limit, change_order."
+    action: PatchAction = Field(
+        description=(
+            "Patch kind. add_dimension→payload.fields; add_filter→condition; "
+            "replace_filter→old_field+new_condition; change_limit→limit; "
+            "change_order→order. Prefer this over rewriting SQL for follow-up "
+            "caliber edits."
+        ),
     )
     payload: dict[str, Any] = Field(
-        description="Payload specific to the action, e.g. {'fields': ['dept']} or {'condition': 'status != 0'}."
+        description=(
+            "Keys required by action: "
+            "add_dimension={'fields':['dept']}; "
+            "add_filter={'condition':\"status != '0'\"}; "
+            "replace_filter={'old_field':'status','new_condition':\"status='1'\"}; "
+            "change_limit={'limit':100}; "
+            "change_order={'order':'total DESC'}."
+        ),
     )
+
+    @model_validator(mode="after")
+    def _payload_matches_action(self) -> Self:
+        allowed = _PATCH_PAYLOAD_KEYS[self.action]
+        keys = {str(key) for key in (self.payload or {}) if str(key).strip()}
+        unknown = keys - allowed
+        if unknown:
+            raise ValueError(
+                f"payload keys {sorted(unknown)} invalid for action={self.action}; "
+                f"allowed={sorted(allowed)}"
+            )
+        if self.action == "add_dimension":
+            fields = self.payload.get("fields")
+            if not fields or (isinstance(fields, list) and not any(fields)):
+                raise ValueError("add_dimension requires payload.fields")
+        elif self.action == "add_filter":
+            if not str(self.payload.get("condition") or "").strip():
+                raise ValueError("add_filter requires payload.condition")
+        elif self.action == "replace_filter":
+            if not str(self.payload.get("new_condition") or "").strip():
+                raise ValueError("replace_filter requires payload.new_condition")
+        elif self.action == "change_order":
+            if not str(self.payload.get("order") or "").strip():
+                raise ValueError("change_order requires payload.order")
+        elif self.action == "change_limit":
+            if "limit" not in self.payload:
+                raise ValueError("change_limit requires payload.limit (int or null)")
+        return self
 
 
 class ExecuteSqlInput(BaseModel):
@@ -280,34 +351,48 @@ class ExecuteSqlInput(BaseModel):
     required: bool = Field(
         default=True,
         description=(
-            "True for datasets that should appear in the final answer. "
-            "False for exploratory / verification queries (GROUP BY probes, compare_results)."
+            "True: delivery — mounts/replaces a result card in the final answer. "
+            "False: probe only — not a terminal exit; use for GROUP BY shape checks."
         ),
     )
     result_title: str = Field(
         default="",
         description=(
-            "Short title for this result card. Reuse the same title to replace "
-            "a previous delivery; use a new title to add another card. "
-            "Empty for probes."
+            "Short business title for this result card. No SQL or physical table "
+            "names. Same title replaces the previous delivery card; a new title "
+            "adds another card. Empty for probes (required=false)."
         ),
     )
-    chart_type: str = Field(
+    chart_type: ChartType = Field(
         default="",
         description=(
-            "Required for delivery (required=true): table|line|bar|column|pie. "
-            "Use table for entity lists/detail dumps; line for trends; "
-            "bar/column for category comparison; pie for share-of-total. "
-            "Ignored for probes (required=false)."
+            "Delivery chart: table|line|bar|column|pie. table for lists; line for "
+            "trends; bar/column for category comparison; pie for share. "
+            "Empty only when required=false."
         ),
     )
+
+    @model_validator(mode="after")
+    def _delivery_needs_chart(self) -> Self:
+        chart = str(self.chart_type or "").strip().lower()
+        if chart and chart not in LEGAL_CHART_TYPES:
+            raise ValueError(
+                f"chart_type must be one of {sorted(LEGAL_CHART_TYPES)} or empty"
+            )
+        if self.required and not chart:
+            # Allow empty at schema time; execute_sql defaults to table — but
+            # nudge the model via description. Soft: do not hard-fail empty.
+            return self
+        return self
 
 
 class CompleteWithoutSqlInput(BaseModel):
     content: str = Field(
         description=(
-            "User-facing terminal answer in business language. Do not pile "
-            "physical table names. Use only when this turn will not deliver SQL."
+            "User-facing terminal answer for this turn (no SQL delivery). "
+            "Lead with whether it can be done or what is missing, in business "
+            "language. No boilerplate, no contrastive 'not X but Y', no physical "
+            "table dump."
         ),
     )
 
@@ -342,14 +427,12 @@ def build_agent_tools(
     def _lookup_values(
         phrases: list[str] | None = None,
         scope: list[str] | None = None,
-        hint_table: str = "",
     ) -> dict[str, Any]:
         return dict(
             lookup_values(
                 llm_service,
                 phrases or [],
                 scope=scope or [],
-                hint_table=hint_table,
                 access_scope=access_scope,
             )
         )
@@ -425,9 +508,10 @@ def build_agent_tools(
             name="get_table_schema",
             description=(
                 "Expand full field definitions for up to 3 tables named in "
-                "schema_outline. Does not return joins or wiki prose. "
-                "Do not recall tables already returned in this conversation. "
-                "Never query information_schema."
+                "schema_outline. Call when SQL needs column names not yet in "
+                "this conversation. Safe to parallel with get_table_relations / "
+                "lookup_values / search_knowledge. Do not recall tables already "
+                "returned; never query information_schema."
             ),
             args_schema=GetTableSchemaInput,
         ),
@@ -436,9 +520,9 @@ def build_agent_tools(
             name="get_table_relations",
             description=(
                 "Return known JOIN edges among two or more named tables. "
-                "trust is advisory only and does not forbid JOIN. "
                 "Call only when the question spans multiple entities. "
-                "Do not call for a single-table export."
+                "Safe to parallel with get_table_schema. Do not call for a "
+                "single-table export. trust is advisory and does not forbid JOIN."
             ),
             args_schema=GetTableRelationsInput,
         ),
@@ -447,8 +531,10 @@ def build_agent_tools(
             name="search_knowledge",
             description=(
                 "Retrieve structured business caliber / concept / metric / scenario "
-                "objects (maps_to, adjudication, hubs). Does not select tables or "
-                "return DDL. Skip when field comments already explain the column."
+                "objects (maps_to, adjudication, hubs). Call for abstract business "
+                "terms or name/value conflicts. Do not use to discover tables/DDL "
+                "or open instance phrases (use get_table_schema / lookup_values). "
+                "Skip when field comments already explain the column."
             ),
             args_schema=SearchKnowledgeInput,
         ),
@@ -458,9 +544,11 @@ def build_agent_tools(
             description=(
                 "Reverse-lookup open instance values from named phrases, or sample "
                 "a column when phrases is empty and scope has table.field. "
-                "Returns match_hint (eq|contains), aliases, and display_name for id "
-                "columns. Evidence only, not a WHERE. Skip dates, quantities, "
-                "closed schema labels, and concept names."
+                "Call for people/dept fragments or column topk. Returns match_hint "
+                "(eq|contains), aliases, and display_name for id columns. "
+                "Evidence only, not a WHERE. Do not pass dates, quantities, closed "
+                "schema labels, or concept names (use get_dict_values / "
+                "search_knowledge)."
             ),
             args_schema=LookupValuesInput,
         ),
@@ -468,47 +556,56 @@ def build_agent_tools(
             func=_get_dict_values,
             name="get_dict_values",
             description=(
-                "Look up one field's value→label dictionary. "
-                "Skip when schema labels= or comments already list codes."
+                "Look up one known field's value→label dictionary. Call when schema "
+                "inline codes are incomplete. Do not reverse-lookup open instances "
+                "(use lookup_values); skip when labels= or comments already list codes."
             ),
             args_schema=GetDictValuesInput,
         ),
         StructuredTool.from_function(
             func=_patch_sql,
             name="patch_and_compile_sql",
-            description="Incrementally patch a base SQL without full rewrite. Supports add_dimension, add_filter, replace_filter, change_order.",
+            description=(
+                "Incrementally patch an existing valid SQL (follow-up caliber edits). "
+                "Call for add_dimension / add_filter / replace_filter / change_limit / "
+                "change_order. Do not use for a brand-new query — write SQL and "
+                "execute_sql_sandbox instead."
+            ),
             args_schema=PatchSqlInput,
         ),
         StructuredTool.from_function(
             func=_execute_sql,
             name="execute_sql_sandbox",
             description=(
-                "Safely execute a business SQL query against the datasource. "
-                "For delivery (required=true), set chart_type to table|line|bar|column|pie "
-                "and a short result_title (reuse to replace a card, change to add one). "
-                "Do not use this to inspect catalogs "
-                "(information_schema, SHOW COLUMNS, DESCRIBE). "
-                "If the needed tables are not yet in schema_catalog, call "
-                "get_table_schema first."
+                "Execute business SQL. required=true delivers a result card "
+                "(same result_title replaces; new title appends) and is a terminal "
+                "data exit; required=false is probe-only and not a final answer. "
+                "Set chart_type table|line|bar|column|pie for delivery. "
+                "Do not inspect catalogs (information_schema, SHOW COLUMNS, DESCRIBE). "
+                "Call get_table_schema first if needed tables are not in schema_catalog."
             ),
             args_schema=ExecuteSqlInput,
         ),
         StructuredTool.from_function(
             func=_compare_results,
             name="compare_results",
-            description="Compare results between base SQL and revised SQL to test a challenge hypothesis or verify caliber difference.",
+            description=(
+                "Compare result sets of a base SQL and a revised SQL. Call when "
+                "the user challenges numbers or a caliber change must be verified. "
+                "Do not use as the delivery exit — follow with execute_sql_sandbox "
+                "or complete_without_sql."
+            ),
             args_schema=CompareResultsInput,
         ),
         StructuredTool.from_function(
             func=_complete_without_sql,
             name="complete_without_sql",
             description=(
-                "Finish this turn without delivering SQL. Call when the user "
-                "needs a capability/usage/knowledge explanation rather than a "
-                "dataset, or when the catalog cannot cover the question. content is "
-                "the user-facing answer. Do not use this to skip a data query; "
-                "probes (required=false) are not an exit. After a successful "
-                "delivery SQL, do not call this tool."
+                "Terminal exit without SQL delivery. Call for capability, usage, or "
+                "catalog-gap answers. content is the only user-facing answer for this "
+                "turn (lead with the conclusion; business language; no physical names). "
+                "Do not use to skip a data query; probes (required=false) are not an "
+                "exit. After a successful delivery SQL, do not call this tool."
             ),
             args_schema=CompleteWithoutSqlInput,
         ),
@@ -516,12 +613,13 @@ def build_agent_tools(
             func=_request_clarification,
             name="request_clarification",
             description=(
-                "Ask the user for clarification when there is significant business "
-                "ambiguity that changes query semantics: row set, output-column "
-                "values/lineage, or aggregation/grouping caliber. Each option must "
-                "map to real table/field(s) from schema_outline or schema_catalog; "
-                "use fields when one option carries a complete multi-column mapping. "
-                "Do not invent products, platforms, or objects that are not in the datasource."
+                "Ask the user to pick among mutually exclusive business calibers. "
+                "Call when ambiguity changes row set, output-column values/lineage, "
+                "or aggregation/grouping. Shows a card and waits for the user — "
+                "do not deliver SQL in the same turn. question/label/description are "
+                "user-facing business copy only; bind physical mapping in "
+                "table/field/fields. Do not invent objects absent from "
+                "schema_outline or schema_catalog."
             ),
             args_schema=RequestClarificationInput,
         ),
