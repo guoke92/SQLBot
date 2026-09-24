@@ -1,18 +1,18 @@
 """Compact datasource catalog map for the agent system prompt.
 
 The schema outline is the datasource Repo Map: every visible table as one line
-(name, comment, a few representative fields), cheap enough to stay resident.
+(table comment + catalog positioning + a few representative fields).
 
-Resolution priority (system-wide):
-1. Bound corpus outline (DB wiki page ``catalog_summary``): inject the bound
-   page body as-is. Never crop by AccessScope; never rebuild from CoreTable
-   when a bound outline exists.
-2. Dynamic catalog fallback (only if the bound wiki has no outline page):
-   ``store.table_index`` then ``CoreTable``. Still no permission crop.
+Resolution:
+1. Bound ``catalog_summary`` is parsed as *supplementary* blurbs and merged
+   with CoreTable / wiki table comments. Comments are never dropped.
+2. Dynamic catalog fallback (no outline page): ``store.table_index`` then
+   ``CoreTable``. AccessScope never crops the map.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from typing import Any
 
@@ -39,8 +39,11 @@ _SKIP_FIELD_NAMES = frozenset(
     }
 )
 
+_CATALOG_LINE_RE = re.compile(r"^-\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
+
 _OUTLINE_HINT = (
     "当前数据源全库表大纲。这是全局地图，不是已展开的字段定义。"
+    "每行是「表注释」；分号后是 catalog 补充定位（与注释不一致时两者都保留）。"
     "写 SQL 前用 get_table_schema 展开需要的表；跨表 JOIN 用 get_table_relations；"
     "业务口径/专有名词用 search_knowledge；实例值反查用 lookup_values；"
     "已知字段的残差码表用 get_dict_values。"
@@ -56,27 +59,97 @@ def render_schema_outline(
 ) -> str:
     """Render ``<schema_outline>`` or empty when the catalog cannot be listed.
 
-    Bound ``catalog_summary`` is injected verbatim. AccessScope never crops
-    knowledge. CoreTable assembly is a last-resort fallback when the bound
-    wiki has no outline page.
+    Table comments and catalog positioning are both first-class: merge them,
+    never inject catalog_summary verbatim in place of comments.
     """
-    db_summary = _fetch_catalog_summary_from_db(store=store, session=session, ds=ds)
-    if db_summary:
-        return f"<schema_outline>\n{_OUTLINE_HINT}\n{db_summary}\n</schema_outline>"
+    catalog_text = _fetch_catalog_summary_from_db(store=store, session=session, ds=ds)
+    blurbs = parse_catalog_table_lines(catalog_text or "")
 
     rows = _rows_from_store(store)
-    if not rows and session is not None:
+    if session is not None:
         ds_id = int(getattr(ds, "id", 0) or 0)
         if ds_id > 0:
-            rows = _rows_from_catalog(session, ds_id=ds_id)
-    if not rows:
+            catalog_rows = _rows_from_catalog(session, ds_id=ds_id)
+            rows = _prefer_catalog_comments(rows, catalog_rows)
+
+    merged = merge_outline_rows(rows, blurbs)
+    if not merged:
         return ""
-    body = _format_rows(rows, with_fields=True)
-    if len(body) > _OUTLINE_CHAR_BUDGET:
-        body = _format_rows(rows, with_fields=False)
+    apply_budget = not blurbs
+    body = _format_rows(merged, with_fields=True)
+    if apply_budget and len(body) > _OUTLINE_CHAR_BUDGET:
+        body = _format_rows(merged, with_fields=False)
         if len(body) > _OUTLINE_CHAR_BUDGET:
             body = body[:_OUTLINE_CHAR_BUDGET].rstrip() + "\n…(截断)"
     return f"<schema_outline>\n{_OUTLINE_HINT}\n{body}\n</schema_outline>"
+
+
+def parse_catalog_table_lines(text: str) -> dict[str, str]:
+    """Map physical table name → catalog positioning blurb (rest of the line)."""
+    blurbs: dict[str, str] = {}
+    for raw in (text or "").splitlines():
+        match = _CATALOG_LINE_RE.match(raw.strip())
+        if not match:
+            continue
+        name, blurb = match.group(1), match.group(2).strip()
+        if name and blurb:
+            blurbs[name] = blurb
+    return blurbs
+
+
+def merge_comment_and_blurb(comment: str, blurb: str) -> str:
+    """Keep both official comment and catalog positioning when they differ."""
+    title = str(comment or "").strip()
+    extra = str(blurb or "").strip()
+    if not title:
+        return extra
+    if not extra:
+        return title
+    if title == extra:
+        return title
+    if extra.startswith(title) or title in extra:
+        return extra
+    if extra in title:
+        return title
+    return f"{title}; {extra}"
+
+
+def merge_outline_rows(
+    rows: Sequence[tuple[str, str, list[str]]],
+    blurbs: dict[str, str],
+) -> list[tuple[str, str, list[str]]]:
+    """Comment-first rows, plus catalog-only tables, each with merged title."""
+    by_name: dict[str, tuple[str, str, list[str]]] = {}
+    for name, comment, fields in rows:
+        key = str(name or "").strip()
+        if not key:
+            continue
+        title = merge_comment_and_blurb(comment, blurbs.get(key, ""))
+        by_name[key] = (key, title or key, list(fields or []))
+    for name, blurb in blurbs.items():
+        if name in by_name:
+            continue
+        by_name[name] = (name, blurb or name, [])
+    return [by_name[key] for key in sorted(by_name)]
+
+
+def _prefer_catalog_comments(
+    wiki_rows: Sequence[tuple[str, str, list[str]]],
+    catalog_rows: Sequence[tuple[str, str, list[str]]],
+) -> list[tuple[str, str, list[str]]]:
+    """CoreTable comments win; wiki fields fill in when CoreTable has none."""
+    wiki = {name: (name, comment, fields) for name, comment, fields in wiki_rows}
+    merged: dict[str, tuple[str, str, list[str]]] = dict(wiki)
+    for name, comment, fields in catalog_rows:
+        prior = merged.get(name)
+        if prior is None:
+            merged[name] = (name, comment, fields)
+            continue
+        _pname, prior_comment, prior_fields = prior
+        use_comment = comment if comment and comment != name else prior_comment
+        use_fields = fields or prior_fields
+        merged[name] = (name, use_comment, use_fields)
+    return [merged[key] for key in sorted(merged)]
 
 
 def _strip_frontmatter(text: str) -> str:
@@ -94,16 +167,14 @@ def _fetch_catalog_summary_from_db(
     session: Session | None = None,
     ds: Any = None,
 ) -> str | None:
-    """Read catalog_summary body strictly from DB (via bound store or query)."""
-    # Prefer in-memory store already hydrated from DB wiki_page rows
+    """Read catalog_summary body from bound store or DB."""
     if store is not None:
         getter = getattr(store, "get_page", None)
         if callable(getter):
             page = getter("catalog_summary") or getter("concepts/catalog_summary")
             if page is not None and getattr(page, "body", None):
-                return str(page.body).strip()
+                return _strip_frontmatter(str(page.body).strip())
 
-    # Query DB directly via datasource binding
     ds_id = int(getattr(ds, "id", 0) or 0)
     if session is not None and ds_id > 0:
         try:

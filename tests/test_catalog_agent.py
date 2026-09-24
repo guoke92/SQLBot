@@ -278,9 +278,7 @@ def test_wide_export_schema_is_single_table_no_hops() -> None:
 
 def test_relations_require_two_tables_and_keep_direct_edge() -> None:
     store = _company_person_store()
-    raw = render_tables_schema(
-        ["cust_company_info", "cust_person_info"], store=store
-    )
+    raw = render_tables_schema(["cust_company_info", "cust_person_info"], store=store)
     # relations are stripped from schema helper; parse from full renderer
     from apps.knowledge.recall_kernel.render import render_schema
 
@@ -355,7 +353,8 @@ def test_prompt_guardrails_name_the_four_tools() -> None:
     assert "单表禁用" in _SYSTEM_PROMPT_TEMPLATE
     assert "单表直查" in _SYSTEM_PROMPT_TEMPLATE
     assert "lookup_values" in _SYSTEM_PROMPT_TEMPLATE
-    assert "search_wiki" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "match_hint=contains" in _SYSTEM_PROMPT_TEMPLATE
+    assert "display_name" in _SYSTEM_PROMPT_TEMPLATE
     assert "focus=all" not in _SYSTEM_PROMPT_TEMPLATE
     assert "value_grounding" not in _SYSTEM_PROMPT_TEMPLATE
     assert "caliber_conflicts" not in _SYSTEM_PROMPT_TEMPLATE
@@ -366,7 +365,9 @@ def test_prompt_guardrails_name_the_four_tools() -> None:
 
 
 def test_plane_renders_outline_and_full_opened_table() -> None:
-    plane = AgentKnowledgePlane(schema_outline="<schema_outline>\n- tenant_project: 项目\n</schema_outline>")
+    plane = AgentKnowledgePlane(
+        schema_outline="<schema_outline>\n- tenant_project: 项目\n</schema_outline>"
+    )
     plane.merge_recall(
         {
             "schema_text": (
@@ -528,6 +529,81 @@ def test_render_schema_outline_prefers_db_catalog_summary() -> None:
     assert "secret_table" in scoped_text
 
 
+def test_render_schema_outline_keeps_comment_and_catalog_blurb() -> None:
+    from apps.chat.steps.schema_outline import (
+        merge_comment_and_blurb,
+        parse_catalog_table_lines,
+    )
+
+    assert (
+        merge_comment_and_blurb("企业立项申请表", "企业立项申请表") == "企业立项申请表"
+    )
+    merged = merge_comment_and_blurb(
+        "企业立项申请表",
+        "[核心主档大宽表] 企微立项审批流申请(企微审批号sp_no)",
+    )
+    assert merged.startswith("企业立项申请表")
+    assert "企微立项审批流申请" in merged
+
+    summary_page = _page(
+        key="catalog_summary",
+        title="全库表骨架",
+        page_type="concept",
+        body=(
+            "# 全库表骨架\n\n"
+            "- wechat_project_approval_apply: [核心主档大宽表] "
+            "企微立项审批流申请(企微审批号sp_no)\n"
+            "- wec_project_cust_operation_rel: 微企链企业运营对接(关联ID)\n"
+        ),
+    )
+    table_page = _page(
+        key="wechat_project_approval_apply",
+        title="企业立项申请表",
+        page_type="table",
+        body=_table_body(
+            "wechat_project_approval_apply",
+            "企业立项申请表",
+            [("sp_no", "varchar", "企微审批编号")],
+        ),
+    )
+    store = InMemoryWikiStore.load([summary_page, table_page])
+    text = render_schema_outline(store=store)
+    apply_line = next(
+        line
+        for line in text.splitlines()
+        if line.startswith("- wechat_project_approval_apply:")
+    )
+    assert "企业立项申请表" in apply_line
+    assert "企微立项审批流申请" in apply_line
+    assert "wec_project_cust_operation_rel" in text
+    parsed = parse_catalog_table_lines(
+        "- wechat_project_approval_apply: 企微立项审批流申请(sp_no)\n"
+    )
+    assert parsed["wechat_project_approval_apply"] == "企微立项审批流申请(sp_no)"
+
+
+def test_catalog_summary_keeps_official_comment_for_wechat_apply() -> None:
+    text = (
+        Path(__file__).resolve().parents[1] / "docs/wiki/v3/concepts/catalog_summary.md"
+    ).read_text(encoding="utf-8")
+    apply_line = next(
+        line
+        for line in text.splitlines()
+        if line.startswith("- wechat_project_approval_apply:")
+    )
+    assert "企业立项申请表" in apply_line
+    assert "企微立项审批流申请" in apply_line
+    for table in (
+        "tenant_product_client",
+        "tenant_product_site",
+        "sys_cust_org",
+        "sys_cust_org_rel",
+        "sys_cust_org_user_rel",
+        "argeement_migratory_record_bak",
+    ):
+        assert f"- {table}:" in text
+
+
 def test_search_knowledge_returns_structured_hits(monkeypatch) -> None:
     from apps.chat.tools import catalog_tools as ct
     from apps.chat.tools.catalog_tools import search_knowledge
@@ -552,11 +628,15 @@ def test_search_knowledge_returns_structured_hits(monkeypatch) -> None:
     assert "catalog_summary" not in keys
     types = {item["type"] for item in hits}
     assert "scenario" in types or "concept" in types or "caliber" in types
-    identify = next((item for item in hits if item["page_key"] == "identify_style"), None)
+    identify = next(
+        (item for item in hits if item["page_key"] == "identify_style"), None
+    )
     if identify is not None:
         assert identify["maps_to"] == "cust_company_info.identify_style"
         assert identify["adjudication"] == "boundary"
-    scenario = next((item for item in hits if item["page_key"] == "company_build"), None)
+    scenario = next(
+        (item for item in hits if item["page_key"] == "company_build"), None
+    )
     if scenario is not None:
         assert scenario["hubs"]
 
@@ -674,4 +754,3 @@ def test_default_wiki_pages_parse() -> None:
     concept = parse_page(summary, belong="concepts")
     assert concept.page_key == "catalog_summary"
     assert concept.recall is False
-

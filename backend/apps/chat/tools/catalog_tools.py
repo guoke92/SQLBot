@@ -683,12 +683,15 @@ def get_dict_values(
 
 def lookup_values(
     llm_service: Any,
-    phrases: Sequence[str],
+    phrases: Sequence[str] | None = None,
     *,
+    scope: Sequence[str] | None = None,
     hint_table: str = "",
     access_scope: Any = None,  # noqa: ARG001 — bound wiki / value index, not ACL
 ) -> ToolResult:
-    """Reverse-lookup instance/enum values for LLM-named phrases. Evidence only."""
+    """Reverse-lookup phrases or sample a field (no phrases + table.field scope)."""
+    from apps.datasource.instance_index.service import parse_lookup_scope
+
     plane = load_plane()
     cleaned: list[str] = []
     skipped: list[str] = []
@@ -703,11 +706,13 @@ def lookup_values(
             skipped.append(f"{text}（{reason}）")
             continue
         cleaned.append(text)
-    if not cleaned:
+    parsed = parse_lookup_scope(scope, hint_table=str(hint_table or "").strip())
+    if not cleaned and not parsed.fields:
         extra = f" 已跳过：{'、'.join(skipped)}。" if skipped else ""
         return failure_result(
             (
-                "lookup_values 需要开放实例短语（如部门名、企业名）。"
+                "lookup_values 需要开放实例短语，或无短语时提供字段级 scope"
+                "（如 tenant_project_approval.solution_manager_name）。"
                 "日期、纯数字、封闭枚举码和「平台录入」这类概念/字典叫法请用 "
                 "search_knowledge 或 schema labels。"
                 f"{extra}"
@@ -722,41 +727,76 @@ def lookup_values(
         )
     try:
         from apps.conversation.session import session_scope
-        from apps.datasource.instance_index.service import match_phrases
+        from apps.datasource.instance_index.service import (
+            annotate_lookup_candidate,
+            list_field_topk,
+            match_phrases,
+        )
+        from apps.protocol import get_protocol_for_ds
 
+        proto = None
+        try:
+            proto = get_protocol_for_ds(ds)
+        except Exception:
+            proto = None
         with session_scope() as session:
-            hits = match_phrases(
-                session,
-                ds_id=int(ds_id),
-                phrases=cleaned,
-                hint_table=str(hint_table or "").strip(),
-            )
+            if cleaned:
+                hits = match_phrases(
+                    session,
+                    ds_id=int(ds_id),
+                    phrases=cleaned,
+                    scope=parsed,
+                )
+            else:
+                hits = []
+                for table_name, field_name in parsed.fields:
+                    hits.extend(
+                        list_field_topk(
+                            session,
+                            ds_id=int(ds_id),
+                            table_name=table_name,
+                            field_name=field_name,
+                            proto=proto,
+                            ds=ds,
+                        )
+                    )
     except Exception as exc:
         SQLBotLogUtil.warning("lookup_values failed: %s", exc)
         return failure_result(f"实例值反查失败：{exc}", retryable=True)
 
-    candidates = [
-        {
-            "table": hit.table_name,
-            "field": hit.field_name,
-            "full_value": hit.raw_value,
-            "val_type": hit.val_type,
-            "matched": hit.matched_text,
-        }
-        for hit in hits
-    ]
+    candidates = [annotate_lookup_candidate(hit, phrases=cleaned) for hit in hits]
+    mode = "phrases" if cleaned else "field_topk"
     if not candidates:
         return success_result(
             "值索引未命中这些短语。不要把短语直接当 WHERE；改用 schema labels 或 search_knowledge。",
-            data={"phrases": cleaned, "candidates": []},
+            data={
+                "phrases": cleaned,
+                "scope": list(scope or []),
+                "mode": mode,
+                "candidates": [],
+            },
         )
-    lines = [
-        f"{item['full_value']} → {item['table']}.{item['field']}（{item['val_type']}）"
-        for item in candidates
-    ]
+    lines = []
+    for item in candidates:
+        hint = item.get("match_hint") or "eq"
+        display = item.get("display_name")
+        tail = f" match={hint}"
+        if display:
+            tail += f" display={display}"
+        lines.append(
+            f"{item['full_value']} → {item['table']}.{item['field']}（{item['val_type']}）{tail}"
+        )
+    notice = "候选证据，不是落点；必须再过 §2 才能写入 WHERE。"
+    if any(item.get("match_hint") == "contains" for item in candidates):
+        notice += " match_hint=contains 时 WHERE 禁止等值，用 LIKE 或 IN(aliases)。"
     return success_result(
-        ("候选证据，不是落点；必须再过 §2 才能写入 WHERE。\n" + "\n".join(lines)),
-        data={"phrases": cleaned, "candidates": candidates},
+        notice + "\n" + "\n".join(lines),
+        data={
+            "phrases": cleaned,
+            "scope": list(scope or []),
+            "mode": mode,
+            "candidates": candidates,
+        },
     )
 
 

@@ -195,17 +195,43 @@ class SearchKnowledgeInput(BaseModel):
 
 class LookupValuesInput(BaseModel):
     phrases: list[str] = Field(
+        default_factory=list,
         description=(
-            "Business instance fragments named by the user, e.g. ['二部']. "
+            "Business instance fragments named by the user, e.g. ['刘宁']. "
+            "Empty only when sampling a field via scope table.field. "
             "Do not pass whole questions, dates, quantities, or concept names "
             "like 平台录入 (use search_knowledge for those)."
         ),
-        min_length=1,
+    )
+    scope: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional table or table.field tokens, e.g. "
+            "['wechat_project_approval_apply', "
+            "'tenant_project_approval.solution_manager_name']. "
+            "Caps: 3 tables + 3 fields. Required (field-level) when phrases is empty."
+        ),
     )
     hint_table: str = Field(
         default="",
-        description="Optional physical table to narrow the reverse lookup.",
+        description="Deprecated: pass a table name in scope instead.",
     )
+
+    @model_validator(mode="after")
+    def _phrases_or_field_scope(self) -> Self:
+        phrases = [
+            str(item).strip() for item in self.phrases or [] if str(item).strip()
+        ]
+        tokens = [str(item).strip() for item in self.scope or [] if str(item).strip()]
+        hint = str(self.hint_table or "").strip()
+        if hint:
+            tokens.append(hint)
+        field_items = [item for item in tokens if "." in item]
+        if phrases or field_items:
+            return self
+        raise ValueError(
+            "lookup_values requires phrases or field-level scope (table.field)"
+        )
 
 
 class GetDictValuesInput(BaseModel):
@@ -313,11 +339,16 @@ def build_agent_tools(
     def _search_knowledge(query: str) -> dict[str, Any]:
         return dict(search_knowledge(llm_service, query, access_scope=access_scope))
 
-    def _lookup_values(phrases: list[str], hint_table: str = "") -> dict[str, Any]:
+    def _lookup_values(
+        phrases: list[str] | None = None,
+        scope: list[str] | None = None,
+        hint_table: str = "",
+    ) -> dict[str, Any]:
         return dict(
             lookup_values(
                 llm_service,
-                phrases,
+                phrases or [],
+                scope=scope or [],
                 hint_table=hint_table,
                 access_scope=access_scope,
             )
@@ -425,9 +456,11 @@ def build_agent_tools(
             func=_lookup_values,
             name="lookup_values",
             description=(
-                "Reverse-lookup open instance values from named phrases "
-                "(e.g. 二部 → 研发二部 + table.field). Evidence only, not a WHERE. "
-                "Skip dates, quantities, closed schema labels, and concept names."
+                "Reverse-lookup open instance values from named phrases, or sample "
+                "a column when phrases is empty and scope has table.field. "
+                "Returns match_hint (eq|contains), aliases, and display_name for id "
+                "columns. Evidence only, not a WHERE. Skip dates, quantities, "
+                "closed schema labels, and concept names."
             ),
             args_schema=LookupValuesInput,
         ),

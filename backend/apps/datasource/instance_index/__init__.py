@@ -2,14 +2,18 @@
 
 from apps.datasource.instance_index.nomination import (
     INSTANCE_TOP_K,
+    consider_instance_column,
     looks_like_opaque_instance_values,
     nominate_instance_column,
     skip_instance_column,
+    whitelist_instance_column,
 )
 
 __all__ = [
     "INSTANCE_TOP_K",
+    "consider_instance_column",
     "looks_like_opaque_instance_values",
     "nominate_instance_column",
     "skip_instance_column",
+    "whitelist_instance_column",
 ]

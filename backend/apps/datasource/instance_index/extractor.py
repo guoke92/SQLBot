@@ -1,18 +1,27 @@
-"""Build core_value_index rows from wiki field enums and nominated instance columns."""
+"""Build core_value_index rows from wiki field enums and sampled instance columns."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, TypeVar
 
 from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from apps.chat.steps.wiki_schema import field_enum_rows, parse_field_enum
+from apps.datasource.instance_index.cells import instance_cell_entries
+from apps.datasource.instance_index.column_picker import pick_instance_columns
 from apps.datasource.instance_index.nomination import (
     INSTANCE_TOP_K,
+    consider_instance_column,
     looks_like_opaque_instance_values,
-    nominate_instance_column,
+    whitelist_instance_column,
+)
+from apps.datasource.instance_index.person_map import (
+    VAL_PERSON_ALIAS,
+    collect_person_evidence,
+    merge_person_records,
+    person_records_to_payloads,
 )
 from apps.datasource.models.datasource import CoreDatasource, CoreField, CoreTable
 from apps.datasource.models.value_index import CoreValueIndex
@@ -206,12 +215,16 @@ def collect_instance_payloads(
     table: CoreTable,
     fields: Sequence[CoreField],
     *,
-    enum_fields: set[str],
-    wiki_fields: set[str] | None = None,
+    enum_fields: set[str] | None = None,  # noqa: ARG001 — kept; enums may be indexed
+    wiki_fields: set[str] | None = None,  # noqa: ARG001 — checked CoreField is source
     name_anchors: Sequence[str] | None = None,
+    column_picker: Callable[[str, list[dict[str, Any]]], set[str] | None] | None = None,
 ) -> list[Payload]:
-    """Sample nominated business columns; skip enum fields already covered by wiki."""
-    payloads: list[Payload] = []
+    """Hard-skip + topK sample; LLM (or nominate whitelist) picks columns.
+
+    Multi-value cells keep the original string and split tokens. Picker failure
+    keeps every sampled column — never falls back to the old nominate-only set.
+    """
     top_k = int(
         getattr(settings, "VALUE_INDEX_INSTANCE_TOP_K", INSTANCE_TOP_K)
         or INSTANCE_TOP_K
@@ -219,19 +232,14 @@ def collect_instance_payloads(
     cap = int(getattr(settings, "VALUE_INDEX_TABLE_INSTANCE_CAP", 2000) or 2000)
     table_name = str(table.table_name or "")
     anchors = [str(item) for item in (name_anchors or []) if str(item).strip()]
-    wiki_names = {
-        str(name).strip() for name in (wiki_fields or set()) if str(name).strip()
-    }
-    instance_count = 0
+    sampled: list[tuple[str, str, list[tuple[str, int]], dict[str, Any]]] = []
     for field in fields:
         name = str(field.field_name or "").strip()
-        if not name or name in enum_fields:
-            continue
-        if wiki_names and name not in wiki_names:
+        if not name:
             continue
         comment = str(field.custom_comment or field.field_comment or "")
         mysql_type = str(field.field_type or "")
-        if not nominate_instance_column(
+        if not consider_instance_column(
             name,
             comment=comment,
             mysql_type=mysql_type,
@@ -257,25 +265,110 @@ def collect_instance_payloads(
         raw_values = list(getattr(result, "top_values", None) or [])
         if looks_like_opaque_instance_values(raw_values):
             continue
-        taken = 0
+        values: list[tuple[str, int]] = []
         for item in raw_values:
-            if instance_count >= cap:
-                return payloads
             if isinstance(item, dict):
                 value = str(item.get("value") or "").strip()
                 count = int(item.get("count") or 0)
             else:
                 value = str(item or "").strip()
                 count = 0
-            if not value:
-                continue
-            extra = {"count": count} if count else None
-            payloads.append((table_name, name, VAL_INSTANCE, value, extra))
-            instance_count += 1
-            taken += 1
-            if taken >= top_k:
+            if value:
+                values.append((value, count))
+            if len(values) >= top_k:
                 break
+        if not values:
+            continue
+        sampled.append(
+            (
+                name,
+                comment,
+                values,
+                {
+                    "whitelisted": whitelist_instance_column(
+                        name, comment=comment, name_anchors=anchors
+                    )
+                },
+            )
+        )
+    if not sampled:
+        return []
+    picker_input = [
+        {
+            "name": name,
+            "comment": comment,
+            "samples": [value for value, _count in values[:8]],
+        }
+        for name, comment, values, meta in sampled
+        if not meta["whitelisted"]
+    ]
+    include: set[str] | None
+    if not picker_input:
+        include = {name for name, _c, _v, _m in sampled}
+    else:
+        picker = column_picker or pick_instance_columns
+        try:
+            include = picker(table_name, picker_input)
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                "value-index column pick %s failed: %s", table_name, exc
+            )
+            include = None
+        if include is None:
+            include = {name for name, _c, _v, _m in sampled}
+        else:
+            include = set(include) | {
+                name for name, _c, _v, meta in sampled if meta["whitelisted"]
+            }
+    payloads: list[Payload] = []
+    instance_count = 0
+    for name, _comment, values, _meta in sampled:
+        if name not in include:
+            continue
+        for value, count in values:
+            if instance_count >= cap:
+                return payloads
+            for cell, extra in instance_cell_entries(value, count=count):
+                if instance_count >= cap:
+                    return payloads
+                payloads.append((table_name, name, VAL_INSTANCE, cell, extra))
+                instance_count += 1
     return payloads
+
+
+def rebuild_person_index(
+    session: Session,
+    *,
+    ds: CoreDatasource,
+    tables: Sequence[CoreTable],
+    proto: Any,
+) -> int:
+    """Replace ds-level person_alias rows from paired id/name samples."""
+    evidence = []
+    for table in tables:
+        all_fields = session.exec(
+            select(CoreField).where(CoreField.table_id == table.id)
+        ).all()
+        try:
+            evidence.extend(collect_person_evidence(proto, ds, table, all_fields))
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                "person-map extract %s failed: %s",
+                getattr(table, "table_name", table.id),
+                exc,
+            )
+    records = merge_person_records(evidence)
+    payloads = person_records_to_payloads(records)
+    models = payloads_to_models(int(ds.id), payloads)
+    session.execute(
+        delete(CoreValueIndex).where(
+            CoreValueIndex.ds_id == int(ds.id),
+            CoreValueIndex.val_type == VAL_PERSON_ALIAS,
+        )
+    )
+    for item in models:
+        session.add(item)
+    return len(models)
 
 
 def payloads_to_models(ds_id: int, payloads: Sequence[Payload]) -> list[CoreValueIndex]:

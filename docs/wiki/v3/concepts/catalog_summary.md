@@ -14,7 +14,7 @@ contract_version: '0.1'
 
 # 全库表骨架
 
-全库表骨架。每表一行：- 表名: 业务定位(核心列/主键/状态)。大宽表与主档保留较全业务维度，小表/关联表/日志表极致精炼。
+全库表骨架。每表一行：- 表名: 官方表注释; 业务定位补充(核心列/主键/状态)。表注释与定位说明都保留；大宽表与主档保留较全业务维度，小表/关联表/日志表极致精炼。
 
 ## ca（2）
 
@@ -79,16 +79,18 @@ contract_version: '0.1'
 
 - project_file_info: 项目运营文档管理(项目ID, 标题, 模块类型)
 
-## tenant（18）
+## tenant（20）
 
 - tenant_interworking_product: 租户互通产品授权与额度(租户ID, 产品ID, 状态, 融资额度/期限上限)
 - tenant_interworking_project: 租户互通产品项目绑定(租户ID, 产品ID, 项目ID)
 - tenant_migarory_log: 租户项目迁移流水(产品编码, 批次号, 状态, 请求报文)
 - tenant_migarory_log_bak: 租户迁移日志备份(产品编码, 批次号, 状态)
-- tenant_product: [核心主档] 租户引入产品配置(租户ID, 平台产品ID, 产品名称/类型, 目标客群, 融资额度/期限上限, 增信措施)
+- tenant_product: 租户引入产品; [核心主档] 租户引入产品配置(租户ID, 平台产品ID, 产品名称/类型, 目标客群, 融资额度/期限上限, 增信措施)
 - tenant_product_menu: 租户产品功能菜单(产品code, 角色, 菜单ID)
 - tenant_product_menu_res: 租户产品菜单按钮权限(产品code, 菜单ID, 按钮资源ID)
-- tenant_project: [核心主档大宽表] 租户项目全量运营配置(项目ID/编码, 名称, 渠道码channel_code, 平台产品编码, 项目状态, 企微审批号wechat_audit_no, 立项审批通过时间, 运营/查验/风控对接人A/B及组别, 方案/业务经理, 首笔落地时间, 自定义字段一/二/三)
+- tenant_product_client: 租户产品客户端配置
+- tenant_product_site: 租户产品站点配置
+- tenant_project: 租户项目配置; [核心主档大宽表] 租户项目全量运营配置(项目ID/编码, 名称, 渠道码channel_code, 平台产品编码, 项目状态, 企微审批号wechat_audit_no, 立项审批通过时间, 运营/查验/风控对接人A/B及组别, 方案/业务经理, 首笔落地时间, 自定义字段一/二/三)
 - tenant_project_approval: [核心主档] 租户项目审批主单(审批号approval_no, 关联项目code, 审批类型, 工作流状态, 方案经理, 企微号sp_no, 简易/低风险)
 - tenant_project_approval_business_info: 审批项目业务推送详情(产品编码, 来源系统, 配置版本, 费率规则)
 - tenant_project_approval_flow: 项目审批流程节点实例(关联审批单, 节点编码/名称/顺序, 节点状态, 审批人)
@@ -102,17 +104,18 @@ contract_version: '0.1'
 
 ## wec（2）
 
-- wec_project_cust_operation_rel: 微企链企业运营对接(关联ID, 企业ID, 角色, 运营对接人A/B。历史关系)
-- wec_project_operation_rel: 微企链历史关联运营配置(历史项目ID, 运营/查验/风控对接人。新配置已收敛至tenant_project)
+- wec_project_cust_operation_rel: 微企链项目企业关联运营; 微企链企业运营对接(关联ID, 企业ID, 角色, 运营对接人A/B。历史关系)
+- wec_project_operation_rel: 微企链项目关联运营; 微企链历史关联运营配置(历史项目ID, 运营/查验/风控对接人。新配置已收敛至tenant_project)
 
 ## wechat（2）
 
-- wechat_project_approval_apply: [核心主档大宽表] 企微立项审批流申请(企微审批号sp_no, 立项名称, 主项目/上线名, 资方全称/分支行, 核心企业全称, 产品类型, 审批时间/类型)
-- wechat_project_approval_field_history: 企微立项字段变更历史(立项apply_id, 审批号sp_no, 字段名/标签, 变更前后值)
+- wechat_project_approval_apply: 企业立项申请表; [核心主档大宽表] 企微立项审批流申请(企微审批号sp_no, 立项名称, 主项目/上线名, 资方全称/分支行, 核心企业全称, 产品类型, 审批时间/类型)
+- wechat_project_approval_field_history: 项目立项字段更新历史; 企微立项字段变更历史(立项apply_id, 审批号sp_no, 字段名/标签, 变更前后值)
 
-## other（11）
+## other（15）
 
-- argeement_migratory_record: 协议电子化迁移记录(客户ID, 产品编码, 协议名/编号, 状态)
+- argeement_migratory_record: 协议迁移记录; 协议电子化迁移记录(客户ID, 产品编码, 协议名/编号, 状态)
+- argeement_migratory_record_bak: 协议迁移记录备份
 - async_io_task: 异步任务处理日志(任务号task_no, 任务名称/类型, 发起人, 状态)
 - authorization_agreement: 管理员授权确认书签署表(企业ID/名称, 管理员ID/姓名, 授权状态)
 - client_api_sync_error: API调用失败重试队列表(服务类名, 重试次数)
@@ -120,6 +123,9 @@ contract_version: '0.1'
 - lc_sql_init_log: 底层插件SQL初始化记录
 - migratory_user_record: 账号体系迁移记录(用户ID user_id, 登录状态is_login)
 - open_sso_channel: 开放登录SSO渠道配置(渠道码channel_code, tenant_code/db_tenant_code产融租户标识, appId, channel_kind LOCAL_SYS/STANDARD, SSO clientId/secret)
-- operation_user: 运营人员基础信息(姓名, 运营中台ID operation_id, 组别, 状态)
+- operation_user: 运营中台人员数据; 运营人员基础信息(姓名, 运营中台ID operation_id, 组别, 状态)
 - org_manage: 组织机构行政层级树(机构编码code, 机构名称, 机构号org_no, 状态)
 - short_link: 外链短链生成与重定向(短链编号, 源长链source_url, 永久有效标识)
+- sys_cust_org: 客户组织机构
+- sys_cust_org_rel: 客户组织机构关系
+- sys_cust_org_user_rel: 客户组织用户关系

@@ -70,11 +70,60 @@ _UUID = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
 _HEX64 = re.compile(r"^[0-9a-fA-F]{32,}$")
-_JSONISH = re.compile(r"^\s*[\[{]")
 
 
 def is_pii_column(name: str) -> bool:
     return bool(_PII_COLUMNS.search(name or ""))
+
+
+def is_opaque_token(value: str) -> bool:
+    """True for UUID / snowflake / hex blobs — not JSON or business text."""
+    key = str(value or "").strip()
+    if not key:
+        return False
+    return bool(_UUID.match(key) or _SNOWFLAKE.match(key) or _HEX64.match(key))
+
+
+def whitelist_instance_column(
+    column: str,
+    *,
+    comment: str = "",
+    name_anchors: list[str] | None = None,
+    pk: list[str] | None = None,
+) -> bool:
+    """Positive business-name rules used as auto-include (does not apply skip)."""
+    name = str(column or "").strip()
+    lower = name.lower()
+    if not name:
+        return False
+    anchors = {str(a).lower() for a in (name_anchors or [])}
+    if lower in anchors:
+        return True
+    if _CREDIT_NAME.search(lower) or _CREDIT_COMMENT.search(str(comment or "")):
+        return True
+    if _NAME_HINT.search(lower):
+        return True
+    if lower in TENANT_FIELDS or lower.endswith("_tenant_code"):
+        return True
+    if _STATUS_UTTERANCE.search(lower):
+        return True
+    if lower.endswith("_code") and lower not in {p.lower() for p in (pk or [])}:
+        return True
+    return False
+
+
+def consider_instance_column(
+    column: str,
+    *,
+    comment: str = "",
+    mysql_type: str = "",
+    name_anchors: list[str] | None = None,  # noqa: ARG001 — kept for call-site symmetry
+    pk: list[str] | None = None,
+) -> bool:
+    """Hard-exclude only. Remaining columns are sampled; LLM (or whitelist) picks."""
+    return not bool(
+        skip_instance_column(column, mysql_type=mysql_type, comment=comment, pk=pk)
+    )
 
 
 def skip_instance_column(
@@ -121,22 +170,9 @@ def nominate_instance_column(
     """Business-meaning nomination. Independent of cardinality and dict_triage."""
     if skip_instance_column(column, mysql_type=mysql_type, comment=comment, pk=pk):
         return False
-    name = str(column or "").strip()
-    lower = name.lower()
-    anchors = {str(a).lower() for a in (name_anchors or [])}
-    if lower in anchors:
-        return True
-    if _CREDIT_NAME.search(lower) or _CREDIT_COMMENT.search(str(comment or "")):
-        return True
-    if _NAME_HINT.search(lower):
-        return True
-    if lower in TENANT_FIELDS or lower.endswith("_tenant_code"):
-        return True
-    if _STATUS_UTTERANCE.search(lower):
-        return True
-    if lower.endswith("_code") and lower not in {p.lower() for p in (pk or [])}:
-        return True
-    return False
+    return whitelist_instance_column(
+        column, comment=comment, name_anchors=name_anchors, pk=pk
+    )
 
 
 def looks_like_opaque_instance_values(values: list[dict[str, Any]] | list[str]) -> bool:
@@ -153,11 +189,6 @@ def looks_like_opaque_instance_values(values: list[dict[str, Any]] | list[str]) 
         return False
     opaque = 0
     for key in keys:
-        if (
-            _UUID.match(key)
-            or _SNOWFLAKE.match(key)
-            or _HEX64.match(key)
-            or _JSONISH.match(key)
-        ):
+        if is_opaque_token(key):
             opaque += 1
     return opaque >= max(1, int(0.8 * len(keys)))

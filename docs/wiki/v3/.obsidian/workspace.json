@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "tables/cust_person_info.md",
+                "file": "tables/wechat_project_approval_apply.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "cust_person_info"
+              "title": "wechat_project_approval_apply"
             }
           }
         ]
@@ -55,7 +55,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "operator_realname",
+                "query": "IMPLEMENTATION",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -100,7 +100,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "tables/cust_person_info.md",
+                "file": "tables/wechat_project_approval_apply.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -119,7 +119,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "tables/cust_person_info.md",
+                "file": "tables/wechat_project_approval_apply.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
@@ -162,7 +162,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "tables/cust_person_info.md",
+                "file": "tables/wechat_project_approval_apply.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -191,6 +191,9 @@
   },
   "active": "99a036deb9dd1bfd",
   "lastOpenFiles": [
+    "dicts/wechat_project_approval_apply__project_phase.md",
+    "tables/wechat_project_approval_apply.md",
+    "tables/cust_person_info.md",
     "dicts/argeement_migratory_record__enable.md",
     "_index.md",
     "processes/tenant_project__project_status.md",
@@ -213,7 +216,6 @@
     "_raw/full_sweep/orphan_and_unref.md",
     "_raw/full_sweep/orphan_and_unref.yaml",
     "dicts/cust_oper_change_record__enable.md",
-    "tables/cust_person_info.md",
     "tables/cust_access_secret.md",
     "dicts/funding_rule_detail__check_scene.md",
     "_raw/full_sweep/code_diff_rejected.yaml",
@@ -225,8 +227,6 @@
     "_raw/full_sweep/dict_llm_residual.yaml",
     "_raw/full_sweep/join_validate_after.md",
     "_raw/full_sweep/join_validate_after.yaml",
-    "_raw/full_sweep/dict_llm_large.yaml",
-    "dicts/funding_exception_resolution__enable.md",
-    "dicts/funding_rule_detail__enable.md"
+    "_raw/full_sweep/dict_llm_large.yaml"
   ]
 }
