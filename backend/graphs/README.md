@@ -40,7 +40,7 @@ backend/graphs/
 ```yaml
 version: 1              # must be 1
 graph_key: chat         # registry key (must match file stem for clarity)
-state: apps.chat.graphs.nodes.nlq.NlqState # JSON-only checkpoint state
+state: apps.chat.graphs.turn_state.ChatTurnState # JSON-only checkpoint state
 durable: true            # use checkpoint + shared run lifecycle (default)
 description: "..."      # human-readable, not parsed
 
@@ -109,19 +109,17 @@ GRAPH_SPEC_DIR=
 - **No side-effect registration**: Graph modules no longer call
   `register_graph()` at import time. All registration goes through
   `bootstrap_graphs()` reading YAML.
-- **Nodes extracted**: Implementations live in `apps.chat.graphs.nodes.*`
-  (nlq, analysis, predict, recommend). Tool-enabled scenarios reuse
-  `apps.conversation.agent`, `apps.conversation.tooling`, and
+- **Nodes extracted**: Chat implementations live in `apps.chat.graphs.nodes.*`
+  (`unified_agent`, `agent_finalize`, `agent_clarify`) plus
+  `apps.chat.graphs.turn_init` / `turn_failure`. Config/metadata graphs
+  reuse `apps.conversation.agent`, `apps.conversation.tooling`, and
   `apps.conversation.turn`; `apps.config_assistant.nodes` only prepares
   configuration-specific state.
 
-### predict
+### predict / analysis
 
-Predict remains an independent production graph.
-
-### analysis
-
-The `analysis` graph remains an independent production graph.
+Query, analysis, and prediction turns share `chat.yaml`. Independent
+`analysis` / `predict` graph YAMLs no longer exist.
 
 ### config
 

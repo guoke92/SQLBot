@@ -367,14 +367,53 @@ def _fence_tables(
     return names, []
 
 
+def live_tables_projection(llm_service: Any) -> dict[str, Any]:
+    """core_table/core_field snapshot used as renderer fallback metadata."""
+    try:
+        from apps.datasource.crud.datasource import get_table_obj_by_ds
+        from common.core.db import Session, engine
+
+        ds = getattr(llm_service, "ds", None)
+        user = getattr(llm_service, "current_user", None)
+        if ds is None or user is None or getattr(ds, "id", None) is None:
+            return {}
+        with Session(engine) as session:
+            table_objs = get_table_obj_by_ds(session=session, current_user=user, ds=ds)
+        projection: dict[str, Any] = {}
+        for obj in table_objs or []:
+            table = getattr(obj, "table", None)
+            name = getattr(table, "table_name", None)
+            if not name:
+                continue
+            fields = [
+                (
+                    str(getattr(f, "field_name", "") or ""),
+                    str(getattr(f, "field_type", "") or "string"),
+                    str(
+                        getattr(f, "custom_comment", None)
+                        or getattr(f, "field_comment", "")
+                        or ""
+                    ),
+                )
+                for f in (getattr(obj, "fields", None) or [])
+            ]
+            projection[str(name)] = {
+                "comment": getattr(table, "table_comment", None) or "",
+                "fields": fields,
+            }
+        return projection
+    except Exception as exc:  # noqa: BLE001
+        SQLBotLogUtil.warning("live tables projection degraded: %s", exc)
+        return {}
+
+
 def _catalog_sources(llm_service: Any) -> tuple[Any, dict[str, Any], list[str]]:
-    from apps.chat.graphs.nodes.nlq.topup import _live_tables_projection
     from apps.chat.steps.wiki_recall import _store, datasource_databases
 
     ds = getattr(llm_service, "ds", None)
     ds_id = getattr(ds, "id", None)
     store = _store(int(ds_id)) if ds_id is not None else None
-    live = _live_tables_projection(llm_service) if ds is not None else {}
+    live = live_tables_projection(llm_service) if ds is not None else {}
     databases = datasource_databases(ds) if ds is not None else []
     return store, live, databases
 

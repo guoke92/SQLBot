@@ -669,12 +669,12 @@ def test_bound_llm_io_keeps_small_payloads_and_caps_large() -> None:
     assert capped.get("truncation_reason") == "llm_io_max_chars"
 
 
-def test_langgraph_preserves_open_tool_spans_on_nlq_state() -> None:
+def test_langgraph_preserves_open_tool_spans_on_chat_turn_state() -> None:
     from langgraph.graph import StateGraph
 
-    from apps.chat.graphs.nodes.nlq.state import NlqState
+    from apps.chat.graphs.turn_state import ChatTurnState
 
-    builder = StateGraph(NlqState)
+    builder = StateGraph(ChatTurnState)
 
     def n1(_state):
         return {"open_tool_spans": {"c1": 3700}}

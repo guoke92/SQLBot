@@ -21,6 +21,7 @@ import Prompt from '@/views/system/prompt/index.vue'
 import Audit from '@/views/system/audit/index.vue'
 import Appearance from '@/views/system/appearance/index.vue'
 import Parameter from '@/views/system/parameter/index.vue'
+import AgentConfig from '@/views/system/agent-config/index.vue'
 import Authentication from '@/views/system/authentication/index.vue'
 import Platform from '@/views/system/platform/index.vue'
 import Permission from '@/views/system/permission/index.vue'
@@ -262,6 +263,17 @@ export const routes = [
           title: t('model.ai_model_configuration'),
           iconActive: 'model',
           iconDeActive: 'noModel',
+        },
+      },
+      {
+        path: 'agent-config',
+        name: 'agentConfig',
+        component: AgentConfig,
+        meta: {
+          title: t('agent_config.title'),
+          iconActive: 'chat',
+          iconDeActive: 'noChat',
+          requiresAdmin: true,
         },
       },
       {

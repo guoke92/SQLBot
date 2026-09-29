@@ -267,5 +267,22 @@
       "step_interrupted": "处理已中断",
       "step_degraded": "处理完成，但存在降级"
     }
+  },
+  "agent_config": {
+    "err_prompt_empty": "系统提示词不能为空",
+    "err_prompt_length": "系统提示词长度不合法",
+    "err_prompt_placeholder_missing": "系统提示词必须保留 {execution_limit} 占位符",
+    "err_prompt_placeholder_invalid": "系统提示词占位符不合法：除 {execution_limit} 外不得出现其他花括号占位符",
+    "err_prompt_section_missing": "系统提示词缺少必需章节",
+    "err_tool_required": "该内置工具为必需工具，不能停用",
+    "err_tool_description": "工具描述过长",
+    "err_tool_budget": "工具轮次预算需为 0-20 的整数",
+    "err_tool_unknown": "未知的内置工具",
+    "err_param_unknown": "未知的循环参数",
+    "err_param_type": "循环参数必须为整数",
+    "err_param_range": "循环参数超出允许范围",
+    "err_note_length": "变更说明过长",
+    "err_no_draft": "没有待发布的草稿",
+    "err_version_not_found": "配置版本不存在"
   }
 }

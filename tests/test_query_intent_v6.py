@@ -18,7 +18,6 @@ from apps.chat.semantic_planning import (
     NeedClarification,
     Ready,
 )
-from apps.chat.turn_router import route_turn
 from apps.protocol.rest.protocol import RestProtocol
 from apps.protocol.sql.protocol import SqlProtocol
 
@@ -104,20 +103,6 @@ def test_intent_confidence_comes_from_evidence_not_model_rating() -> None:
     )
     assert calculate_intent_confidence(intent, inferred) == 0.45
     assert calculate_intent_confidence(intent, confirmed) == 1.0
-
-
-def test_first_turn_router_does_not_call_model() -> None:
-    called = False
-
-    def model_router(_: str) -> dict[str, object]:
-        nonlocal called
-        called = True
-        return {}
-
-    route = route_turn("你好，查询今年销售额", model_router=model_router)
-    assert route.task_kind == "query"
-    assert route.source == "deterministic"
-    assert not called
 
 
 def test_context_budget_never_drops_user_evidence() -> None:

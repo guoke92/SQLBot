@@ -1,7 +1,7 @@
 """RecallRequest — the single input contract for turn-scoped knowledge recall.
 
-独立轮：prepare_turn 不预召回；模型自己写检索词调 search_wiki。
-续问 prepare_turn：``RecallRequest.rehydrate`` — 按上轮 knowledge_refs 从
+独立轮：init 不预召回；模型自己写检索词调 search_wiki。
+续问 init：``RecallRequest.rehydrate`` — 按上轮 knowledge_refs 从
 store 按 key 复水，query 为空，跟进短句不当检索词。
 search_wiki 中途补检：工作集靠 ``pin_tables`` / ``pin_pages`` 保住，
 不再把先验 tool query 拼进 RRF。召回内核只认这个对象。

@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, SystemMessage
-from sqlalchemy import select
 
 from apps.chat.agent_copy import (
     compact_agent_final_text,
@@ -15,18 +14,10 @@ from apps.chat.agent_copy import (
 )
 from apps.chat.agent_knowledge import (
     EXECUTION_ROUND_LIMIT,
-    AgentKnowledgePlane,
     tool_calls_advance_round,
-)
-from apps.chat.memory_slots import (
-    MemorySlots,
-    answer_has_executable_sql,
-    hydrate_memory_slots_from_referenced_turns,
 )
 from apps.chat.steps.stream import consume_llm
 from apps.chat.tools.metadata import get_tool_title_key
-from apps.chat.tools.registry import build_agent_tools
-from apps.chat.turn_contracts import TurnRoute
 from apps.conversation.messages import (
     deserialize_messages,
     serialize_messages,
@@ -34,12 +25,10 @@ from apps.conversation.messages import (
 from apps.conversation.outcome import (
     failed_outcome,
     format_error_message,
-    running_outcome,
 )
 from apps.conversation.process_timeline import open_process_span
 from apps.conversation.run_service import ConversationRunCancelled
 from apps.conversation.runtime_context import attach_runtime, runtime_value
-from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 from apps.conversation.tooling import (
     attach_tool_calls,
@@ -49,7 +38,6 @@ from apps.conversation.tooling import (
     tool_calls_from_message,
     tool_result_from_message,
 )
-from apps.datasource.access import resolve_access_scope
 from common.utils.utils import SQLBotLogUtil
 
 _INCOMPLETE_NO_DATA_KEY = "i18n_chat.agent.incomplete_no_data"
@@ -166,246 +154,15 @@ def _incomplete_query_message(state: Mapping[str, Any]) -> str:
     return _INCOMPLETE_NO_DATA_FALLBACK
 
 
-def resolve_continue_reference_ids(
-    *,
-    chat_id: int | None,
-    user_id: int | None,
-    exclude_record_id: int | None = None,
-    explicit_ids: Sequence[int] | None = None,
-) -> list[int]:
-    """Prefer explicit refs; otherwise attach the latest succeeded query in-chat."""
-    explicit = [int(item) for item in (explicit_ids or []) if int(item) > 0]
-    if explicit:
-        return explicit[:3]
-    if chat_id is None or user_id is None:
-        return []
-    from apps.chat.models.chat_model import ChatRecord
-
-    with session_scope() as session:
-        rows = (
-            session.exec(
-                select(ChatRecord)
-                .where(
-                    ChatRecord.chat_id == int(chat_id),
-                    ChatRecord.create_by == int(user_id),
-                    ChatRecord.question.is_not(None),
-                )
-                .order_by(ChatRecord.id.desc())
-                .limit(20)
-            )
-            .scalars()
-            .all()
-        )
-        for row in rows:
-            if exclude_record_id is not None and int(row.id) == int(exclude_record_id):
-                continue
-            answer = row.answer if isinstance(row.answer, dict) else None
-            if answer_has_executable_sql(answer):
-                return [int(row.id)]
-    return []
-
-
-def _ensure_agent_turn_route(
-    state: Mapping[str, Any],
-    *,
-    reference_record_ids: Sequence[int],
-    task_kind: str = "query",
-) -> dict[str, Any]:
-    """Build a valid TurnRoute for assemble_turn_context (refs alone are not enough)."""
-    refs = tuple(int(item) for item in reference_record_ids[:3] if int(item) > 0)
-    existing = (
-        state.get("turn_route") if isinstance(state.get("turn_route"), dict) else {}
-    )
-    kind = str(
-        existing.get("task_kind") or state.get("route_hint") or task_kind or "query"
-    )
-    if kind not in {"query", "analysis", "prediction", "unsupported"}:
-        kind = "query"
-    if kind == "analysis" and not refs:
-        kind = "query"
-    relation: Literal["independent", "continue", "revise"] = (
-        "continue" if refs else "independent"
-    )
-    return TurnRoute(
-        task_kind=kind,  # type: ignore[arg-type]
-        relation=relation,
-        reference_record_ids=refs,
-        source="deterministic",
-        confidence=0.9 if refs else 1.0,
-    ).model_dump(mode="json")
-
-
-def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
-    """Prepare messages, bound tools, memory slots, and runtime context."""
-    from apps.chat.graphs.nodes.nlq.context import (
-        assemble_turn_context_node,
-        prepare_record_node,
-    )
-    from apps.chat.graphs.nodes.nlq.state import _llm_service
-    from apps.chat.models.chat_model import ChatRecord
-
-    base_state = prepare_record_node(dict(state))
-    if base_state.get("error"):
-        return base_state
-
-    llm_service = _llm_service(base_state)
-    run_id = str(base_state["run_id"])
-    record_id = base_state.get("record_id")
-    question_text = str(getattr(llm_service.chat_question, "question", "") or "")
-    chat_id = base_state.get("chat_id") or getattr(
-        getattr(llm_service, "record", None), "chat_id", None
-    )
-    user_id = getattr(getattr(llm_service, "current_user", None), "id", None)
-
-    ref_ids = resolve_continue_reference_ids(
-        chat_id=int(chat_id) if chat_id is not None else None,
-        user_id=int(user_id) if user_id is not None else None,
-        exclude_record_id=int(record_id) if record_id is not None else None,
-        explicit_ids=base_state.get("reference_record_ids") or [],
-    )
-    turn_route = _ensure_agent_turn_route(base_state, reference_record_ids=ref_ids)
-    base_state["reference_record_ids"] = list(
-        turn_route.get("reference_record_ids") or []
-    )
-    base_state["turn_route"] = turn_route
-
-    if base_state["reference_record_ids"]:
-        ctx_state = assemble_turn_context_node(base_state)
-        if not ctx_state.get("error"):
-            base_state.update(ctx_state)
-            # Persist continue linkage for audit / next turns.
-            try:
-                with session_scope() as session:
-                    record = (
-                        session.get(ChatRecord, int(record_id))
-                        if record_id is not None
-                        else None
-                    )
-                    if record is not None:
-                        record.relation = str(turn_route.get("relation") or "continue")
-                        record.reference_record_ids = list(
-                            base_state["reference_record_ids"]
-                        )
-                        session.add(record)
-                        session.commit()
-            except Exception as exc:
-                SQLBotLogUtil.warning(
-                    f"Failed to persist continue refs on record {record_id}: {exc}"
-                )
-        else:
-            SQLBotLogUtil.warning(
-                f"assemble_turn_context failed for agent turn {record_id}: "
-                f"{ctx_state.get('error')}"
-            )
-
-    access_scope = None
-    try:
-        if not getattr(llm_service, "ds", None):
-            with session_scope() as session:
-                from apps.datasource.models.datasource import CoreDatasource
-
-                chat_obj = session.get(ChatRecord, record_id) if record_id else None
-                ds_id = getattr(chat_obj, "datasource", None) if chat_obj else None
-                if not ds_id and getattr(llm_service, "record", None):
-                    ds_id = getattr(llm_service.record, "datasource", None)
-                if ds_id:
-                    ds = session.get(CoreDatasource, ds_id)
-                    if ds:
-                        llm_service.ds = ds
-
-        if getattr(llm_service, "ds", None):
-            with session_scope() as session:
-                access_scope = resolve_access_scope(
-                    session,
-                    current_user=llm_service.current_user,
-                    ds=llm_service.ds,
-                )
-    except Exception as exc:
-        SQLBotLogUtil.warning(
-            f"Failed to resolve access_scope in prepare_agent_turn: {exc}"
-        )
-
-    raw_slots = base_state.get("memory_slots") or {}
-    memory_slots = MemorySlots.model_validate(raw_slots) if raw_slots else MemorySlots()
-    # referenced_turns (assemble_turn_context) already carry the referenced
-    # answer's confirmed_calibers / assumptions / knowledge_refs.
-    referenced = list(base_state.get("referenced_turns") or [])
-    memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
-
-    from apps.chat.steps.schema_outline import render_schema_outline
-    from apps.chat.steps.wiki_recall import _store
-
-    plane = AgentKnowledgePlane.from_dump(base_state.get("knowledge_plane"))
-    plane.question = plane.question or question_text
-    try:
-        ds = getattr(llm_service, "ds", None)
-        ds_id = getattr(ds, "id", None)
-        store = _store(int(ds_id)) if ds_id is not None else None
-        with session_scope() as session:
-            plane.schema_outline = render_schema_outline(
-                ds=ds,
-                store=store,
-                session=session,
-            )
-    except Exception as exc:
-        SQLBotLogUtil.warning("schema outline render failed: %s", exc)
-
-    tools = build_agent_tools(llm_service, access_scope=access_scope)
-    attach_runtime(
-        run_id,
-        llm=llm_service.llm,
-        bound_tools=tools,
-        access_scope=access_scope,
-        llm_service=llm_service,
-        knowledge_plane=plane.to_dump(),
-        probe_sql_calls=0,
-    )
-
-    history: list[Any] = []
-    if chat_id is not None:
-        try:
-            from apps.chat.session_transcript import load_agent_transcript
-
-            with session_scope() as session:
-                history = load_agent_transcript(session, int(chat_id))
-        except Exception as exc:
-            SQLBotLogUtil.warning(
-                f"Failed to load agent_transcript for chat {chat_id}: {exc}"
-            )
-            history = []
-
-    from apps.chat.session_transcript import build_continued_messages, save_fold_meta
-
-    initial_messages, turn_message_start, fold_meta = build_continued_messages(
-        history=history,
-        question=question_text,
-        knowledge_plane=plane,
-    )
-    if fold_meta and chat_id is not None:
-        try:
-            with session_scope() as session:
-                save_fold_meta(session, int(chat_id), fold_meta)
-                session.commit()
-        except Exception as exc:
-            SQLBotLogUtil.warning(
-                f"Failed to persist fold meta for chat {chat_id}: {exc}"
-            )
-
-    return {
-        **base_state,
-        "messages": serialize_messages(initial_messages),
-        "turn_message_start": turn_message_start,
-        "tool_rounds": 0,
-        "tool_round_limit": EXECUTION_ROUND_LIMIT,
-        "knowledge_plane": plane.to_dump(),
-        "probe_sql_calls": 0,
-        "memory_slots": memory_slots.model_dump(),
-        "outcome": running_outcome(),
-    }
-
-
 def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Autonomous ReAct loop node: streams thought, calls tools, or finalizes."""
+    if state.get("turn_message_start") is None and not state.get("error"):
+        from apps.chat.graphs.turn_init import init_agent_turn
+
+        state = init_agent_turn(state)
+        if state.get("error"):
+            return dict(state)
+
     sink = StreamSink.from_state(state)
     messages = deserialize_messages(list(state.get("messages") or []))
     messages = sanitize_messages_for_model(messages)

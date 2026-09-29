@@ -263,5 +263,22 @@
       "step_interrupted": "Interrupted",
       "step_degraded": "Completed with degradation"
     }
+  },
+  "agent_config": {
+    "err_prompt_empty": "The system prompt cannot be empty",
+    "err_prompt_length": "The system prompt length is out of range",
+    "err_prompt_placeholder_missing": "The system prompt must keep the {execution_limit} placeholder",
+    "err_prompt_placeholder_invalid": "Invalid placeholder: only {execution_limit} may appear in braces",
+    "err_prompt_section_missing": "The system prompt is missing required sections",
+    "err_tool_required": "This built-in tool is required and cannot be disabled",
+    "err_tool_description": "Tool description is too long",
+    "err_tool_budget": "Tool round budget must be an integer between 0 and 20",
+    "err_tool_unknown": "Unknown built-in tool",
+    "err_param_unknown": "Unknown loop parameter",
+    "err_param_type": "Loop parameter must be an integer",
+    "err_param_range": "Loop parameter is out of range",
+    "err_note_length": "Change note is too long",
+    "err_no_draft": "There is no draft to publish",
+    "err_version_not_found": "Configuration version not found"
   }
 }

@@ -169,8 +169,17 @@ def apply_wiki_search_policy(
     return plane, policy, delta
 
 
+def _loop_param(key: str, default: int) -> int:
+    """Runtime loop bound: DB/loop-param override wins over the code constant."""
+    from apps.chat.agent_config import load_agent_config_for_run
+
+    return load_agent_config_for_run().param(key, default)
+
+
 def _search_pace_note(plane: AgentKnowledgePlane) -> str:
-    if plane.search_rounds < SEARCH_WIKI_ROUND_LIMIT:
+    if plane.search_rounds < _loop_param(
+        "search_wiki_round_limit", SEARCH_WIKI_ROUND_LIMIT
+    ):
         return ""
     return (
         "已经检索多轮：优先基于当前系统提示写 SQL 或 complete_without_sql；"
@@ -271,7 +280,9 @@ def _comprehensive_message(
         gap = int(stub.get("schema_gap_searches") or 0)
         extra = (
             f"已连续 {gap} 次没有表/枚举结构，换更具体的业务检索词，或 complete_without_sql。"
-            if gap >= WIKI_SCHEMA_GAP_SEARCH_LIMIT
+            if gap >= _loop_param(
+                "wiki_schema_gap_search_limit", WIKI_SCHEMA_GAP_SEARCH_LIMIT
+            )
             else "换更具体的检索词再 search_wiki，或 complete_without_sql。"
         )
         return _with_pace(

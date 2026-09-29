@@ -410,8 +410,30 @@ class CompareResultsInput(BaseModel):
     )
 
 
+def _apply_config(tools: list[StructuredTool], config: Any) -> list[StructuredTool]:
+    """Apply tool enablement + description overrides.
+
+    ``config is None`` returns the list untouched, which is the path every test
+    and every DB-less deployment takes: tool names and descriptions stay
+    byte-identical to the code literals.
+    """
+    if config is None:
+        return tools
+    kept: list[StructuredTool] = []
+    for tool in tools:
+        name = str(tool.name)
+        if not config.tool_enabled(name):
+            continue
+        inline = str(tool.description or "")
+        override = str(config.tool_description(name, inline))
+        if override != inline:
+            tool = tool.model_copy(update={"description": override})
+        kept.append(tool)
+    return kept
+
+
 def build_agent_tools(
-    llm_service: Any, access_scope: Any = None
+    llm_service: Any, access_scope: Any = None, config: Any = None
 ) -> list[StructuredTool]:
     """Construct bound LangChain tools scoped to current LLMService and access permissions."""
 
@@ -625,4 +647,4 @@ def build_agent_tools(
         ),
     ]
 
-    return tools
+    return _apply_config(tools, config)

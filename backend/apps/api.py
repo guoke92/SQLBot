@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from apps.chat.api import chat
+from apps.chat.agent_config import api as agent_config_api
 from apps.dashboard.api import dashboard_api
 from apps.data_training.api import data_training
 from apps.datasource.api import catalog_index as catalog_index_api
@@ -46,6 +47,7 @@ api_router.include_router(dictionary_api.router)
 api_router.include_router(knowledge_router)
 api_router.include_router(dev_router)
 api_router.include_router(chat.router)
+api_router.include_router(agent_config_api.router)
 api_router.include_router(dashboard_api.router)
 api_router.include_router(mcp.router)
 api_router.include_router(table_relation.router)

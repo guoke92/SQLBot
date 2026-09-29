@@ -171,8 +171,14 @@ def _hydrate_chat(run: ConversationRun) -> dict[str, Any]:
             scope = _rehydrate_chat_access_scope(session, service)
             values["access_scope"] = scope
             values["llm"] = service.llm
+            from apps.chat.agent_config import load_agent_config
             from apps.chat.tools.registry import build_agent_tools
-            values["bound_tools"] = build_agent_tools(service, access_scope=scope)
+
+            agent_config = load_agent_config()
+            values["agent_config"] = agent_config
+            values["bound_tools"] = build_agent_tools(
+                service, access_scope=scope, config=agent_config
+            )
         return values
 
 

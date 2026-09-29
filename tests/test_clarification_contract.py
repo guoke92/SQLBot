@@ -8,7 +8,6 @@ from apps.chat.semantic_planning import (
     NeedClarification,
     public_interrupt_payload,
 )
-from apps.chat.steps.query_agent import SemanticReview, _parse_decision
 from apps.conversation.run_service import ResumeAnswer, ResumeRequest
 
 
@@ -52,21 +51,6 @@ def test_legacy_ambiguity_set_coerces_to_questions() -> None:
         "按签约金额统计",
         "按回款金额统计",
     ]
-
-
-def test_nested_can_proceed_does_not_fail_clarify_parse() -> None:
-    raw = """
-    {"decision":"clarify","ambiguity_set":{"summary":"需要确认签收额口径",
-     "ambiguities":[{"business_question":"签收额按哪个日期统计？","reason":"日期不同金额不同",
-     "impact_level":"high","candidate_resolutions":[
-       {"label":"按签收日","resolution":{"business_meaning":"按签收日统计签收额"}},
-       {"label":"按确权日","resolution":{"business_meaning":"按确权日统计签收额"}}
-     ],"recommendation_reason":"推荐签收日"}],
-     "can_proceed_with_assumptions":false}}
-    """
-    decision = _parse_decision(raw, fallback_description="查询结果")
-    assert isinstance(decision, NeedClarification)
-    assert decision.questions[0].question == "签收额按哪个日期统计？"
 
 
 def test_public_interrupt_payload_canonicalizes_history() -> None:
@@ -118,30 +102,6 @@ def test_resume_request_rejects_empty_answers() -> None:
         assert "at least" in str(exc).casefold() or "min_length" in str(exc).casefold()
     else:
         raise AssertionError("empty answers should fail")
-
-
-def test_reviewer_clarify_uses_questions() -> None:
-    review = SemanticReview.model_validate(
-        {
-            "verdict": "clarify",
-            "issues": [{"code": "BUSINESS_AMBIGUITY", "message": "口径不清"}],
-            "ambiguity_set": {
-                "ambiguities": [
-                    {
-                        "business_question": "金额用签约还是回款？",
-                        "candidate_resolutions": [
-                            {"label": "签约", "meaning": "按签约金额"},
-                            {"label": "回款", "meaning": "按回款金额"},
-                        ],
-                    }
-                ]
-            },
-        }
-    )
-    card = review.clarification_card()
-    assert card is not None
-    assert isinstance(card, ClarificationCard)
-    assert card.questions[0].question == "金额用签约还是回款？"
 
 
 def _question(index: int) -> dict[str, object]:

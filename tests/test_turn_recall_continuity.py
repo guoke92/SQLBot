@@ -254,11 +254,11 @@ def test_caliber_fields_accept_name_alias_and_preserve_value() -> None:
 
 
 def test_turn_answer_contract_carries_knowledge_refs() -> None:
-    from apps.chat.graphs.nodes.nlq.audit import _record_snapshot_values
+    from apps.chat.graphs.turn_snapshot import record_snapshot_values
     from apps.chat.turn_contracts import QueryTurnAnswer
     from apps.conversation.outcome import successful_outcome
 
-    snapshot = _record_snapshot_values(
+    snapshot = record_snapshot_values(
         [],
         analysis_text="ok",
         finish=True,

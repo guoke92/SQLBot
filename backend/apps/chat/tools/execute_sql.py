@@ -55,6 +55,20 @@ def _runtime_snapshot() -> dict[str, Any]:
     return peek_runtime(run_id) or {}
 
 
+EXECUTE_SQL_TOOL_NAME = "execute_sql_sandbox"
+
+
+def _probe_sql_limit() -> int:
+    """Probe budget: per-tool override > loop param > code constant."""
+    from apps.chat.agent_config import load_agent_config_for_run
+
+    config = load_agent_config_for_run()
+    budget = config.tool_round_budget(EXECUTE_SQL_TOOL_NAME)
+    if budget is not None:
+        return budget
+    return config.param("probe_sql_limit", PROBE_SQL_LIMIT)
+
+
 def _reject_enum_discovery(sql: str, llm_service: Any) -> ToolResult | None:
     ds = getattr(llm_service, "ds", None) or getattr(llm_service, "datasource", None)
     ds_id = getattr(ds, "id", None)
@@ -99,7 +113,7 @@ def _consume_probe_budget(required: bool) -> str | None:
         attach_runtime(run_id, probe_sql_calls=used + 1)
     # ``used`` is the count *before* this call; after attach it is used+1.
     after = used + 1
-    if after < PROBE_SQL_LIMIT:
+    if after < _probe_sql_limit():
         return None
     return (
         "[probe_budget] 探查已执行。若数据形态已经够用，下一次 execute_sql_sandbox "

@@ -51,7 +51,7 @@ alembic revision --autogenerate -m "msg"   # autogenerate is restricted — see 
 ### Layered layout under `backend/`
 
 - `apps/` — feature modules. Each follows the same shape: `api/` (FastAPI routers), `curd/` or `crud/` (DB business logic), `models/` (SQLModel tables + Pydantic DTOs), sometimes `schemas/`, `middleware/`, `utils/`. Notable:
-  - `apps/chat/` — Q&A endpoints and the LLM service. The hot path lives in `apps/chat/task/llm.py` (≈2000 LOC) — `LLMService` runs the full generate-SQL → execute → generate-chart pipeline, also `analysis` and `predict_data` and `recommend_questions` flows. Quick commands like `/regenerate`, `/analysis`, `/predict` are parsed in `common/utils/command_utils.py`.
+  - `apps/chat/` — Q&A endpoints and the LLM session factory. Production turns run `graphs/current/chat.yaml` (`agent_loop` ⇄ `execute_tools` → `finalize_turn`). `LLMService` in `apps/chat/task/llm.py` resolves the model, datasource, and turn session; SQL generation and execution live in agent tools (`apps/chat/tools/`). Quick commands like `/regenerate`, `/analysis`, `/predict` are parsed in `common/utils/command_utils.py`.
   - `apps/datasource/` — datasources, table/field metadata, embedding (`apps/datasource/embedding/`), row/column permissions. The `CoreDatasource` model also embeds an `Excel/CSV` virtual type that round-trips through a Postgres table.
   - `apps/ai_model/` — LLM factory (`model_factory.py`) and embedding cache. `LLMFactory` registers `openai|tongyi|azure|vllm`; `EmbeddingModelCache` lazily loads the local HF model with a per-key lock.
   - `apps/system/` — users, workspaces, login, AI model config, assistants (embedded integrations), API keys, parameters. `apps/system/middleware/auth.py` is `TokenMiddleware` — handles bearer tokens, assistant tokens, and embedded tokens.
@@ -77,9 +77,9 @@ alembic revision --autogenerate -m "msg"   # autogenerate is restricted — see 
 ### Request flow — end to end
 
 1. Router in `apps/chat/api/chat.py` receives `/chat/question` with `CurrentUser` and `CurrentAssistant` injected by `common/core/deps.py`.
-2. `parse_quick_command` checks for `/regenerate` etc., then dispatches to `stream_sql` (or `analysis_or_predict`).
-3. `LLMService.create` (`apps/chat/task/llm.py`) resolves the LLM via `LLMFactory.create_llm`, with the user's default model or a chat-specific one; loads the datasource, applies RAG (terminology + data-training + table/ds embeddings via `EmbeddingModelCache`), constructs the prompt from `templates/template.yaml` + dialect example from `templates/sql_examples/{db}.yaml`, calls the LLM to generate SQL, executes it through `apps/db/db.py::exec_sql` (with row/column permission filters applied), then calls the LLM again to choose a chart spec.
-4. Streaming response is delivered as `text/event-stream` chunks. The whole pipeline is logged via `apps/chat/curd/chat.py` (`save_question`, `save_sql`, `save_chart`, etc.) and the `ChatLog` table is the **single process-audit channel** for Execution Details (graph spans via `apps.chat.steps.observability.log_span` + domain steps). Do not invent a parallel trace store; put batch/attempt identity in span meta, not new tables.
+2. `parse_quick_command` checks for `/regenerate` etc., then dispatches to `submit_graph("chat", …)` (or analysis/prediction on the same `chat` graph).
+3. `LLMService.create` (`apps/chat/task/llm.py`) resolves the LLM via `LLMFactory.create_llm`, with the user's default model or a chat-specific one, and loads the datasource. The compiled `chat` graph then runs `init_agent_turn` once, loops `agent_loop` ⇄ `execute_tools` (catalog/wiki/SQL tools), pauses on clarification, and finishes in `finalize_turn` (charts from result sets).
+4. Streaming response is delivered as `text/event-stream` chunks. The whole pipeline is logged via `apps/chat/curd/chat.py` (`save_question`, `save_sql`, `save_chart`, etc.) and the `ChatLog` table is the **single process-audit channel** for Execution Details (graph spans via `apps.conversation.process_timeline` + domain `log_span`). Do not invent a parallel trace store; put batch/attempt identity in span meta, not new tables.
 5. Audit trail: `@system_log` on the route writes a row to `system_log` (operation, module, resource id, status).
 
 ### Permissions
@@ -132,7 +132,7 @@ Out of scope for backend work, but worth knowing: the chat API streams chunks th
 
 - FastAPI app + middleware wiring: `backend/main.py`
 - API surface: `backend/apps/api.py`
-- The hot path: `backend/apps/chat/api/chat.py`, `backend/apps/chat/task/llm.py`
+- The hot path: `backend/graphs/current/chat.yaml`, `backend/apps/chat/api/chat.py`, `backend/apps/chat/graphs/nodes/unified_agent.py`, `backend/apps/chat/task/llm.py` (`LLMService` factory)
 - LLM + embedding factories: `backend/apps/ai_model/model_factory.py`, `backend/apps/ai_model/embedding.py`
 - Auth: `backend/apps/system/middleware/auth.py`, `backend/common/core/security.py`
 - Permission decorator: `backend/apps/system/schemas/permission.py`

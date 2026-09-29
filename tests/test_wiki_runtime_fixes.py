@@ -1,8 +1,7 @@
 """Wiki 运行链路四问题修复的回归测试（chat 165 复盘）。
 
-覆盖：① planning_prompt str 分流（prose 走 XML 纯文本段，不再 JSON 转义）；
-② SQL 别名回解（中文别名 → 物理列）+ 枚举翻译重挂；③ chunk 级嵌入指纹增量
-（改散文零重嵌）；④ WikiRecallResult hits 透出（遥测投影）；⑤ 澄清等待
+覆盖：SQL 别名回解（中文别名 → 物理列）+ 枚举翻译重挂；chunk 级嵌入指纹增量
+（改散文零重嵌）；WikiRecallResult hits 透出（遥测投影）；澄清等待
 interval 投影（时间线对账）。
 """
 
@@ -21,8 +20,10 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
-from apps.chat.graphs.nodes.nlq import audit as nlq_audit  # noqa: E402
-from apps.chat.planning_prompt import render_planner_input  # noqa: E402
+from apps.chat.steps.enum_display import (  # noqa: E402
+    _sql_alias_columns,
+    enum_refs_for_query,
+)
 from apps.chat.steps.wiki_recall import (  # noqa: E402
     WikiRecallResult,
     translate_enum_cells,
@@ -30,39 +31,8 @@ from apps.chat.steps.wiki_recall import (  # noqa: E402
 from apps.knowledge.wiki.chunker import chunk_markdown  # noqa: E402
 from apps.knowledge.wiki.contract import parse_page  # noqa: E402
 
-# ── 修复 1：structured 的 str 值走 XML 段（prose 逐字粘贴，无 JSON 转义）──────
 
-
-def test_structured_str_values_render_as_xml_prose() -> None:
-    """business_knowledge 类 markdown prose 是 str → 不再经 orjson 转义。"""
-    prose = "# 客户信息主表\n\n- 锚点：[[cust_company_info]]\n- 行数约 559\n"
-    rendered = render_planner_input(
-        schema="s",
-        structured={
-            "business_knowledge": prose,
-            "recall_topup_notice": {"added": ["cust_build_type"]},
-        },
-    )
-    body = rendered.split("<business_knowledge>\n")[1].split("\n</business_knowledge>")[
-        0
-    ]
-    assert body == prose.strip()  # 逐字粘贴
-    assert "\\n" not in body and '\\"' not in body  # 无 JSON 转义残留
-    # dict 依旧走 JSON 段
-    assert "<recall_topup_notice>\n{" in rendered
-
-
-def test_structured_multiline_str_no_backslash_n() -> None:
-    rendered = render_planner_input(
-        schema="",
-        structured={"wiki_schema_relations": "a.cust_id → b.cust_id\n内联补充"},
-    )
-    assert "<wiki_schema_relations>" in rendered
-    assert "a.cust_id → b.cust_id\n内联补充" in rendered
-    assert "\\n" not in rendered
-
-
-# ── 修复 4：SQL 别名回解 + 枚举翻译重挂 ──────────────────────────────────────
+# ── SQL 别名回解 + 枚举翻译重挂 ──────────────────────────────────────
 
 
 def test_sql_alias_columns_resolves_chinese_alias() -> None:
@@ -70,7 +40,7 @@ def test_sql_alias_columns_resolves_chinese_alias() -> None:
         "SELECT identify_style AS 认证方式, COUNT(*) AS total "
         "FROM cust_company_info GROUP BY identify_style"
     )
-    projections = nlq_audit._sql_alias_columns(sql, "mysql")
+    projections = _sql_alias_columns(sql, "mysql")
     by_alias = {p["alias"]: p for p in projections}
     assert by_alias["认证方式"]["column"] == "identify_style"
     # 非限定列无 table 限定符（消歧由 _enum_refs_for_step 走列集匹配）
@@ -78,7 +48,7 @@ def test_sql_alias_columns_resolves_chinese_alias() -> None:
     # 聚合投影无单一物理列 → 不在映射里
     assert "total" not in by_alias
     # 表别名回解到物理表名（枚举翻译挂物理列）
-    qualified = nlq_audit._sql_alias_columns(
+    qualified = _sql_alias_columns(
         "SELECT c.identify_style AS 认证方式 FROM cust_company_info c", "mysql"
     )
     assert qualified[0]["table"] == "cust_company_info"
@@ -87,17 +57,20 @@ def test_sql_alias_columns_resolves_chinese_alias() -> None:
 def test_enum_refs_resolve_alias_to_physical_column(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from apps.chat.steps import enum_display as ed
+
     monkeypatch.setattr(
-        nlq_audit,
-        "_wiki_table_columns",
-        lambda table: {"identify_style", "cust_status"}
+        ed,
+        "wiki_table_columns",
+        lambda table, **_k: {"identify_style", "cust_status"}
         if table == "cust_company_info"
         else set(),
     )
     sql = "SELECT identify_style AS 认证方式 FROM cust_company_info"
-    refs, alias_to_ref = nlq_audit._enum_refs_for_step(
-        {"tables": ["cust_company_info"], "sql": sql},
-        ["认证方式"],
+    refs, alias_to_ref = enum_refs_for_query(
+        sql=sql,
+        fields=["认证方式"],
+        tables=["cust_company_info"],
     )
     assert refs == ["cust_company_info.identify_style"]
     # 别名回解的精确对应（translate 层据此重挂，不再插入序兜底）
@@ -106,13 +79,17 @@ def test_enum_refs_resolve_alias_to_physical_column(
 
 def test_enum_refs_fallback_column_set_match(monkeypatch: pytest.MonkeyPatch) -> None:
     """解析失败/无 SQL 时回退列集匹配（refs 语义不变，别名映射为空）。"""
+    from apps.chat.steps import enum_display as ed
+
     monkeypatch.setattr(
-        nlq_audit,
-        "_wiki_table_columns",
-        lambda table: {"identify_style"} if table == "cust_company_info" else set(),
+        ed,
+        "wiki_table_columns",
+        lambda table, **_k: {"identify_style"} if table == "cust_company_info" else set(),
     )
-    refs, alias_to_ref = nlq_audit._enum_refs_for_step(
-        {"tables": ["cust_company_info"], "sql": "(() bad sql"}, ["identify_style"]
+    refs, alias_to_ref = enum_refs_for_query(
+        sql="(() bad sql",
+        fields=["identify_style"],
+        tables=["cust_company_info"],
     )
     assert refs == ["cust_company_info.identify_style"]
     assert alias_to_ref == {}  # 解析失败无精确映射 → 翻译走旧兜底
@@ -352,18 +329,6 @@ def test_business_render_strips_editorial_and_reinjects_caliber() -> None:
     assert rendered.count("# 有效租户") == 1
 
 
-def test_query_agent_system_knowledge_moves_to_system() -> None:
-    """system_knowledge 非空 → business_knowledge 拼 system 侧，user 不再携带。"""
-    import inspect
-
-    from apps.chat.steps import query_agent as qa
-
-    src = inspect.getsource(qa.run_query_agent)
-    assert "system_knowledge" in src  # 参数存在
-    assert "<business_knowledge>" in src  # system 拼接
-    assert src.index("system_knowledge") < src.index("render_planner_input")
-
-
 def test_knowledge_map_hit_keys_only() -> None:
     """hit_keys 提供时地图只渲染命中页（不再 (+527 more)）。"""
     from apps.chat.steps.recall_map import _wiki_knowledge_map
@@ -412,71 +377,7 @@ def test_sink_token_reasoning_low_threshold() -> None:
     assert emitted2 == []
 
 
-def test_retrieval_span_single_contract() -> None:
-    """检索 span detail 契约：resources + wiki 子块，不再携带 schema 全文。"""
-    import inspect
-
-    from apps.chat.graphs.nodes.nlq import context as ctx
-
-    src = inspect.getsource(ctx.retrieve_context_node)
-    assert '"schema_chars"' in src
-    assert "chat.audit.retrieval_ready" in src
-    assert '"schema":' not in src.split("retrieval_span")[1]  # 无 schema 全文
-    # retrieve_schema_node 内层 audit=False（双卡片根因消除）
-    src_schema = inspect.getsource(ctx.retrieve_schema_node)
-    assert "audit=False" in src_schema
-
-
-# ── chat 169 修复：去硬编码 / 补充表阈值 / trace / 归因 / schema 分节 ──────────
-
-
-def test_query_agent_system_no_business_terms_hardcoded() -> None:
-    """_QUERY_AGENT_SYSTEM 不得含业务术语硬编码（跨部署通用性）。"""
-    from apps.chat.steps.query_agent import _QUERY_AGENT_SYSTEM
-
-    for term in (
-        "fin_list",
-        "签收",
-        "融资额",
-        "认证方式",
-        "组织/部门",
-        "sed_company_name",
-        "原始供应商",
-        "cust_company",
-        "ca_fee",
-    ):
-        assert term not in _QUERY_AGENT_SYSTEM, f"硬编码业务词残留: {term}"
-
-
-def test_query_agent_system_prompt_contract_fallbacks_abstract() -> None:
-    """missing_concepts 示例用抽象表述（某张表或某个口径），不点名业务表。"""
-    from apps.chat.steps.query_agent import _QUERY_AGENT_SYSTEM
-
-    assert "某张表或某个口径" in _QUERY_AGENT_SYSTEM
-    assert "<表名>" in _QUERY_AGENT_SYSTEM  # fields 模板用占位符
-
-
-def test_clarify_contract_mutual_exclusion_and_enum_boundary() -> None:
-    """chat 171 契约重构：互斥重定义 + 枚举覆盖按题型区分（agent + reviewer）。
-
-    模型曾把"枚举类字段的选项要覆盖全部可能值"误读为跨字段选项非法，
-    放弃了它自己推导出的字段归属澄清题——新契约正面声明：
-    ①互斥=业务口径不同，不要求同字段；②字段归属题各选项带各自 value 是预期形态；
-    ③枚举穷举只适用于"取哪个值"题型。"""
-    from apps.chat.steps.query_agent import _QUERY_AGENT_SYSTEM, _REVIEWER_SYSTEM
-
-    # 判定原则 2：字段归属题的合法性正面声明（不再只有散落触发器）
-    assert "一对多落点就是会显著改变结果的歧义" in _QUERY_AGENT_SYSTEM
-    assert "每个选项的 fields 指向各自字段并携带各自的枚举 value" in _QUERY_AGENT_SYSTEM
-    assert "这类题的各选项引用不同字段是预期形态" in _QUERY_AGENT_SYSTEM
-    # 互斥重定义 + 枚举覆盖边界（agent 与 reviewer 同口径）
-    for source in (_QUERY_AGENT_SYSTEM, _REVIEWER_SYSTEM):
-        assert "互斥体现在业务口径不同" in source
-        assert "不要求所有选项引用同一字段" in source or (
-            "不要求穷举任一字段的值域" in source
-        )
-    assert "不要求穷举任一字段的值域" in _QUERY_AGENT_SYSTEM
-    assert "不要求穷举任一字段的值域" in _REVIEWER_SYSTEM
+# ── chat 169 修复：补充表阈值 / trace / 归因 ──────────
 
 
 def test_get_table_schema_supplement_threshold_and_no_padding() -> None:
@@ -584,34 +485,6 @@ def test_anchor_table_attribution_traces_closure_sources() -> None:
     assert anchor_table_attribution(None, ["x"]) == {}
 
 
-def test_split_schema_sections_per_table_cards() -> None:
-    """schema 全文按 `## 注释 (表名)` 分节：每表一卡（含 db 兜底 [db] 后缀）。"""
-    from apps.chat.graphs.nodes.nlq.context import _split_schema_sections
-
-    schema_text = (
-        "【DB_ID】 demo\n【Schema】\n"
-        "## 客户表 (cust_company_info)\n字段若干A\n"
-        "## 客户表 (cust_company_info) [demo]\n字段若干B\n"
-        "## 配置表 (tenant_setting_config)\n字段若干C\n"
-    )
-    sections = _split_schema_sections(
-        schema_text,
-        {"cust_company_info": "closure", "tenant_setting_config": "embedding"},
-    )
-    assert [s["table"] for s in sections] == [
-        "cust_company_info",
-        "cust_company_info",
-        "tenant_setting_config",
-    ]
-    assert sections[0]["origin"] == "closure"
-    assert "字段若干A" in sections[0]["text"]
-    assert sections[1]["origin"] == "closure"  # [db] 后缀不干扰表名提取
-    # origins 缺失 → embedding 兜底
-    assert sections[2]["origin"] == "embedding"
-    # 无分节标记（纯 db 渲染兜底）返回空，前端回退整文渲染
-    assert _split_schema_sections("plain text", {}) == []
-
-
 def test_renderer_live_tables_fallback_full_columns() -> None:
     """chat 172：wiki 无语料的 ds，db 兜底用活元数据渲染全列（不再零字段）。"""
     from apps.chat.steps.wiki_schema import WikiSchemaRenderer
@@ -666,26 +539,6 @@ def test_renderer_catalog_still_wins_over_live_tables() -> None:
     text = renderer.render(["t1"])
     assert "目录表" in text and "目录列" in text
     assert "活列" not in text
-
-
-def test_topup_span_detail_includes_schema_sections() -> None:
-    """topup 扩窗 span detail 与检索 span 同构（chat 172 问题 2）。"""
-    import inspect
-
-    from apps.chat.steps.recall_topup import _split_topup_schema_sections
-
-    text = "## 迭代 (d_sprint) [db]\n(id:bigint, 主键)\n## 用户信息表 (d_user) [db]\n(org:bigint, 机构ID)"
-    sections = _split_topup_schema_sections(text, added_tables=["d_user"])
-    assert [s["table"] for s in sections] == ["d_sprint", "d_user"]
-    assert sections[0]["origin"] == "embedding"
-    assert sections[1]["origin"] == "topup"  # 本轮新拉入的表标注
-    assert "(id:bigint, 主键)" in sections[0]["text"]
-    # 源码断言：span set_detail 携带 schema_text/chars/sections
-    from apps.chat.steps.recall_topup import fulfill_recall_topup
-
-    src = inspect.getsource(fulfill_recall_topup)
-    assert '"schema_text"' in src
-    assert '"schema_sections"' in src
 
 
 def test_live_table_fk_relations_name_decoded() -> None:

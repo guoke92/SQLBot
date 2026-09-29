@@ -38,8 +38,11 @@ def _run(graph_key: str = "chat") -> ConversationRun:
 def test_chat_runtime_rehydrates_access_scope_with_llm_service(monkeypatch) -> None:  # noqa: ANN001
     record = _record()
     user = SimpleNamespace(id=1, language="zh-CN")
-    service = SimpleNamespace(ds=SimpleNamespace(id=10), set_record=Mock())
+    llm = object()
+    service = SimpleNamespace(ds=SimpleNamespace(id=10), set_record=Mock(), llm=llm)
     access_scope = object()
+    bound_tools = [object()]
+    agent_config = object()
     session = Mock()
     session.get.return_value = record
 
@@ -60,11 +63,26 @@ def test_chat_runtime_rehydrates_access_scope_with_llm_service(monkeypatch) -> N
         "_rehydrate_chat_access_scope",
         lambda _session, _service: access_scope,
     )
+    # Both are imported inside ``_hydrate_chat``, so patch the source modules.
+    monkeypatch.setattr(
+        "apps.chat.agent_config.load_agent_config", lambda *a, **kw: agent_config
+    )
+    tools_factory = Mock(return_value=bound_tools)
+    monkeypatch.setattr("apps.chat.tools.registry.build_agent_tools", tools_factory)
 
     values = runtime_context_module._hydrate_chat(_run())
 
-    assert values == {"llm_service": service, "access_scope": access_scope}
+    assert values == {
+        "llm_service": service,
+        "access_scope": access_scope,
+        "llm": llm,
+        "agent_config": agent_config,
+        "bound_tools": bound_tools,
+    }
     service.set_record.assert_called_once()
+    tools_factory.assert_called_once_with(
+        service, access_scope=access_scope, config=agent_config
+    )
 
 
 def test_non_nlq_runtime_does_not_resolve_access_scope(monkeypatch) -> None:  # noqa: ANN001

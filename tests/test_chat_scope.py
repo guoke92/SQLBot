@@ -5,15 +5,12 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any
 
 _ROOT = Path(__file__).resolve().parents[1]
 _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
-from apps.chat.graphs.nodes import nlq  # noqa: E402
 from apps.chat.planning import _apply_display_defaults  # noqa: E402
 from apps.chat.steps import chat_scope as cs  # noqa: E402
 from apps.datasource.access import AccessScope  # noqa: E402
@@ -63,113 +60,6 @@ def test_scope_cache_distinguishes_none_from_missing(monkeypatch) -> None:
     assert cs.is_missing(cs.cached_access_scope(1, 8, 5)) is True
 
 
-# ── 节点级：resolve_access_scope 缓存复用 ─────────────────────────────────────
-
-
-class _FakeSession:
-    def __init__(self):
-        self.calls: list[str] = []
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        return False
-
-
-def _wire_scope_node(monkeypatch, resolved_scope):
-    cs.clear_chat_scope_cache()
-    service = SimpleNamespace(
-        ds=SimpleNamespace(id=8),
-        current_user=SimpleNamespace(id=5),
-        record=SimpleNamespace(id=1),
-    )
-    attached: dict[str, Any] = {}
-    resolve_calls: list[int] = []
-
-    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis):
-        monkeypatch.setattr(_patch_target, "_llm_service",
-lambda state: service)
-    for _patch_target in (nlq, nlq.context):
-        monkeypatch.setattr(_patch_target, "resolve_access_scope",
-lambda *a, **k: (resolve_calls.append(1), resolved_scope)[1],
-    )
-    for _patch_target in (nlq, nlq.context, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.routing):
-        monkeypatch.setattr(_patch_target, "attach_runtime",
-lambda run_id, **kw: attached.update(kw))
-    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.planning, nlq.presentation, nlq.audit):
-        monkeypatch.setattr(_patch_target, "_ds_scope",
-lambda svc: (1, 8))
-    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.audit):
-        monkeypatch.setattr(_patch_target, "session_scope",
-_FakeSession)
-    return service, resolve_calls, attached
-
-
-def test_access_scope_resolved_once_then_reused(monkeypatch) -> None:
-    scope = AccessScope(resource_names=("d_task", "d_project"))
-    _service, resolve_calls, attached = _wire_scope_node(monkeypatch, scope)
-    state = {"run_id": "r1", "planning_decision": "pending"}
-
-    first = nlq.resolve_access_scope_node(state)
-    assert first.get("error") is None
-    assert len(resolve_calls) == 1
-    assert attached["access_scope"] is scope
-
-    second = nlq.resolve_access_scope_node({**state, "run_id": "r2"})
-    assert second.get("error") is None
-    assert len(resolve_calls) == 1  # 缓存命中, 不再解析
-    assert attached["access_scope"] is scope  # 每个运行仍正确绑定
-
-
-# ── 节点级：ensure_datasource 连接缓存 ────────────────────────────────────────
-
-
-def _wire_datasource_node(monkeypatch, *, connected=True):
-    cs.clear_chat_scope_cache()
-    checks: list[int] = []
-    service = SimpleNamespace(
-        ds=SimpleNamespace(id=8, name="AIO", type="mysql"),
-        record=SimpleNamespace(id=1),
-        protocol=SimpleNamespace(
-            check_connection=lambda *, ds: (checks.append(1), connected)[1],
-        ),
-    )
-    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis):
-        monkeypatch.setattr(_patch_target, "_llm_service",
-lambda state: service)
-    for _patch_target in (nlq, nlq.context):
-        monkeypatch.setattr(_patch_target, "validate_history_ds",
-lambda *a, **k: None)
-    monkeypatch.setattr(nlq.StreamSink, "from_state", classmethod(lambda c, s: None))
-    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.audit):
-        monkeypatch.setattr(_patch_target, "session_scope",
-_FakeSession)
-    return service, checks
-
-
-def test_connection_checked_once_then_cached(monkeypatch) -> None:
-    service, checks = _wire_datasource_node(monkeypatch)
-
-    first = nlq.ensure_datasource_node({"run_id": "r1"})
-    assert first.get("error") is None
-    assert len(checks) == 1
-
-    second = nlq.ensure_datasource_node({"run_id": "r2"})
-    assert second.get("error") is None
-    assert len(checks) == 1  # TTL 内不再打目标库
-
-    assert cs.connection_fresh(8) is True
-
-
-def test_connection_failure_not_cached(monkeypatch) -> None:
-    service, checks = _wire_datasource_node(monkeypatch, connected=False)
-
-    result = nlq.ensure_datasource_node({"run_id": "r1"})
-    assert result.get("error") is not None
-    assert cs.connection_fresh(8) is False  # 失败不进缓存
-
-
 def test_execution_connection_failure_invalidates_cache() -> None:
     # 执行期连接失败反哺缓存：由 execute_queries_node 的失效分支保证
     # （kind == "connection" → invalidate_connection）。此处验证缓存语义闭环。
@@ -195,51 +85,6 @@ def test_display_defaults_use_brief_as_title() -> None:
     fallback = [{"brief": ""}]
     _apply_display_defaults(fallback, "用户问题原文")
     assert fallback[0]["presentation_title"] == "用户问题原文"
-
-
-def test_plans_from_ready_passes_description_as_brief(monkeypatch) -> None:
-    from apps.chat.planning import BatchParseResult
-    from apps.chat.semantic_planning import QueryDescription, Ready
-    from apps.chat.steps import query_agent as qa
-
-    captured: list[dict] = []
-
-    def fake_parse(payload, _llm_service, **_kwargs):
-        captured.append(dict(payload))
-        # 模拟真实契约：解析层应用显示默认值（brief → 标题 + 序号）
-        parsed = [
-            {
-                "sql": payload.get("sql"),
-                "payload": {"sql": payload.get("sql")},
-                "brief": payload.get("brief"),
-            }
-        ]
-        _apply_display_defaults(parsed, "用户问题")
-        return BatchParseResult(plans=parsed, plan_validated=True)
-
-    monkeypatch.setattr(qa, "parse_query_generation", fake_parse)
-    service = SimpleNamespace(
-        chat_question=SimpleNamespace(generation_question="用户问题"),
-        table_name_list=["t"],
-        protocol=SimpleNamespace(
-            format_statement_for_display=lambda plan: plan.statement
-        ),
-    )
-    decision = Ready(
-        queries=[
-            QueryDescription(description="白名单明细", sql="SELECT 1"),
-            QueryDescription(description="答题明细", sql="SELECT 2"),
-        ]
-    )
-
-    plans = qa._plans_from_ready(
-        decision, service, schema_fingerprint="fp", max_batch_size=4
-    )
-
-    assert [p["brief"] for p in captured] == ["白名单明细", "答题明细"]
-    # 标题来自 description, 多计划带序号; 不再回退问题原文
-    assert plans[0]["presentation_title"] == "白名单明细（1）"
-    assert plans[1]["presentation_title"] == "答题明细（2）"
 
 
 # ── 执行详情标签完整性 ────────────────────────────────────────────────────────

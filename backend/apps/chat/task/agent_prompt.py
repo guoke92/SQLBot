@@ -125,10 +125,19 @@ _SLOT_SECTIONS: tuple[tuple[str, str], ...] = (
 )
 
 
-def render_system_prompt_template() -> str:
-    return _SYSTEM_PROMPT_TEMPLATE.format(
-        execution_limit=EXECUTION_ROUND_LIMIT,
-    )
+def render_system_prompt_template(*, config: Any = None) -> str:
+    """Render the system prompt from the published override.
+
+    Save, publish, and rollback reject a body that cannot be formatted with
+    ``execution_limit``, so this call is not allowed to substitute another
+    template or another limit.
+    """
+    if config is None:
+        from apps.chat.agent_config.loader import load_agent_config_for_run
+
+        config = load_agent_config_for_run()
+    limit = config.param("execution_round_limit", EXECUTION_ROUND_LIMIT)
+    return str(config.prompt_template).format(execution_limit=limit)
 
 
 def render_memory_slots(memory_slots: Mapping[str, Any] | None) -> str:
@@ -158,8 +167,15 @@ def build_agent_system_prompt(
     memory_slots: Mapping[str, Any] | None = None,  # noqa: ARG001 — kept for callers
     change_baseline: Mapping[str, Any] | None = None,  # noqa: ARG001
     knowledge_plane: Any = None,
+    config: Any = None,
 ) -> str:
-    parts = [render_system_prompt_template()]
+    """Full SystemMessage body: rendered prompt + knowledge-plane sections.
+
+    ``config`` defaults to the config frozen for the current run, so every
+    caller inside a turn (initial build and post-tool rebuild) renders the same
+    prompt version without threading state through.
+    """
+    parts = [render_system_prompt_template(config=config)]
 
     from apps.chat.agent_knowledge import AgentKnowledgePlane
 

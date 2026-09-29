@@ -459,29 +459,12 @@ class TestEmbeddingRecallContract:
             "chat layer must not pass embedding=; offenders:\n" + "\n".join(offenders)
         )
 
-    def test_nlq_chart_uses_resource_filter_not_embedding_override(self) -> None:
-        text = (
-            _BACKEND / "apps/chat/graphs/nodes/nlq/presentation.py"
-        ).read_text(encoding="utf-8")
-        assert "embedding=False" not in text
-        # Agentic batch loop uses table_list for resource filtering in chart generation
-        assert "table_list=" in text
-
     def test_match_table_schema_omits_embedding_kwarg(self) -> None:
         text = (_BACKEND / "apps/chat/steps/schema.py").read_text(encoding="utf-8")
         assert "retrieve_schema(" in text
         assert "embedding=" not in text.split("retrieve_schema(")[1].split(")")[0]
         assert "TABLE_EMBEDDING_ENABLED" in text
         assert "table_name_list" in text
-
-    def test_retrieve_context_has_single_compile_path(self) -> None:
-        text = (
-            _BACKEND / "apps/chat/graphs/nodes/nlq/context.py"
-        ).read_text(encoding="utf-8")
-        assert "match_training" not in text
-        assert "retrieve_prompt_schema" not in text
-        assert "def retrieve_context_node" in text
-        assert "recall_knowledge_node" in text
 
 
 class TestCreateChatConfigContract:
@@ -507,7 +490,6 @@ class TestCreateChatConfigContract:
         for rel in (
             "apps/chat/curd/chat.py",
             "apps/chat/task/llm.py",
-            "apps/chat/graphs/nodes/nlq/audit.py",
             "apps/chat/steps/datasource.py",
         ):
             text = (_BACKEND / rel).read_text(encoding="utf-8")
@@ -541,32 +523,36 @@ class TestGraphLoader:
         spec = self._parse_current_yaml("chat.yaml")
         assert spec.graph_key == "chat"
         assert spec.version == 1
-        assert "prepare_record" in spec.nodes
-        assert "review_query" in spec.nodes
+        assert spec.state == "apps.chat.graphs.turn_state.ChatTurnState"
+        assert "agent_loop" in spec.nodes
+        assert "execute_tools" in spec.nodes
+        assert "await_clarification" in spec.nodes
+        assert "finalize_turn" in spec.nodes
         assert "fail" in spec.nodes
-        # At least one edge from START
+        assert "prepare_turn" not in spec.nodes
         assert any((hasattr(e, "source") and e.source == "START") for e in spec.edges)
-        # plan_query hands off to the deterministic plan gate (plain edge);
-        # the conditional routing (incl. the bounded plan_query bounce) lives
-        # on the gate.
-        plan_query_edges = [
-            e for e in spec.edges if getattr(e, "source", None) == "plan_query"
+        start_edges = [
+            e for e in spec.edges if getattr(e, "source", None) == "START"
         ]
-        assert plan_query_edges
-        assert all(getattr(e, "target", None) == "plan_gate" for e in plan_query_edges)
-        gate_edges = [
+        assert start_edges
+        assert all(getattr(e, "target", None) == "agent_loop" for e in start_edges)
+        loop_edges = [
             e
             for e in spec.edges
-            if getattr(e, "source", None) == "plan_gate" and hasattr(e, "paths")
+            if getattr(e, "source", None) == "agent_loop" and hasattr(e, "paths")
         ]
-        assert gate_edges
-        assert "review_query" in gate_edges[0].paths
-        assert "plan_query" in gate_edges[0].paths
-
-    def test_chat_yaml_contains_analysis_and_prediction_agents(self) -> None:
-        spec = self._parse_current_yaml("chat.yaml")
-        assert "analysis_agent" in spec.nodes
-        assert "prediction_agent" in spec.nodes
+        assert loop_edges
+        assert loop_edges[0].paths.get("execute_tools") == "execute_tools"
+        assert loop_edges[0].paths.get("finalize_turn") == "finalize_turn"
+        assert loop_edges[0].paths.get("fail") == "fail"
+        tool_edges = [
+            e
+            for e in spec.edges
+            if getattr(e, "source", None) == "execute_tools" and hasattr(e, "paths")
+        ]
+        assert tool_edges
+        assert tool_edges[0].paths.get("agent_loop") == "agent_loop"
+        assert tool_edges[0].paths.get("await_clarification") == "await_clarification"
 
     def test_parse_recommend_yaml(self) -> None:
         spec = self._parse_current_yaml("recommend.yaml")

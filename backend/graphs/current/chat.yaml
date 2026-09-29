@@ -1,30 +1,21 @@
 version: 1
 graph_key: chat
-state: apps.chat.graphs.nodes.nlq.NlqState
+state: apps.chat.graphs.turn_state.ChatTurnState
 description: >
   Unified Autonomous Data Agent runtime.
-  prepare_turn -> agent_loop <-> execute_tools -> finalize_turn;
+  agent_loop (init once) <-> execute_tools -> finalize_turn;
   clarifications pause durably at await_clarification; errors route to fail.
 
 nodes:
-  prepare_turn: apps.chat.graphs.nodes.unified_agent.prepare_agent_turn_node
   agent_loop: apps.chat.graphs.nodes.unified_agent.agent_loop_node
   execute_tools: apps.conversation.tooling.execute_tools_node
   await_clarification: apps.chat.graphs.nodes.agent_clarify.await_agent_clarification_node
   finalize_turn: apps.chat.graphs.nodes.agent_finalize.finalize_agent_turn_node
-  fail: apps.chat.graphs.nodes.nlq.fail_node
+  fail: apps.chat.graphs.turn_failure.fail_node
 
 edges:
   - from: START
-    to: prepare_turn
-
-  - from: prepare_turn
-    router:
-      type: ok_or_fail
-      next: agent_loop
-    paths:
-      agent_loop: agent_loop
-      fail: fail
+    to: agent_loop
 
   - from: agent_loop
     router: apps.chat.graphs.nodes.unified_agent.route_after_agent_loop

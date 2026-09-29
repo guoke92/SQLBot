@@ -17,9 +17,9 @@ from apps.chat.chart_presentation import (
     resolve_delivery_chart,
 )
 from apps.chat.delivery import select_delivery_datasets
-from apps.chat.graphs.nodes.nlq.audit import _record_snapshot_values
-from apps.chat.graphs.nodes.nlq.presentation import _maybe_update_chat_brief
-from apps.chat.graphs.nodes.nlq.state import _llm_service
+from apps.chat.graphs.turn_failure import update_chat_brief
+from apps.chat.graphs.turn_snapshot import record_snapshot_values
+from apps.chat.graphs.turn_state import llm_service as _llm_service
 from apps.chat.presentation import (
     ResultPresentation,
     build_result_presentation,
@@ -332,7 +332,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         )
     else:
         knowledge_refs = {"page_keys": [], "tables": []}
-    snapshot_vals = _record_snapshot_values(
+    snapshot_vals = record_snapshot_values(
         all_steps,
         analysis_text=final_text,
         finish=True,
@@ -367,7 +367,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 or ""
             )
         try:
-            _maybe_update_chat_brief(llm_service, sink, title)
+            update_chat_brief(llm_service, sink, title)
         except Exception as exc:
             SQLBotLogUtil.warning(f"chat brief update skipped: {exc}")
 
