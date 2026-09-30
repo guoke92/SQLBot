@@ -317,15 +317,15 @@ def test_execute_sql_truncation_uses_protocol_max_rows(monkeypatch) -> None:
     assert res["ok"] is True
     assert stored["required"] is True
     assert stored["result_title"] == ""
-    assert res["data"]["truncated"] is True
-    assert res["data"]["row_count"] == 5
-    assert res["data"]["limit"] == 5
-    assert res["data"]["plan_id"] == "call-9"
+    assert res["payload"]["truncated"] is True
+    assert res["payload"]["row_count"] == 5
+    assert res["payload"]["limit"] == 5
+    assert res["payload"]["plan_id"] == "call-9"
     assert stored["truncated"] is True
     assert stored["row_count"] == 5
     assert stored["plan_id"] == "call-9"
     assert stored["value_labels"] == {"id": {"0": "zero"}}
-    assert res["data"]["value_labels"] == {"id": {"0": "zero"}}
+    assert res["payload"]["value_labels"] == {"id": {"0": "zero"}}
     fake_service.protocol.execute.assert_called()
     assert fake_service.protocol.execute.call_args.kwargs.get("max_rows") == 5
 
@@ -364,11 +364,11 @@ def test_execute_sql_probe_marks_not_required(monkeypatch) -> None:
     res = execute_sql_sandbox(
         fake_service,
         "SELECT 1",
-        required=False,
+        purpose="probe",
         result_title="探查",
     )
     assert res["ok"] is True
-    assert res["data"]["required"] is False
+    assert res["signals"]["purpose"] == "probe"
     assert stored["required"] is False
     assert stored["result_title"] == "探查"
 
@@ -408,9 +408,9 @@ def test_execute_sql_respects_sql_limit_above_default(monkeypatch) -> None:
         limit=1000,
     )
     assert res["ok"] is True
-    assert res["data"]["row_count"] == 2000
-    assert res["data"]["truncated"] is True
-    assert res["data"]["limit"] == 2000
+    assert res["payload"]["row_count"] == 2000
+    assert res["payload"]["truncated"] is True
+    assert res["payload"]["limit"] == 2000
     assert fake_service.protocol.execute.call_args.kwargs.get("max_rows") == 2000
 
 
@@ -639,9 +639,9 @@ def test_caliber_surface_splits_confirmed_from_assumptions() -> None:
 
 
 def test_assumptions_from_slots_are_human_readable() -> None:
-    from apps.chat.agent.delivery import _assumptions_from_slots
+    from apps.chat.caliber_surface import project_caliber_surface
 
-    items = _assumptions_from_slots(
+    surface = project_caliber_surface(
         {
             "confirmed_calibers": {
                 "q1": {
@@ -653,6 +653,7 @@ def test_assumptions_from_slots_are_human_readable() -> None:
             }
         }
     )
+    items = [*surface["confirmed_calibers"], *surface["assumptions"]]
     assert len(items) == 1
     assert items[0]["question"].startswith("「认证方式是平台录入」")
     assert items[0]["value"] == "按录入方式：平台录入"

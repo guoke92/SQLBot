@@ -29,15 +29,13 @@ DEFAULT_TOOL_NAMES: tuple[str, ...] = (
     "patch_and_compile_sql",
     "execute_sql_sandbox",
     "compare_results",
-    "complete_without_sql",
     "request_clarification",
 )
 
-# Disabling any of these would leave the agent unable to terminate a turn.
+# Disabling any of these would leave the agent unable to fetch or pause a turn.
 REQUIRED_TOOL_NAMES: frozenset[str] = frozenset(
     {
         "execute_sql_sandbox",
-        "complete_without_sql",
         "request_clarification",
     }
 )
@@ -76,6 +74,9 @@ LOOP_PARAM_SPECS: tuple[LoopParamSpec, ...] = (
         10,
         "wiki_schema_gap_search_limit",
     ),
+    LoopParamSpec("tool_call_limit", 24, 1, 64, "tool_call_limit"),
+    LoopParamSpec("clarify_limit", 2, 0, 6, "clarify_limit"),
+    LoopParamSpec("context_token_limit", 48000, 4000, 200000, "context_token_limit"),
 )
 
 LOOP_PARAM_DEFAULTS: dict[str, int] = {

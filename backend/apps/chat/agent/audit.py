@@ -12,8 +12,13 @@ from apps.conversation.sink import StreamSink
 
 def tool_close_keys(name: str, result: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     """Knowledge tools report hit counts; skipped budget is not a failure."""
-    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-    if isinstance(data, Mapping) and data.get("skipped") == KNOWLEDGE_BUDGET_SKIP:
+    from apps.chat.tools.contract import outcome_payload
+
+    signals = result.get("signals") if isinstance(result.get("signals"), Mapping) else {}
+    data = outcome_payload(result)
+    if (isinstance(signals, Mapping) and signals.get("skipped")) or data.get(
+        "reason"
+    ) == KNOWLEDGE_BUDGET_SKIP:
         return "chat.summary.tool_skipped", {"tool": name}
     if not result.get("ok"):
         return "chat.summary.tool_failed", {"tool": name}

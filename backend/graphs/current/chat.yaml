@@ -36,12 +36,7 @@ edges:
     to: agent_loop
 
   - from: finalize_turn
-    router:
-      type: ok_or_fail
-      next: END
-    paths:
-      END: END
-      fail: fail
+    to: END
 
   - from: fail
     to: END

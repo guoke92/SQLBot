@@ -89,8 +89,8 @@ Production Q&A runs through LangGraph. `LLMService` (`apps/chat/task/llm.py`) is
 1. `apps/api.py` calls `bootstrap_graphs()` (defined in `apps/conversation/graph_loader.py`) at import time.
 2. YAML under `backend/graphs/current/` (override via `GRAPH_SPEC_DIR`) is the **sole topology source**.
 3. Callers use `submit_graph(graph_key, state)` from `apps.conversation.runtime`.
-4. Chat node bodies live in `apps/chat/agent/` (`loop`, `init`, `tools/runtime`, `clarify`, `delivery`) plus `apps/conversation/tooling.execute_tools_node` for config; recommend nodes in `apps/chat/graphs/nodes/recommend.py`; metadata graph nodes in `apps/datasource/profiling/graphs/nodes/`.
-5. Production `chat.yaml`: `START → agent_loop ⇄ execute_tools → finalize_turn`. `agent_loop` calls `init_agent_turn` once when `turn_message_start` is missing (record header, referenced-turn assembly, tools, transcript). Tool calls go to `execute_tools`; clarifications pause at `await_clarification` then resume the loop. Continuation references are decided by `resolve_continue_reference_ids` plus `ensure_agent_turn_route`. Failures route to `fail`.
+4. Chat node bodies live in `apps/chat/agent/` (`loop`, `init`, `prompt`, `context_spec`, `workspace`, `tools/runtime`, `tools/render`, `clarify`, `delivery`) plus `apps.conversation.tooling.execute_tools_node` for config; recommend nodes in `apps/chat/graphs/nodes/recommend.py`; metadata graph nodes in `apps/datasource/profiling/graphs/nodes/`.
+5. Production `chat.yaml`: `START → agent_loop ⇄ execute_tools → finalize_turn`. `agent_loop` projects a six-section ContextSpec, tools return ToolOutcome, and graph routers read `compute_verdict` (workspace delivery + this-batch signals + LoopBudget). Init runs once when `turn_message_start` is missing. Clarifications pause at `await_clarification` then resume the loop. Continuation references are decided by `resolve_continue_reference_ids` plus `ensure_agent_turn_route`. Failures close through the same `close_turn` as finalize.
 6. Domain steps / observability live in `apps/chat/steps/` (prefer existing steps + `log_span`).
 
 | graph_key   | YAML                         | Purpose                          |
@@ -110,7 +110,7 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 |------|------|
 | `apps/conversation/` | Graph loader, runtime, sinks, session, tooling |
 | `apps/chat/api/chat.py` | HTTP/SSE entry; dispatches `submit_graph` |
-| `apps/chat/agent/` | Product chat agent: `loop` / `init` / `prompt` / `context` / `tools/runtime` / `clarify` / `delivery` / `knowledge` / `budget` |
+| `apps/chat/agent/` | Product chat agent: ContextSpec projection, ToolOutcome tools, SqlWorkspace delivery, `compute_verdict` routing |
 | `apps/chat/turn_contracts.py` | `TurnRoute` + terminal answer payload contracts (single validation home) |
 | `apps/chat/semantic_planning.py` | Clarification-card contract |
 | `apps/chat/plan_policy.py` | Batch row/timeout limits |

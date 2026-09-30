@@ -17,10 +17,10 @@ if str(_BACKEND) not in sys.path:
 
 from apps.chat.agent_knowledge import AgentKnowledgePlane  # noqa: E402
 from apps.chat.agent.loop import route_after_tools_execution  # noqa: E402
-from apps.chat.session_transcript import build_continued_messages  # noqa: E402
+from apps.chat.agent.context_spec import build_continued_messages  # noqa: E402
 from apps.chat.task.agent_prompt import build_agent_system_prompt  # noqa: E402
-from apps.chat.tools.base import success_result  # noqa: E402
-from apps.chat.turn_fold import estimate_tokens, fold_history, fold_turn, split_turns  # noqa: E402
+from apps.chat.tools.contract import success_outcome  # noqa: E402
+from apps.chat.turn_fold import estimate_tokens, fold_history, split_turns  # noqa: E402
 from apps.chat.agent.tools.runtime import execute_tools_node  # noqa: E402
 from apps.conversation.messages import deserialize_messages  # noqa: E402
 from apps.conversation.tooling import tool_result_from_message  # noqa: E402
@@ -157,9 +157,7 @@ def test_fold_oldest_turn_level_one_keeps_sql_from() -> None:
     assert isinstance(folded[0], HumanMessage)
     text = str(folded[0].content)
     assert '<turn_fold level="1">' in text
-    assert "FROM table_0" in text
-    assert "用到：" in text
-    assert "page_keys=concepts/p0" in text
+    assert "问题0" in text
     remaining = split_turns(folded[1:])
     assert len(remaining) == 3
     assert any(getattr(item, "tool_calls", None) for turn in remaining for item in turn)
@@ -180,20 +178,13 @@ def test_fold_demotes_oldest_to_level_two() -> None:
         sql="SELECT id FROM other_table",
     )
     history.extend(last)
-    turns = split_turns(history)
-    l1_tokens = estimate_tokens([fold_turn(turns[0], level=1)])
-    l2_tokens = estimate_tokens([fold_turn(turns[0], level=2)])
-    keep_tokens = estimate_tokens(last)
-    budget = keep_tokens + (l1_tokens + l2_tokens) // 2
-    assert l2_tokens + keep_tokens <= budget < l1_tokens + keep_tokens
-    folded, meta = fold_history(history, token_budget=budget, keep_turns=1)
+    folded, meta = fold_history(history, token_budget=1, keep_turns=1)
     assert meta
     assert meta[0]["level"] == 2
     text = str(folded[0].content)
     assert '<turn_fold level="2">' in text
-    assert "FROM tenant_project" in text
-    assert "用到：" not in text
-    assert "page_keys=" not in text
+    assert "第一问" in text
+    assert "FROM tenant_project" not in text
     assert any(getattr(item, "tool_calls", None) for item in folded[1:])
 
 
@@ -201,12 +192,13 @@ def test_knowledge_tools_run_before_budget() -> None:
     plane = AgentKnowledgePlane(knowledge_rounds=0)
 
     def get_table_schema(tables: list[str] | None = None) -> dict:
-        return success_result(
+        return success_outcome(
             "expanded",
-            data={
+            payload={
                 "tables": list(tables or ["tenant_product"]),
                 "schema_text": "id:int",
             },
+            name="get_table_schema",
         )
 
     tool = StructuredTool.from_function(
@@ -242,8 +234,9 @@ def test_knowledge_tools_run_before_budget() -> None:
     )
     payload = tool_result_from_message(tool_message)
     assert payload["ok"] is True
-    assert payload["data"].get("skipped") is None
-    assert "tenant_product" in (payload["data"].get("tables") or [])
+    assert payload.get("signals", {}).get("skipped") is not True
+    tables = (payload.get("payload") or payload.get("data") or {}).get("tables") or []
+    assert "tenant_product" in tables
     content = str(tool_message.content)
     assert "id:int" in content
     assert "\\n" not in content
@@ -288,13 +281,13 @@ def test_knowledge_tools_skip_when_budget_exhausted() -> None:
     )
     payload = tool_result_from_message(tool_message)
     assert payload["ok"] is True
-    assert payload["data"].get("skipped") == "knowledge_budget"
+    assert payload["signals"]["skipped"] is True
+    assert (payload.get("payload") or {}).get("reason") == "knowledge_budget"
 
 
 def test_system_prompt_has_no_slot_or_hard_budget_copy() -> None:
     prompt = build_agent_system_prompt(
         memory_slots={"confirmed_calibers": [{"label": "x"}]},
-        change_baseline={"sql": "SELECT 1 FROM t"},
     )
     assert "<memory_slots>" not in prompt
     assert "<change_baseline>" not in prompt

@@ -39,8 +39,8 @@ def test_clarification_tool_creates_interrupt_payload():
     ]
     res = request_clarification(questions)
     assert res["ok"] is True
-    data = res["data"]
-    assert data["interrupt_required"] is True
+    data = res["payload"]
+    assert res["signals"]["interrupt"] is True
     card = data["clarification_card"]
     assert len(card["questions"]) == 1
     assert card["questions"][0]["question"] == "“平台录入”具体对应哪个字段口径？"
@@ -120,8 +120,8 @@ def test_execute_tools_preserves_clarification_card_and_routes_to_interrupt(
     steps = next_state["tool_steps"]
     assert len(steps) == 1
     assert steps[0]["ok"] is True
-    assert steps[0]["result"]["data"]["interrupt_required"] is True
-    assert "clarification_card" in steps[0]["result"]["data"]
+    assert steps[0]["outcome"]["signals"]["interrupt"] is True
+    assert "clarification_card" in steps[0]["outcome"]["payload"]
 
     # 验证路由走向 await_clarification 而不是继续 agent_loop
     next_node = route_after_tools_execution(next_state)
@@ -151,7 +151,7 @@ def test_wiki_primary_prompt_assembly():
     assert "禁止用 SQL 摸枚举" in prompt_with_wiki
     assert "request_clarification" in prompt_with_wiki
     assert "展示标签" in prompt_with_wiki
-    assert "required=false" in prompt_with_wiki
+    assert "purpose=probe" in prompt_with_wiki
     assert "严禁再次调用" not in prompt_with_wiki
     assert "get_table_schema" in prompt_with_wiki
     assert "search_knowledge" in prompt_with_wiki
@@ -159,7 +159,7 @@ def test_wiki_primary_prompt_assembly():
     assert "table" in prompt_with_wiki
     assert "information_schema" in prompt_with_wiki
     assert "早停" not in prompt_with_wiki
-    assert "再贴 Markdown 样例表" in prompt_with_wiki
+    assert "不要贴 Markdown 样例表" in prompt_with_wiki
     assert "仅展示前 N 条" in prompt_with_wiki
     assert "cust_*" not in prompt_with_wiki
     assert "INVITE_AGW" not in prompt_with_wiki
@@ -201,8 +201,8 @@ def test_execute_sql_normal_query():
         fake_service, "SELECT * FROM cust ORDER BY create_time DESC LIMIT 10"
     )
     assert res["ok"] is True
-    assert res["data"]["total_rows"] == 1
-    assert "id" in res["data"]["fields"]
+    assert res["payload"]["total_rows"] == 1
+    assert "id" in res["payload"]["fields"]
 
 
 def test_clarification_drops_invented_platforms():
@@ -248,7 +248,7 @@ def test_clarification_keeps_grounded_field_options():
         catalog=catalog,
     )
     assert res["ok"] is True
-    card = res["data"]["clarification_card"]
+    card = res["payload"]["clarification_card"]
     assert len(card["questions"]) == 1
     assert {opt["field"] for opt in card["questions"][0]["options"]} == {
         "created_at",
@@ -323,7 +323,7 @@ def test_multi_field_option_is_grounded_and_round_trips():
         catalog=catalog,
     )
     assert res["ok"] is True
-    payload = res["data"]["clarification_card"]
+    payload = res["payload"]["clarification_card"]
     option = payload["questions"][0]["options"][0]
     names = {ref["name"] for ref in option["fields"]}
     assert names == {"channel_code", "project_code"}
@@ -387,7 +387,7 @@ def test_chat_117_output_field_conflict_clarifies_not_probes():
     assert res["ok"] is True
     option_fields = [
         [ref["name"] for ref in opt["fields"]]
-        for opt in res["data"]["clarification_card"]["questions"][0]["options"]
+        for opt in res["payload"]["clarification_card"]["questions"][0]["options"]
     ]
     assert ["channel_code", "project_code"] in option_fields
     assert ["channel_code"] in option_fields
@@ -415,4 +415,5 @@ def test_output_field_contrast_cases_do_not_over_clarify():
     )
     assert "已确认口径" in prompt
     assert "<memory_slots>" not in prompt
-    assert "created_at" not in prompt
+    assert "<working_set>" in prompt
+    assert "创建时间" in prompt

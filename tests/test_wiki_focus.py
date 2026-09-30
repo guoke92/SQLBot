@@ -29,6 +29,7 @@ from apps.chat.steps.wiki_focus import (  # noqa: E402
 from apps.chat.agent.audit import tool_close_keys  # noqa: E402
 from apps.chat.agent.knowledge import load_plane, take_working  # noqa: E402
 from apps.chat.agent.tools.runtime import execute_tools_node  # noqa: E402
+from apps.chat.tools.contract import success_outcome  # noqa: E402
 from apps.chat.tools.registry import GetTableSchemaInput  # noqa: E402
 from apps.conversation.runtime_context import (  # noqa: E402
     attach_runtime,
@@ -423,10 +424,9 @@ def test_timeline_lookup_uses_wiki_lookup_key() -> None:
 def test_stop_search_does_not_lock_execute_tools(monkeypatch) -> None:
     fake_tool = MagicMock()
     fake_tool.name = "get_table_schema"
-    fake_tool.invoke.return_value = {
-        "ok": True,
-        "summary": "diminishing",
-        "data": {
+    fake_tool.invoke.return_value = success_outcome(
+        "diminishing",
+        payload={
             "stop_search": True,
             "recall_status": "diminishing_returns",
             "focus": "all",
@@ -434,9 +434,8 @@ def test_stop_search_does_not_lock_execute_tools(monkeypatch) -> None:
             "schema_ready": True,
             "hit_count": 0,
         },
-        "error": None,
-        "failure": None,
-    }
+        name="get_table_schema",
+    )
     monkeypatch.setattr(
         "apps.chat.agent.tools.runtime.open_process_span", lambda **_k: None
     )

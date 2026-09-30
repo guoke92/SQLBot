@@ -116,9 +116,9 @@ def test_required_tool_is_re_enabled_at_read_time(
     """Defence in depth: a hand-edited row cannot brick the agent's exits."""
     _published(
         monkeypatch,
-        _row(tools={"complete_without_sql": {"enabled": False}}),
+        _row(tools={"request_clarification": {"enabled": False}}),
     )
-    assert loader.load_agent_config().tool_enabled("complete_without_sql") is True
+    assert loader.load_agent_config().tool_enabled("request_clarification") is True
 
 
 def test_db_failure_degrades_to_code_defaults(
@@ -302,7 +302,7 @@ def test_default_snapshot_is_valid() -> None:
             "agent_config.err_tool_unknown",
         ),
         (
-            {"tools": {"complete_without_sql": {"enabled": False}}},
+            {"tools": {"request_clarification": {"enabled": False}}},
             "agent_config.err_tool_required",
         ),
         (

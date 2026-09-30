@@ -626,108 +626,38 @@ def test_parse_dsml_markup_recovers_search_wiki_calls() -> None:
     assert native_text == "ok"
 
 
-def test_render_tool_message_schema_uses_real_newlines() -> None:
-    schema = (
-        "## 租户产品配置 (tenant_product)\n"
-        "id:number, 表主键\n"
-        "code:string, 编码"
-    )
+def test_host_render_is_name_agnostic() -> None:
     text = render_tool_message(
-        "get_table_schema",
+        "config_lookup",
         {
             "ok": True,
-            "summary": "已展开表 ['tenant_product']。不要再为同一张表调用本工具。",
-            "data": {
-                "tables": ["tenant_product"],
-                "added_tables": ["tenant_product"],
-                "already": [],
-                "missing": [],
-                "schema_text": schema,
-                "schema_ready": True,
-            },
+            "summary": "loaded 2 keys",
+            "data": {"keys": ["a", "b"], "source": "settings"},
             "error": None,
             "failure": None,
         },
     )
-    assert "\\n" not in text
-    assert "\n" in text
-    assert '"ok"' not in text
-    assert "schema_text" not in text
-    assert "schema_ready" not in text
-    assert "## 租户产品配置 (tenant_product)" in text
-    assert "id:number, 表主键" in text.splitlines()
-
-
-def test_render_tool_message_keeps_knowledge_summary_only() -> None:
-    summary = (
-        "已命中 1 条业务知识。\n"
-        "concept: 产品类型\n"
-        "  page_key: concepts/product-cate"
-    )
-    text = render_tool_message(
-        "search_knowledge",
-        {
-            "ok": True,
-            "summary": summary,
-            "data": {
-                "page_keys": ["concepts/product-cate"],
-                "hits": [{"title": "产品类型", "type": "concept"}],
-                "hit_count": 1,
-            },
-            "error": None,
-            "failure": None,
-        },
-    )
-    assert text == summary
-    assert "hit_count" not in text
-
-
-def test_render_tool_message_sql_drops_orchestration_fields() -> None:
-    text = render_tool_message(
-        "execute_sql_sandbox",
-        {
-            "ok": True,
-            "summary": "Query executed successfully, returned 1 rows.",
-            "data": {
-                "sql": "SELECT 1 AS a",
-                "fields": ["a"],
-                "total_rows": 1,
-                "row_count": 1,
-                "truncated": False,
-                "sample_rows": [{"a": 1}],
-                "preview_rows": [{"a": 1}],
-                "column_stats": {"a": {"sum": 1}},
-                "dataset_id": "ds-1",
-                "plan_id": "p-1",
-                "required": True,
-            },
-            "error": None,
-            "failure": None,
-        },
-    )
-    assert "SELECT 1 AS a" in text
-    assert "a=1" in text
-    assert "column_stats" not in text
-    assert "dataset_id" not in text
-    assert '"ok"' not in text
+    assert text.startswith("loaded 2 keys")
+    assert "keys: a, b" in text
+    assert "source: settings" in text
 
 
 def test_render_tool_message_failure_is_one_line() -> None:
     text = render_tool_message(
-        "get_table_schema",
+        "any_tool",
         {
             "ok": False,
-            "summary": "get_table_schema 需要至少一张可见表名",
+            "summary": "missing argument",
             "data": None,
-            "error": "get_table_schema 需要至少一张可见表名",
+            "error": "missing argument",
             "failure": {
                 "kind": "execution",
-                "message": "get_table_schema 需要至少一张可见表名",
+                "message": "missing argument",
                 "retryable": True,
             },
         },
     )
-    assert text == "Failed: get_table_schema 需要至少一张可见表名"
+    assert text == "Failed: missing argument"
     assert "retryable" not in text
 
 

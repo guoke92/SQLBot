@@ -6,8 +6,7 @@ Domain atoms live in ``apps.chat.steps``; orchestration with SSE is owned by
 
 Table / datasource vector recall is **not** a constructor or API flag on this
 class. Ranking is gated solely by ``settings.TABLE_EMBEDDING_ENABLED`` inside
-``apps.chat.steps.schema`` / ``apps.chat.steps.datasource`` and the protocol
-CRUD path. Do not re-add ``embedding`` to ``LLMService.__init__``.
+the protocol retrieve path. Do not re-add ``embedding`` to ``LLMService.__init__``.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from __future__ import annotations
 import os
 import urllib.parse
 import warnings
-from typing import Any, List, Optional, Union
+from typing import Any
 
 import orjson
 import requests
@@ -63,14 +62,14 @@ class LLMService:
     record: ChatRecord
     config: LLMConfig
     llm: BaseChatModel
-    chart_message: List[Union[BaseMessage, dict[str, Any]]]
+    chart_message: list[BaseMessage | dict[str, Any]]
 
     current_user: CurrentUser
-    current_assistant: Optional[CurrentAssistant] = None
-    out_ds_instance: Optional[AssistantOutDs] = None
+    current_assistant: CurrentAssistant | None = None
+    out_ds_instance: AssistantOutDs | None = None
     change_title: bool = False
 
-    generate_chart_logs: List[ChatLog]
+    generate_chart_logs: list[ChatLog]
     current_logs: dict
     trans: I18nHelper = None
 
@@ -86,7 +85,7 @@ class LLMService:
         session: Session,
         current_user: CurrentUser,
         chat_question: ChatQuestion,
-        current_assistant: Optional[CurrentAssistant] = None,
+        current_assistant: CurrentAssistant | None = None,
         no_reasoning: bool = False,
         config: LLMConfig = None,
     ):

@@ -10,8 +10,8 @@ from typing import Any
 from langchain_core.messages import ToolMessage
 
 from apps.chat.agent.audit import tool_close_keys
-from apps.chat.agent.budget import budget_from_state
-from apps.chat.agent.close import delivery_from_state, stamp_delivery
+from apps.chat.agent.budget import budget_from_state, calls_count_as_execution
+from apps.chat.agent.close import apply_outcome_to_workspace
 from apps.chat.agent.knowledge import (
     cache_from_state,
     load_plane,
@@ -19,10 +19,18 @@ from apps.chat.agent.knowledge import (
     publish_plane,
     take_working,
 )
-from apps.chat.agent.tools.effect import signals_from_result
+from apps.chat.agent.tools.render import render_tool_message
+from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_config.defaults import DEFAULT_PARALLEL_SAFE
-from apps.chat.agent_knowledge import KNOWLEDGE_BUDGET_SKIP, KNOWLEDGE_TOOLS
+from apps.chat.agent_knowledge import KNOWLEDGE_TOOLS
 from apps.chat.steps.observability import sanitize_audit_value
+from apps.chat.tools.contract import (
+    Signals,
+    ToolOutcome,
+    outcome_payload,
+    parse_tool_outcome,
+    skipped_outcome,
+)
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
@@ -33,41 +41,22 @@ from apps.conversation.process_timeline import (
 )
 from apps.conversation.runtime_context import (
     attach_runtime,
-    peek_runtime,
     runtime_value,
     tool_call_scope,
 )
 from apps.conversation.sink import StreamSink
-from apps.conversation.tooling import (
-    ToolResult,
-    last_tool_call_message,
-    normalize_tool_result,
-    render_tool_message,
-    tool_calls_from_message,
-    tool_failure,
-    tool_success,
-)
 from apps.conversation.tooling import (
     _tool_call_signature as tool_call_signature,
 )
 from apps.conversation.tooling import (
     _truncate_for_log as truncate_for_log,
 )
+from apps.conversation.tooling import (
+    last_tool_call_message,
+    tool_calls_from_message,
+)
 
-
-def _tool_message_skipped(message: ToolMessage) -> bool:
-    from apps.conversation.tooling import tool_result_from_message
-
-    payload = tool_result_from_message(message)
-    data = payload.get("data") if isinstance(payload.get("data"), Mapping) else {}
-    return isinstance(data, Mapping) and data.get("skipped") == KNOWLEDGE_BUDGET_SKIP
-
-
-def _knowledge_skip_result() -> ToolResult:
-    return tool_success(
-        "knowledge budget exhausted",
-        {"skipped": KNOWLEDGE_BUDGET_SKIP},
-    )
+_KEEP_TOOL_RESULTS = 8
 
 
 def _invoke_one(
@@ -75,20 +64,45 @@ def _invoke_one(
     call: Mapping[str, Any],
     *,
     skip_knowledge: bool = False,
-) -> ToolResult:
+    skip_probe: bool = False,
+    skip_clarify: bool = False,
+) -> dict[str, Any]:
     name = str(call.get("name") or "")
     args = call.get("args") or {}
     call_id = str(call.get("id") or "")
     if skip_knowledge and name in KNOWLEDGE_TOOLS:
-        return _knowledge_skip_result()
+        return skipped_outcome(
+            "knowledge budget exhausted",
+            reason="knowledge_budget",
+            name=name,
+        )
+    if skip_probe and name == "execute_sql_sandbox":
+        purpose = str((args if isinstance(args, Mapping) else {}).get("purpose") or "")
+        if purpose == "probe":
+            return skipped_outcome(
+                "probe budget exhausted; deliver or clarify instead",
+                reason="probe_budget",
+                name=name,
+            )
+    if skip_clarify and name == "request_clarification":
+        return skipped_outcome(
+            "clarification budget exhausted",
+            reason="clarify_budget",
+            name=name,
+        )
     tool = tools.get(name)
     try:
         if tool is None:
-            return tool_failure(f"Unknown tool: {name}", f"Unknown tool: {name}")
+            from apps.chat.tools.contract import failure_outcome
+
+            return failure_outcome(f"Unknown tool: {name}", name=name, retryable=False)
         with tool_call_scope(call_id):
-            return normalize_tool_result(tool.invoke(args))
+            raw = tool.invoke(args)
+            return parse_tool_outcome(raw, name=name).as_dict()
     except Exception as exc:
-        return tool_failure(f"{name} failed", str(exc))
+        from apps.chat.tools.contract import failure_outcome
+
+        return failure_outcome(f"{name} failed: {exc}", name=name, retryable=True)
 
 
 def _dispatch_results(
@@ -96,26 +110,31 @@ def _dispatch_results(
     calls: Sequence[Mapping[str, Any]],
     *,
     skip_knowledge: bool = False,
-) -> tuple[list[ToolResult], list[dict[str, Any]]]:
+    skip_probe: bool = False,
+    skip_clarify: bool = False,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if not calls:
         return [], []
     exclusive = any(
         str(call.get("name") or "") not in DEFAULT_PARALLEL_SAFE for call in calls
     )
+    kwargs = {
+        "skip_knowledge": skip_knowledge,
+        "skip_probe": skip_probe,
+        "skip_clarify": skip_clarify,
+    }
     if exclusive or len(calls) == 1:
-        results = [
-            _invoke_one(tools, call, skip_knowledge=skip_knowledge) for call in calls
-        ]
+        results = [_invoke_one(tools, call, **kwargs) for call in calls]
         dump = take_working()
         return results, [dump] if dump else []
 
     parent_snapshots = [contextvars.copy_context() for _ in calls]
-    results: list[ToolResult | None] = [None] * len(calls)
+    results: list[dict[str, Any] | None] = [None] * len(calls)
     dumps: list[dict[str, Any] | None] = [None] * len(calls)
 
-    def _run(index: int) -> tuple[int, ToolResult, dict[str, Any] | None]:
-        def _inner() -> tuple[ToolResult, dict[str, Any] | None]:
-            result = _invoke_one(tools, calls[index], skip_knowledge=skip_knowledge)
+    def _run(index: int) -> tuple[int, dict[str, Any], dict[str, Any] | None]:
+        def _inner() -> tuple[dict[str, Any], dict[str, Any] | None]:
+            result = _invoke_one(tools, calls[index], **kwargs)
             return result, take_working()
 
         result, dump = parent_snapshots[index].run(_inner)
@@ -128,9 +147,11 @@ def _dispatch_results(
             index, result, dump = fut.result()
             results[index] = result
             dumps[index] = dump
+    from apps.chat.tools.contract import failure_outcome
+
     return (
         [
-            item if item is not None else tool_failure("empty", "empty")
+            item if item is not None else failure_outcome("empty", name="unknown")
             for item in results
         ],
         [item for item in dumps if item],
@@ -139,19 +160,17 @@ def _dispatch_results(
 
 def _record_artifact(
     *,
-    name: str,
-    result: Mapping[str, Any],
+    outcome: ToolOutcome,
     args: Mapping[str, Any],
-    call_id: str,
     record_id: Any,
     run_id: str | None,
     sink: StreamSink,
     parent_id: int | None,
 ) -> None:
-    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-    if not result.get("ok") or not isinstance(data, Mapping):
+    if not outcome.ok:
         return
-    if data.get("dataset_id"):
+    data = outcome_payload(outcome.as_dict())
+    if outcome.signals.dataset_id or data.get("dataset_id"):
         art = open_process_span(
             kind="artifact",
             record_id=record_id,
@@ -161,7 +180,7 @@ def _record_artifact(
             graph_node="execute_tools",
             title_key="chat.timeline.artifact",
             artifact={
-                "dataset_id": data.get("dataset_id"),
+                "dataset_id": outcome.signals.dataset_id or data.get("dataset_id"),
                 "sql": data.get("sql")
                 or (args.get("sql") if isinstance(args, Mapping) else ""),
                 "fields": list(data.get("fields") or []),
@@ -172,6 +191,7 @@ def _record_artifact(
                     data.get("preview_rows") or data.get("sample_rows") or [],
                     limit=PREVIEW_ROW_LIMIT,
                 ),
+                "rev": outcome.signals.sql_rev,
             },
             local_operation=True,
         )
@@ -183,33 +203,44 @@ def _record_artifact(
                     "count": int(data.get("row_count") or data.get("total_rows") or 0)
                 },
             )
-    if name != "compare_results":
-        return
-    for side, side_data in (("base", data.get("base")), ("new", data.get("new"))):
-        if not isinstance(side_data, Mapping) or not side_data.get("sql"):
+
+
+def _clear_old_tool_results(
+    messages: Sequence[Any], *, turn_start: int | None
+) -> list[Any]:
+    """Keep recent tool observations and all failures; pointer-replace the rest."""
+    start = int(turn_start or 0)
+    keepable: list[int] = []
+    for index, message in enumerate(messages):
+        if index < start or not isinstance(message, ToolMessage):
             continue
-        art = open_process_span(
-            kind="artifact",
-            record_id=record_id,
-            sink=sink,
-            run_id=run_id,
-            parent_id=parent_id,
-            graph_node="execute_tools",
-            title_key="chat.timeline.artifact",
-            title_params={"side": side},
-            artifact={
-                "dataset_id": side_data.get("dataset_id") or f"{call_id}_{side}",
-                "sql": side_data.get("sql"),
-                "row_count": side_data.get("row_count"),
-                "preview_rows": preview_rows(
-                    side_data.get("sample_rows") or [],
-                    limit=PREVIEW_ROW_LIMIT,
-                ),
-            },
-            local_operation=True,
+        failed = str(getattr(message, "status", "") or "") == "error"
+        if failed:
+            continue
+        keepable.append(index)
+    drop = (
+        set(keepable[:-_KEEP_TOOL_RESULTS])
+        if len(keepable) > _KEEP_TOOL_RESULTS
+        else set()
+    )
+    if not drop:
+        return list(messages)
+    out: list[Any] = []
+    for index, message in enumerate(messages):
+        if index not in drop:
+            out.append(message)
+            continue
+        name = str(getattr(message, "name", "") or "tool")
+        out.append(
+            ToolMessage(
+                content=f"[已清除 · {name} · 见 working_set / sql_workspace]",
+                tool_call_id=str(getattr(message, "tool_call_id", "") or ""),
+                name=name or None,
+                artifact=getattr(message, "artifact", None),
+                status=getattr(message, "status", None) or "success",
+            )
         )
-        if art is not None:
-            art.close(status="completed", summary_key="chat.summary.tool_ok")
+    return out
 
 
 def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
@@ -244,7 +275,8 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
     stop_reason = ""
     open_ids = dict(state.get("open_tool_spans") or {})
     run_id = str(state.get("run_id") or "") or None
-    delivery = delivery_from_state(state)
+    workspace = SqlWorkspace.from_state(state)
+    batch = Signals()
 
     calls = tool_calls_from_message(ai_message)
     try:
@@ -253,16 +285,56 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         budget = budget_from_state(state, config=load_agent_config_for_run())
     except Exception:
         budget = budget_from_state(state)
-    skip_knowledge = budget.knowledge_exhausted
+
+    if budget.tool_calls.exhausted:
+        stop_reason = "tool call budget exhausted"
+        budget.stop_reason = stop_reason
+        return {
+            **state,
+            "tool_stop_reason": stop_reason,
+            "loop_budget": budget.model_dump(mode="json"),
+            "batch_signals": Signals().model_dump(mode="json"),
+        }
+
     results, plane_dumps = _dispatch_results(
-        tools, calls, skip_knowledge=skip_knowledge
+        tools,
+        calls,
+        skip_knowledge=budget.knowledge_exhausted,
+        skip_probe=budget.probe_exhausted,
+        skip_clarify=budget.clarify_exhausted,
     )
 
-    for call, result in zip(calls, results, strict=True):
+    ds = None
+    try:
+        service = runtime_value(state, "llm_service")
+        ds = getattr(service, "ds", None) or getattr(service, "datasource", None)
+    except Exception:
+        ds = None
+    ds_id = getattr(ds, "id", None)
+    dialect = getattr(ds, "type", None) if ds is not None else None
+
+    for call, raw in zip(calls, results, strict=True):
         call_id = str(call.get("id") or "")
         name = str(call.get("name") or "")
         args = call.get("args") or {}
         safe_args = sanitize_audit_value(args)
+        outcome = parse_tool_outcome(raw, name=name)
+        workspace, outcome = apply_outcome_to_workspace(
+            workspace,
+            name=name,
+            args=args if isinstance(args, Mapping) else {},
+            outcome=outcome,
+            ds_id=int(ds_id) if ds_id is not None else None,
+            dialect=str(dialect) if dialect else None,
+        )
+        if outcome.signals.interrupt:
+            batch = batch.model_copy(update={"interrupt": True})
+        if outcome.signals.terminal:
+            batch = batch.model_copy(update={"terminal": True})
+        if outcome.signals.purpose == "probe" and not outcome.signals.skipped:
+            budget.probe_calls.used += 1
+        budget.tool_calls.used += 1
+
         initial = {
             "kind": "tool",
             "tool_call_id": call_id,
@@ -297,43 +369,34 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         if span is not None:
             span.set_input({"tool": name, "arguments": safe_args, **initial})
 
-        safe_result = sanitize_audit_value(result)
+        dumped = outcome.as_dict()
+        safe_result = sanitize_audit_value(dumped)
         model_content = render_tool_message(name, safe_result)
-        signals = signals_from_result(
-            name, safe_result if isinstance(safe_result, Mapping) else {}
-        )
-        delivery = stamp_delivery(delivery, result=safe_result, signals=signals)
         if run_id:
-            attach_runtime(run_id, turn_delivery=delivery.model_dump())
+            attach_runtime(
+                run_id,
+                sql_workspace=workspace.model_dump(mode="json"),
+                loop_budget=budget.model_dump(mode="json"),
+            )
         if span is not None:
             span.set_output(truncate_for_log(safe_result))
-            if signals.interrupt:
-                data = (
-                    safe_result.get("data")
-                    if isinstance(safe_result.get("data"), Mapping)
-                    else {}
-                )
+            if outcome.signals.interrupt:
+                payload = outcome_payload(dumped)
                 meta: dict[str, Any] = {"interrupt_required": True}
-                card = (
-                    data.get("clarification_card")
-                    if isinstance(data, Mapping)
-                    else None
-                )
+                card = payload.get("clarification_card")
                 if card:
                     meta["clarification_card"] = card
                 span.set_meta(meta)
-            summary_key, summary_params = tool_close_keys(name, result)
+            summary_key, summary_params = tool_close_keys(name, dumped)
             span.close(
-                status="completed" if result["ok"] else "failed",
+                status="completed" if outcome.ok else "failed",
                 summary_key=summary_key,
                 summary_params=summary_params,
                 tool={"call_id": call_id, "name": name, "args": safe_args},
             )
             _record_artifact(
-                name=name,
-                result=result,
+                outcome=outcome,
                 args=args if isinstance(args, Mapping) else {},
-                call_id=call_id,
                 record_id=record_id,
                 run_id=run_id,
                 sink=sink,
@@ -346,30 +409,25 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 tool_call_id=call_id,
                 name=name or None,
                 artifact=safe_result,
-                status="success" if result["ok"] else "error",
+                status="success" if outcome.ok else "error",
             )
         )
-        if result["ok"]:
-            tool_steps.append(
-                {
-                    "tool": name,
-                    "name": name,
-                    "result": safe_result,
-                    "ok": True,
-                    "signals": signals.model_dump(),
-                }
-            )
+        step: dict[str, Any] = {
+            "tool": name,
+            "name": name,
+            "ok": outcome.ok,
+            "outcome": dumped,
+            "signals": outcome.signals.model_dump(mode="json"),
+        }
+        if outcome.ok:
+            step["result"] = dumped
+            tool_steps.append(step)
             previous_failure = ""
             consecutive_failures = 0
         else:
-            tool_steps.append(
-                {
-                    "error": result["error"],
-                    "failure": result["failure"],
-                    "tool": name,
-                    "signals": signals.model_dump(),
-                }
-            )
+            step["error"] = outcome.error
+            step["failure"] = outcome.failure
+            tool_steps.append(step)
             signature = tool_call_signature(
                 name, args if isinstance(args, Mapping) else {}
             )
@@ -378,7 +436,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             else:
                 previous_failure = signature
                 consecutive_failures = 1
-            failure = result["failure"] or {}
+            failure = outcome.failure or {}
             if not bool(failure.get("retryable")):
                 stop_reason = (
                     f"{name} failed with a non-retryable "
@@ -387,22 +445,27 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             elif consecutive_failures >= 2:
                 stop_reason = f"{name} repeated the same failed call"
 
-    snap = peek_runtime(run_id) if run_id else None
-    probe_sql_calls = int(
-        (snap or {}).get("probe_sql_calls")
-        if snap and snap.get("probe_sql_calls") is not None
-        else (state.get("probe_sql_calls") or 0)
-    )
     outgoing = [*messages, *tool_messages]
+    outgoing = _clear_old_tool_results(
+        outgoing, turn_start=state.get("turn_message_start")
+    )
     knowledge_used = any(
-        getattr(item, "name", "") in KNOWLEDGE_TOOLS and not _tool_message_skipped(item)
-        for item in tool_messages
+        str(call.get("name") or "") in KNOWLEDGE_TOOLS
+        and not parse_tool_outcome(
+            raw, name=str(call.get("name") or "")
+        ).signals.skipped
+        for call, raw in zip(calls, results, strict=True)
     )
     plane = merge_published(load_plane(state).to_dump(), *plane_dumps)
     if knowledge_used:
         plane.knowledge_rounds = int(plane.knowledge_rounds or 0) + 1
+        budget.knowledge_rounds.used = plane.knowledge_rounds
+    if calls_count_as_execution(calls):
+        budget.exec_rounds.used += 1
     if plane_dumps or knowledge_used:
         publish_plane(plane)
+    if stop_reason:
+        budget.stop_reason = stop_reason
 
     return {
         **state,
@@ -412,6 +475,8 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "consecutive_tool_failures": consecutive_failures,
         "tool_stop_reason": stop_reason,
         "knowledge_plane": plane.to_dump(),
-        "probe_sql_calls": probe_sql_calls,
-        "turn_delivery": delivery.model_dump(),
+        "sql_workspace": workspace.model_dump(mode="json"),
+        "loop_budget": budget.model_dump(mode="json"),
+        "batch_signals": batch.model_dump(mode="json"),
+        "tool_rounds": budget.exec_rounds.used,
     }

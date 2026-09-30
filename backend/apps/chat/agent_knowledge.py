@@ -16,11 +16,9 @@ from pydantic import BaseModel, ConfigDict, Field
 WIKI_SCHEMA_GAP_SEARCH_LIMIT = 2
 # Tool budgets by category (single definition; the system prompt renders them).
 PROBE_SQL_LIMIT = 2
-KNOWLEDGE_ROUND_LIMIT = (
-    2  # LoopBudget.knowledge_limit; runtime skips knowledge tools when exhausted
-)
+KNOWLEDGE_ROUND_LIMIT = 4
 KNOWLEDGE_BUDGET_SKIP = "knowledge_budget"
-SEARCH_WIKI_ROUND_LIMIT = 2  # alias of KNOWLEDGE_ROUND_LIMIT
+SEARCH_WIKI_ROUND_LIMIT = 4  # alias of KNOWLEDGE_ROUND_LIMIT
 EXECUTION_ROUND_LIMIT = 5
 KNOWLEDGE_TOOLS = frozenset(
     {
@@ -31,10 +29,8 @@ KNOWLEDGE_TOOLS = frozenset(
         "get_dict_values",
     }
 )
-# Clarify / knowledge / text-exit do not consume execution rounds.
-UNCOUNTED_TOOLS = (
-    frozenset({"request_clarification", "complete_without_sql"}) | KNOWLEDGE_TOOLS
-)
+# Clarify / knowledge do not consume execution rounds.
+UNCOUNTED_TOOLS = frozenset({"request_clarification"}) | KNOWLEDGE_TOOLS
 
 
 def tool_calls_advance_round(calls: Sequence[Mapping[str, Any]]) -> bool:
@@ -176,6 +172,34 @@ class AgentKnowledgePlane(BaseModel):
             return {"page_keys": [], "tables": []}
         pages = [key for key in self.page_keys if is_binding_page(key, tables)]
         return {"page_keys": pages, "tables": tables}
+
+    def close_refs(
+        self,
+        *,
+        sql: str = "",
+        fallback_tables: Sequence[str] = (),
+        dialect: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Persist pins from the SQL spine. Empty lists mean a text close with no SQL."""
+        text = str(sql or "").strip()
+        tables = [str(item) for item in fallback_tables if str(item).strip()]
+        if text:
+            refs = self.knowledge_refs(sql=text, dialect=dialect)
+            if not refs["tables"] and tables:
+                refs = {
+                    "page_keys": list(refs.get("page_keys") or []),
+                    "tables": tables,
+                }
+            if refs["tables"] or refs["page_keys"]:
+                return refs
+            if tables:
+                return {"page_keys": [], "tables": tables}
+            return {"page_keys": [], "tables": []}
+        if self.tables or self.page_keys:
+            return {"page_keys": [], "tables": []}
+        if tables:
+            return {"page_keys": [], "tables": tables}
+        return None
 
     def prompt_stats(self) -> dict[str, Any]:
         """What the model sees this round (size of each system section)."""

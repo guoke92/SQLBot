@@ -1,90 +1,105 @@
-"""Result comparison tool for user challenge and caliber verification."""
+"""Compare two executed SqlWorkspace revisions. Does not re-run SQL."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
-from apps.chat.tools.base import failure_result, success_result
-from apps.conversation.tooling import ToolResult
+from apps.chat.agent.workspace import SqlRevision, SqlWorkspace
+from apps.chat.tools.contract import failure_outcome, signals_for_tool, success_outcome
+
+TOOL_NAME = "compare_results"
+
+
+def _side(item: SqlRevision) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "rev": item.rev,
+        "row_count": item.row_count,
+        "truncated": bool(item.truncated),
+        "fields": list(item.fields or []),
+        "dataset_id": item.dataset_id,
+        "result_title": item.result_title,
+    }
+    if item.truncated and item.display_limit is not None:
+        payload["display_limit"] = item.display_limit
+    return payload
+
+
+def _count_line(item: SqlRevision) -> str:
+    count = item.row_count
+    if count is None:
+        return f"{item.rev}: not executed"
+    if item.truncated and item.display_limit is not None:
+        return f"{item.rev}: {count} rows (truncated at {item.display_limit})"
+    if item.truncated:
+        return f"{item.rev}: {count} rows (truncated)"
+    return f"{item.rev}: {count} rows"
 
 
 def compare_query_results(
-    llm_service: Any,
-    base_sql: str,
-    new_sql: str,
+    workspace: SqlWorkspace,
     *,
+    sql_ref: str = "active",
+    new_ref: str,
     hypothesis: str = "",
-    access_scope: Any = None,
-) -> ToolResult:
-    """Execute both base_sql and new_sql, compare their metrics and return differential analysis."""
-    from apps.chat.tools.execute_sql import execute_sql_sandbox
-
-    base_res = execute_sql_sandbox(
-        llm_service, base_sql, access_scope=access_scope, limit=100, required=False
-    )
-    if not base_res["ok"]:
-        return failure_result(
-            f"Base query failed during comparison: {base_res['error']}", retryable=True
+) -> dict[str, Any]:
+    """Diff two executed revisions. Row counts come from the workspace, not a new window."""
+    base = workspace.resolve(sql_ref)
+    new = workspace.resolve(new_ref)
+    if base is None or new is None:
+        return failure_outcome(
+            "sql_ref and new_ref must resolve to workspace revisions; "
+            "patch or execute first",
+            retryable=True,
+            name=TOOL_NAME,
+            signals=signals_for_tool(TOOL_NAME, purpose="probe"),
+        )
+    if base.row_count is None or new.row_count is None:
+        missing = [item.rev for item in (base, new) if item.row_count is None]
+        return failure_outcome(
+            "compare_results needs executed revisions with row_count; "
+            f"execute {', '.join(missing)} first",
+            retryable=True,
+            name=TOOL_NAME,
+            signals=signals_for_tool(TOOL_NAME, purpose="probe"),
         )
 
-    new_res = execute_sql_sandbox(
-        llm_service, new_sql, access_scope=access_scope, limit=100, required=False
+    row_diff = int(new.row_count) - int(base.row_count)
+    summary = (
+        "Comparison complete. "
+        f"{_count_line(base)}. {_count_line(new)}. "
+        f"row_diff: {row_diff:+d}."
     )
-    if not new_res["ok"]:
-        return failure_result(
-            f"New query failed during comparison: {new_res['error']}", retryable=True
+    if list(base.fields or []) != list(new.fields or []):
+        summary += (
+            f" fields {base.rev}={list(base.fields)} {new.rev}={list(new.fields)}."
         )
-
-    base_data = base_res["data"] or {}
-    new_data = new_res["data"] or {}
-
-    base_rows = int(base_data.get("total_rows", 0))
-    new_rows = int(new_data.get("total_rows", 0))
-    row_diff = new_rows - base_rows
-
-    # Compare shared numeric columns
-    base_stats = base_data.get("column_stats") or {}
-    new_stats = new_data.get("column_stats") or {}
-    metric_diffs: dict[str, Any] = {}
-
-    for col in set(base_stats).intersection(new_stats):
-        b_sum = base_stats[col].get("sum")
-        n_sum = new_stats[col].get("sum")
-        if b_sum is not None and n_sum is not None:
-            metric_diffs[col] = {
-                "base_sum": b_sum,
-                "new_sum": n_sum,
-                "diff": round(n_sum - b_sum, 2),
-                "ratio": round(n_sum / b_sum, 4) if b_sum != 0 else None,
-            }
-
-    diff_summary = f"Comparison complete. Row count changed from {base_rows} to {new_rows} (diff: {row_diff:+d}). "
-    if metric_diffs:
-        diff_summary += f"Metric differences: {metric_diffs}."
     if hypothesis:
-        diff_summary += f" Hypothesis tested: {hypothesis}."
+        summary += f" Hypothesis tested: {hypothesis}."
 
-    return success_result(
-        diff_summary,
-        data={
+    return success_outcome(
+        summary,
+        payload={
             "hypothesis": hypothesis,
-            "base": {
-                "sql": base_sql,
-                "row_count": base_rows,
-                "dataset_id": base_data.get("dataset_id"),
-                "truncated": bool(base_data.get("truncated")),
-                "sample_rows": base_data.get("sample_rows"),
-                "preview_rows": base_data.get("preview_rows"),
-            },
-            "new": {
-                "sql": new_sql,
-                "row_count": new_rows,
-                "dataset_id": new_data.get("dataset_id"),
-                "truncated": bool(new_data.get("truncated")),
-                "sample_rows": new_data.get("sample_rows"),
-                "preview_rows": new_data.get("preview_rows"),
-            },
+            "base": _side(base),
+            "new": _side(new),
             "row_diff": row_diff,
-            "metric_diffs": metric_diffs,
         },
+        signals=signals_for_tool(TOOL_NAME, purpose="probe"),
+        name=TOOL_NAME,
+    )
+
+
+def compare_from_state(
+    state: Mapping[str, Any],
+    *,
+    sql_ref: str = "active",
+    new_ref: str,
+    hypothesis: str = "",
+) -> dict[str, Any]:
+    return compare_query_results(
+        SqlWorkspace.from_state(state),
+        sql_ref=sql_ref,
+        new_ref=new_ref,
+        hypothesis=hypothesis,
     )

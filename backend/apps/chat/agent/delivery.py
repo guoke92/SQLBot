@@ -7,13 +7,13 @@ from typing import Any, cast
 
 from apps.chat.agent.close import (
     close_kind,
-    delivery_from_state,
     has_turn_result,
+    terminal_text,
+    workspace_from_state,
 )
 from apps.chat.agent_copy import (
     compact_agent_final_text,
     truncated_display_note,
-    truncation_from_delivery_steps,
 )
 from apps.chat.agent_knowledge import AgentKnowledgePlane
 from apps.chat.caliber_surface import project_caliber_surface
@@ -107,17 +107,11 @@ def try_publish_query_salvage(
     return not out.get("error") and bool(datasets)
 
 
-def _assumptions_from_slots(memory_slots: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Deprecated combined projection — prefer project_caliber_surface."""
-    surface = project_caliber_surface(memory_slots)
-    return [*surface["confirmed_calibers"], *surface["assumptions"]]
-
-
 def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
-    """Project one TurnAnswer from the close-plane plus the artifact store."""
-    delivery = delivery_from_state(state)
+    """Project one TurnAnswer from the workspace plus the artifact store."""
+    workspace = workspace_from_state(state)
     analysis_incomplete = bool(state.get("analysis_incomplete")) or bool(
-        state.get("error") and delivery.has_artifacts
+        state.get("error") and workspace.delivered
     )
     try:
         llm_service = _llm_service(state)
@@ -126,8 +120,9 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
     sink = StreamSink.from_state(state)
     final_text = str(state.get("final_text") or "")
     run_id = str(state.get("run_id") or "")
-    schema_txt = str(
-        getattr(getattr(llm_service, "chat_question", None), "db_schema", "") or ""
+    plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
+    schema_txt = (
+        plane.schema_catalog_text() if hasattr(plane, "schema_catalog_text") else ""
     )
 
     all_steps: list[dict[str, Any]] = []
@@ -191,6 +186,8 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
             {
                 "index": index,
                 "dataset_id": ds_id,
+                "rev": str(getattr(dataset, "rev", "") or "")
+                or (workspace.resolve(ds_id).rev if workspace.resolve(ds_id) else ""),
                 "status": dataset.status or "succeeded",
                 "required": getattr(dataset, "required", True) is not False,
                 "brief": result_title,
@@ -207,86 +204,17 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         latest_fields = fields or latest_fields
         latest_row_count = int(dataset.row_count or len(rows))
 
-    if not all_steps:
-        for step in state.get("tool_steps") or []:
-            if not isinstance(step, Mapping) or not step.get("ok"):
-                continue
-            data = (step.get("result") or {}).get("data") or {}
-            if not isinstance(data, Mapping) or not data.get("sql"):
-                continue
-            if data.get("required") is False:
-                continue
-            sql = str(data.get("sql") or "")
-            if sql in seen:
-                continue
-            seen.add(sql)
-            fields = list(data.get("fields") or [])
-            samples = preview_rows(
-                data.get("preview_rows") or data.get("sample_rows") or [],
-                limit=PREVIEW_ROW_LIMIT,
-            )
-            idx = len(all_steps)
-            result_title = str(data.get("result_title") or "").strip()
-            suggested = str(data.get("chart_type") or "").strip()
-            pres = build_result_presentation(
-                fields, title=result_title, schema_text=schema_txt
-            )
-            chart = _safe_delivery_chart(
-                presentation=cast(ResultPresentation, pres),
-                fields=fields,
-                rows=[dict(r) for r in samples if isinstance(r, Mapping)],
-                suggested_type=suggested,
-                sql=sql,
-                llm_service=llm_service,
-                instance_id=idx,
-            )
-            truncated = bool(data.get("truncated"))
-            value_labels = (
-                data.get("value_labels")
-                if isinstance(data.get("value_labels"), Mapping)
-                else {}
-            )
-            result_payload = {
-                "fields": fields,
-                "data": samples,
-                "row_count": data.get("row_count") or data.get("total_rows"),
-                "truncated": truncated,
-                "preview_rows": samples,
-                **({"value_labels": value_labels} if value_labels else {}),
-            }
-            if truncated and data.get("limit") is not None:
-                result_payload["limit"] = data.get("limit")
-            all_steps.append(
-                {
-                    "index": idx,
-                    "dataset_id": str(data.get("dataset_id") or f"dataset_{idx + 1}"),
-                    "status": "succeeded",
-                    "required": data.get("required") is not False,
-                    "brief": result_title,
-                    "sql": sql,
-                    "format_statement": sql,
-                    "fields": fields,
-                    "data": result_payload,
-                    "result": result_payload,
-                    "presentation": pres,
-                    "chart": chart,
-                }
-            )
-            latest_sql = sql
-            latest_fields = fields
-            latest_row_count = int(data.get("row_count") or data.get("total_rows") or 0)
-
     kind = close_kind(state, has_cards=bool(all_steps))
     if kind == "artifacts" and state.get("error"):
         analysis_incomplete = True
     elif kind == "text":
-        text_exit = delivery.text or str(state.get("final_text") or "").strip()
+        text_exit = terminal_text(state) or str(state.get("final_text") or "").strip()
         if text_exit:
             final_text = text_exit
     elif kind in {"empty", "error"}:
         return _publish_failure(state)
 
-    truncated, trunc_limit = truncation_from_delivery_steps(all_steps)
+    truncated, trunc_limit = workspace.truncation()
     trans = getattr(llm_service, "trans", None) if llm_service is not None else None
     final_text = compact_agent_final_text(
         final_text,
@@ -309,17 +237,13 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         from apps.chat.result_quality import build_text_answer_quality
 
         outcome["quality"] = build_text_answer_quality()
-    plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
     dialect = getattr(getattr(llm_service, "ds", None), "type", None)
-    if not (plane.tables or plane.page_keys):
-        knowledge_refs = None
-    elif latest_sql:
-        knowledge_refs = plane.knowledge_refs(
-            sql=latest_sql,
-            dialect=str(dialect) if dialect else None,
-        )
-    else:
-        knowledge_refs = {"page_keys": [], "tables": []}
+    spine = workspace.get(workspace.delivered or workspace.current)
+    knowledge_refs = plane.close_refs(
+        sql=latest_sql or (spine.sql if spine is not None else ""),
+        fallback_tables=list(spine.tables) if spine is not None else (),
+        dialect=str(dialect) if dialect else None,
+    )
     snapshot_vals = record_snapshot_values(
         all_steps,
         analysis_text=final_text,
@@ -333,12 +257,16 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
     )
     answer = snapshot_vals.get("answer") or {}
 
-    if latest_sql:
-        raw_slots["active_baseline_sql"] = latest_sql
-        raw_slots["active_dataset_outline"] = {
-            "fields": latest_fields,
-            "row_count": latest_row_count,
-        }
+    if workspace.current:
+        raw_slots["current_rev"] = workspace.current
+        delivered = workspace.get(workspace.delivered or workspace.current)
+        if delivered is not None:
+            raw_slots["active_dataset_outline"] = {
+                "dataset_id": delivered.dataset_id,
+                "fields": delivered.fields or latest_fields,
+                "row_count": delivered.row_count or latest_row_count,
+                "rev": delivered.rev,
+            }
 
     if llm_service is not None:
         title = next(
@@ -374,7 +302,7 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
 
     saved = False
     try:
-        from apps.chat.session_transcript import persist_turn_from_state
+        from apps.chat.agent.context_spec import persist_turn_from_state
 
         saved = persist_turn_from_state(state)
     except Exception as exc:
@@ -399,7 +327,7 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         "outcome": outcome,
         "analysis_incomplete": analysis_incomplete,
         "agent_transcript_saved": saved,
-        "turn_delivery": delivery.model_dump(),
+        "sql_workspace": workspace.model_dump(mode="json"),
     }
 
 
@@ -415,7 +343,6 @@ def _publish_failure(state: Mapping[str, Any]) -> dict[str, Any]:
     from apps.chat.graphs.turn_failure import persist_query_terminal_failure
     from apps.conversation.outcome import public_error_message
 
-    delivery = delivery_from_state(state)
     if state.get("error"):
         error = str(state.get("error") or "unknown error")
         public_error = str(state.get("public_error") or public_error_message(error))
@@ -436,7 +363,6 @@ def _publish_failure(state: Mapping[str, Any]) -> dict[str, Any]:
         "error": error,
         "public_error": public_error,
         "final_text": error,
-        "turn_delivery": delivery.model_dump(),
     }
     outcome = persist_query_terminal_failure(
         payload,
@@ -454,11 +380,10 @@ def _publish_failure(state: Mapping[str, Any]) -> dict[str, Any]:
         "public_error": public_error,
         "final_text": error,
         "outcome": outcome,
-        "turn_delivery": delivery.model_dump(),
     }
     if not failed.get("agent_transcript_saved"):
         try:
-            from apps.chat.session_transcript import persist_turn_from_state
+            from apps.chat.agent.context_spec import persist_turn_from_state
 
             failed["agent_transcript_saved"] = persist_turn_from_state(failed)
         except Exception as exc:

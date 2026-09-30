@@ -107,7 +107,6 @@ def test_execute_sql_probe_keeps_raw_enum_codes(monkeypatch) -> None:
     monkeypatch.setattr(mod, "upsert_result_dataset", _upsert)
     monkeypatch.setattr(mod, "current_worker_identity", lambda: ("run-probe-enum", None))
     monkeypatch.setattr(mod, "_reject_enum_discovery", lambda *_a, **_k: None)
-    monkeypatch.setattr(mod, "_consume_probe_budget", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "apply_wiki_enum_labels", _label)
     monkeypatch.setattr(mod, "apply_result_window", lambda **_k: (False, None))
     monkeypatch.setattr(mod, "resolve_exec_row_limit", lambda *_a, **_k: 1000)
@@ -116,14 +115,14 @@ def test_execute_sql_probe_keeps_raw_enum_codes(monkeypatch) -> None:
     res = mod.execute_sql_sandbox(
         llm,
         "SELECT pay_status, COUNT(*) AS cnt FROM ca_fee_company GROUP BY pay_status",
-        required=False,
+        purpose="probe",
     )
     assert res.get("ok") is True
     assert label_calls["n"] == 0
-    samples = res["data"]["sample_rows"]
+    samples = res["payload"]["sample_rows"]
     assert samples[1]["pay_status"] == "PAID"
     assert samples[2]["pay_status"] == "UNPAID"
-    assert "value_labels" not in res["data"]
+    assert "value_labels" not in res["payload"]
     assert captured["rows"][1]["pay_status"] == "PAID"
     assert not captured.get("value_labels")
 
@@ -133,12 +132,12 @@ def test_execute_sql_probe_keeps_raw_enum_codes(monkeypatch) -> None:
     res2 = mod.execute_sql_sandbox(
         llm,
         "SELECT pay_status, COUNT(*) AS cnt FROM ca_fee_company GROUP BY pay_status",
-        required=True,
+        purpose="delivery",
         result_title="缴费分布",
         chart_type="table",
     )
     assert res2.get("ok") is True
     assert label_calls["n"] == 1
-    assert res2["data"]["sample_rows"][1]["pay_status"] == "PAID"
-    assert res2["data"]["value_labels"]["pay_status"]["PAID"] == "已缴费"
+    assert res2["payload"]["sample_rows"][1]["pay_status"] == "PAID"
+    assert res2["payload"]["value_labels"]["pay_status"]["PAID"] == "已缴费"
     assert captured["rows"][1]["pay_status"] == "已缴费"

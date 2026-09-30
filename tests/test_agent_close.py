@@ -1,20 +1,16 @@
-"""Close-plane: one delivery bit, one assembler, four close kinds."""
+"""Close-plane: workspace delivery, batch signals, single verdict."""
 
 from __future__ import annotations
 
 from apps.chat.agent.close import (
-    TurnDelivery,
-    clear_interrupt,
     close_kind,
     compute_verdict,
-    delivery_from_state,
-    empty_delivery,
     has_turn_result,
-    observe_delivery,
-    stamp_delivery,
+    workspace_from_state,
 )
 from apps.chat.agent.delivery import close_turn, fail_node, finalize_agent_turn_node
-from apps.chat.agent.tools.effect import ToolSignals
+from apps.chat.agent.workspace import SqlWorkspace
+from apps.chat.tools.contract import Signals, ToolOutcome
 
 
 def test_fail_and_finalize_are_close_turn() -> None:
@@ -22,81 +18,54 @@ def test_fail_and_finalize_are_close_turn() -> None:
     assert finalize_agent_turn_node is close_turn
 
 
-def test_sealed_bit_is_the_read_path() -> None:
-    sealed = {
-        "turn_delivery": TurnDelivery(has_artifacts=True, dataset_id="d1").model_dump(),
-        "tool_steps": [],
-    }
-    assert has_turn_result(sealed) is True
-    assert delivery_from_state(sealed).dataset_id == "d1"
+def test_has_turn_result_reads_workspace_delivered() -> None:
+    ws = SqlWorkspace()
+    item = ws.add_revision("SELECT 1", origin="model", status="executed", dataset_id="d1")
+    ws.mark_executed(item.rev, dataset_id="d1", purpose="delivery")
+    state = {"sql_workspace": ws.model_dump(mode="json")}
+    assert has_turn_result(state) is True
+    assert workspace_from_state(state).delivered == item.rev
 
 
-def test_sealed_empty_does_not_rescan_steps() -> None:
-    state = {
-        "turn_delivery": empty_delivery(),
-        "tool_steps": [
-            {
-                "ok": True,
-                "tool": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {"sql": "SELECT 1", "dataset_id": "ds1", "required": True},
-                },
-            }
-        ],
-    }
-    assert has_turn_result(state) is False
+def test_empty_workspace_is_not_delivered() -> None:
+    assert has_turn_result({"sql_workspace": SqlWorkspace().model_dump(mode="json")}) is False
+    assert has_turn_result({"tool_steps": []}) is False
 
 
-def test_observe_from_steps_when_unsealed() -> None:
-    state = {
-        "tool_steps": [
-            {
-                "ok": True,
-                "tool": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {"sql": "SELECT 1", "dataset_id": "ds1", "required": True},
-                },
-            }
-        ]
-    }
-    seen = observe_delivery(state)
-    assert seen.has_artifacts is True
-    assert seen.dataset_id == "ds1"
-
-
-def test_stamp_is_monotonic() -> None:
-    acc = TurnDelivery()
-    acc = stamp_delivery(
-        acc,
-        result={"ok": True, "data": {"terminal_answer": True, "content": "能力说明"}},
-        signals=ToolSignals(terminal_text=True),
-    )
-    acc = stamp_delivery(
-        acc,
-        result={"ok": True, "data": {"sql": "SELECT 1", "dataset_id": "d1"}},
-        signals=ToolSignals(dataset_id="d1", required=True),
-    )
-    assert acc.has_artifacts is True
-    assert acc.text_only is True
-    assert acc.text == "能力说明"
+def test_probe_revision_is_not_delivery() -> None:
+    ws = SqlWorkspace()
+    item = ws.add_revision("SELECT 1", origin="model", status="executed", dataset_id="p")
+    ws.mark_executed(item.rev, dataset_id="p", purpose="probe")
+    assert has_turn_result({"sql_workspace": ws.model_dump(mode="json")}) is False
 
 
 def test_close_kind_four_outcomes() -> None:
+    ws = SqlWorkspace()
+    item = ws.add_revision("SELECT 1", status="executed", dataset_id="d1")
+    ws.mark_executed(item.rev, dataset_id="d1", purpose="delivery")
     assert (
         close_kind(
-            {
-                "turn_delivery": TurnDelivery(has_artifacts=True).model_dump(),
-                "error": "llm down",
-            },
+            {"sql_workspace": ws.model_dump(mode="json"), "error": "llm down"},
             has_cards=False,
         )
         == "artifacts"
     )
     assert (
         close_kind(
-            {"turn_delivery": TurnDelivery(text_only=True, text="办不到").model_dump()},
+            {
+                "final_text": "办不到",
+                "turn_route": {"task_kind": "query", "relation": "continue"},
+            },
+            has_cards=False,
+        )
+        == "text"
+    )
+    assert (
+        close_kind(
+            {
+                "final_text": "我可以帮你查数。",
+                "turn_route": {"task_kind": "query", "relation": "independent"},
+            },
             has_cards=False,
         )
         == "text"
@@ -107,30 +76,27 @@ def test_close_kind_four_outcomes() -> None:
     assert close_kind({"error": "boom"}, has_cards=False) == "error"
 
 
-def test_stamp_interrupt_is_clearable() -> None:
-    acc = stamp_delivery(
-        TurnDelivery(),
-        result={"ok": True, "data": {"interrupt_required": True}},
-        signals=ToolSignals(interrupt=True),
+def test_compute_verdict_after_tools_reads_batch_signals() -> None:
+    assert (
+        compute_verdict(
+            {"batch_signals": Signals(interrupt=True).model_dump(mode="json")},
+            phase="after_tools",
+        ).action
+        == "await_clarification"
     )
-    assert acc.interrupt is True
-    assert clear_interrupt(acc).interrupt is False
-    assert clear_interrupt(acc).has_artifacts is False
-
-
-def test_compute_verdict_after_tools_reads_close_plane_not_step_scan() -> None:
-    sealed = {
-        "turn_delivery": TurnDelivery(interrupt=True).model_dump(),
-        "tool_steps": [],
-    }
-    assert compute_verdict(sealed, phase="after_tools").action == "await_clarification"
     resumed = {
-        "turn_delivery": TurnDelivery(interrupt=False, has_artifacts=True).model_dump(),
+        "batch_signals": Signals().model_dump(mode="json"),
+        "sql_workspace": SqlWorkspace().model_dump(mode="json"),
         "tool_steps": [
             {
                 "ok": True,
                 "superseded": True,
-                "result": {"ok": True, "data": {"interrupt_required": True}},
+                "outcome": ToolOutcome(
+                    ok=True,
+                    summary="card",
+                    payload={},
+                    signals=Signals(interrupt=True),
+                ).model_dump(mode="json"),
             }
         ],
     }
@@ -140,11 +106,14 @@ def test_compute_verdict_after_tools_reads_close_plane_not_step_scan() -> None:
 def test_compute_verdict_after_loop_salvage_and_tool_calls() -> None:
     from langchain_core.messages import AIMessage
 
+    ws = SqlWorkspace()
+    item = ws.add_revision("SELECT 1", status="executed", dataset_id="d1")
+    ws.mark_executed(item.rev, dataset_id="d1", purpose="delivery")
     assert (
         compute_verdict(
             {
                 "error": "llm down",
-                "turn_delivery": TurnDelivery(has_artifacts=True).model_dump(),
+                "sql_workspace": ws.model_dump(mode="json"),
             },
             phase="after_loop",
         ).action
@@ -160,10 +129,18 @@ def test_compute_verdict_after_loop_salvage_and_tool_calls() -> None:
         ]
     }
     assert compute_verdict(calling, phase="after_loop").action == "execute_tools"
+    from apps.chat.agent.budget import LoopBudget, BudgetSlot
+
     exhausted = {
         **calling,
-        "tool_rounds": 5,
-        "tool_round_limit": 5,
+        "loop_budget": LoopBudget(
+            exec_rounds=BudgetSlot(used=5, max=5),
+            knowledge_rounds=BudgetSlot(used=0, max=4),
+            probe_calls=BudgetSlot(used=0, max=2),
+            tool_calls=BudgetSlot(used=0, max=24),
+            clarify_count=BudgetSlot(used=0, max=2),
+            context_tokens=BudgetSlot(used=0, max=48000),
+        ).model_dump(mode="json"),
     }
     assert compute_verdict(exhausted, phase="after_loop").action == "finalize_turn"
 
@@ -177,7 +154,8 @@ def test_messages_are_not_a_delivery_source() -> None:
         tool_call_id="t1",
         artifact={
             "ok": True,
-            "data": {"sql": "SELECT 1", "required": True, "dataset_id": "x"},
+            "payload": {"sql": "SELECT 1", "dataset_id": "x"},
+            "signals": Signals(purpose="delivery", dataset_id="x").model_dump(),
         },
     )
     assert has_turn_result({"tool_steps": []}, [message]) is False

@@ -319,7 +319,7 @@ def build_step_quality(
 
 
 def build_text_answer_quality() -> ResultQuality:
-    """Stamp for complete_without_sql: SQL fetch dimensions are skipped."""
+    """Stamp for a narration-only close: SQL fetch dimensions are skipped."""
     dimensions = [
         _dimension("semantic_coverage", 35, 100, _detail("text_answer_without_sql")),
         _dimension("plan_alignment", 25, 100, _detail("text_answer_without_sql")),

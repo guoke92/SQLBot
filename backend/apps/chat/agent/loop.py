@@ -7,15 +7,17 @@ from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, SystemMessage
 
-from apps.chat.agent.budget import budget_from_state, calls_count_as_execution
-from apps.chat.agent.close import compute_verdict
-from apps.chat.agent.delivery import has_turn_result, incomplete_query_message
+from apps.chat.agent.budget import budget_from_state
+from apps.chat.agent.close import close_kind, compute_verdict, has_turn_result
+from apps.chat.agent.context_spec import build_context_spec
+from apps.chat.agent.delivery import incomplete_query_message
 from apps.chat.agent.init import init_agent_turn
 from apps.chat.agent.knowledge import cache_from_state
+from apps.chat.agent.tokens import count_message_tokens, count_tokens
+from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_copy import (
     compact_agent_final_text,
     truncated_display_note,
-    truncation_from_tool_steps,
 )
 from apps.chat.steps.stream import consume_llm
 from apps.chat.tools.metadata import get_tool_title_key
@@ -62,12 +64,6 @@ def _messages_for_audit(messages: Sequence[Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def _query_requires_data(state: Mapping[str, Any]) -> bool:
-    route = state.get("turn_route") or {}
-    kind = str(route.get("task_kind") or "query")
-    return kind == "query"
-
-
 def _incomplete_query_state(
     state: Mapping[str, Any], messages: Sequence[Any]
 ) -> dict[str, Any]:
@@ -100,7 +96,9 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
         rebuilt = _SystemMessage(
             content=build_agent_system_prompt(
-                knowledge_plane=state.get("knowledge_plane")
+                knowledge_plane=state.get("knowledge_plane"),
+                memory_slots=state.get("memory_slots"),
+                state=state,
             )
         )
         if isinstance(messages[0], _SystemMessage):
@@ -108,33 +106,40 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         else:
             messages = [rebuilt, *messages]
     tools = list(runtime_value(state, "bound_tools") or [])
-    rounds = int(state.get("tool_rounds") or 0)
     budget = budget_from_state(state)
-    round_limit = budget.execution_limit
     record_id = state.get("record_id")
     run_id = str(state.get("run_id") or "") or None
     llm = runtime_value(state, "llm")
     stop_reason = budget.stop_reason
     cache_from_state(state)
 
-    finalizing = bool(stop_reason) or rounds >= round_limit
-    if (
-        finalizing
-        and _query_requires_data(state)
-        and not has_turn_result(state, messages)
-    ):
-        return _incomplete_query_state(state, messages)
+    spec = build_context_spec(
+        state,
+        knowledge_plane=state.get("knowledge_plane"),
+        memory_slots=state.get("memory_slots"),
+        question=str(getattr(messages[-1], "content", "") or "") if messages else "",
+    )
+    budget.context_tokens.used = count_message_tokens(messages) + count_tokens(
+        spec.turn_brief
+    )
+
+    finalizing = budget.exhausted or bool(stop_reason)
 
     model_messages = messages
-    if finalizing:
-        reason = stop_reason or f"执行类工具已达 {round_limit} 轮预算"
+    if spec.turn_brief:
         model_messages = [
-            *messages,
+            *model_messages,
+            SystemMessage(content=spec.turn_brief),
+        ]
+    if finalizing:
+        reason = stop_reason or budget.render_brief()
+        model_messages = [
+            *model_messages,
             SystemMessage(
                 content=(
                     f"工具调用已关闭（{reason}）。不要再请求任何工具。"
-                    "若尚无查询结果，直接按 §6 说明本轮未能取得数据，"
-                    "不要再提出补检索、目录 SQL 或猜测字段。"
+                    "按 §6 停手终答：有本轮交付卡则只写口径旁白；"
+                    "否则直接写结论，不要再提出补检索、目录 SQL 或猜测字段。"
                 )
             ),
         ]
@@ -251,7 +256,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         SQLBotLogUtil.error(f"agent loop error: {exc}")
         if thought_span is not None:
             thought_span.close(status="failed", summary_key="chat.audit.step_failed")
-        if has_turn_result(state, messages):
+        if has_turn_result(state):
             return _salvage_after_summary_failure(state, messages)
         return {
             **state,
@@ -260,7 +265,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         }
 
     if response is None:
-        if has_turn_result(state, messages):
+        if has_turn_result(state):
             return _salvage_after_summary_failure(state, messages)
         return {
             **state,
@@ -291,12 +296,11 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             if tool_span is not None and call_id:
                 open_tool_spans[call_id] = tool_span.id
-        advanced_rounds = rounds + 1 if calls_count_as_execution(calls) else rounds
         return {
             **state,
             "messages": serialize_messages(updated_messages),
-            "tool_rounds": advanced_rounds,
             "open_tool_spans": open_tool_spans,
+            "loop_budget": budget.model_dump(mode="json"),
         }
 
     if looks_like_tool_markup(text) or (
@@ -304,10 +308,14 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     ):
         return _incomplete_query_state(state, updated_messages)
 
-    if _query_requires_data(state) and not has_turn_result(state, updated_messages):
+    kind = close_kind(
+        {**state, "final_text": text},
+        has_cards=has_turn_result(state),
+    )
+    if kind == "empty":
         return _incomplete_query_state(state, updated_messages)
 
-    truncated, limit = truncation_from_tool_steps(state.get("tool_steps"))
+    truncated, limit = SqlWorkspace.from_state(state).truncation()
     trans = None
     try:
         trans = getattr(runtime_value(state, "llm_service"), "trans", None)
@@ -347,6 +355,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "messages": serialize_messages(updated_messages),
         "final_text": text,
         "open_tool_spans": {},
+        "loop_budget": budget.model_dump(mode="json"),
     }
 
 

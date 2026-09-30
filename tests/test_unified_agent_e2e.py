@@ -1,48 +1,90 @@
 """End-to-End tests for Unified Tool-Agent Runtime."""
 
-import pytest
-from apps.chat.memory_slots import MemorySlots
-from apps.chat.task.agent_prompt import build_agent_system_prompt
-from apps.chat.tools.compare_results import compare_query_results
-from apps.chat.tools.patch_sql import patch_and_compile_sql
+from contextlib import contextmanager
+from types import SimpleNamespace
+
+from langchain_core.messages import AIMessage
+
+from apps.chat.agent.delivery import finalize_agent_turn_node
 from apps.chat.agent.loop import (
     route_after_agent_loop,
     route_after_tools_execution,
 )
-from langchain_core.messages import AIMessage, ToolCall
+from apps.chat.agent.workspace import SqlWorkspace
+from apps.chat.memory_slots import MemorySlots
+from apps.chat.task.agent_prompt import build_agent_system_prompt
+from apps.chat.tools.contract import Signals, ToolOutcome
+from apps.chat.tools.patch_sql import patch_and_compile_sql
+
+
+def _result_ds(
+    *,
+    dataset_id: str,
+    sql: str,
+    fields: list[str],
+    rows: list[dict],
+    row_count: int,
+    title: str = "",
+    required: bool = True,
+    truncated: bool = False,
+    limit: int | None = None,
+):
+    return SimpleNamespace(
+        dataset_id=dataset_id,
+        status="succeeded",
+        required=required,
+        fields=fields,
+        rows=rows,
+        row_count=row_count,
+        truncated=truncated,
+        schema_snapshot={
+            "sql": sql,
+            "result_title": title,
+            "chart_type": "table",
+            "limit": limit,
+        },
+    )
+
+
+def _workspace(*items: dict) -> dict:
+    ws = SqlWorkspace()
+    for item in items:
+        rev = ws.add_revision(
+            item["sql"],
+            origin="model",
+            status="executed",
+            dataset_id=item.get("dataset_id"),
+            result_title=item.get("title", ""),
+        )
+        ws.mark_executed(
+            rev.rev,
+            dataset_id=item.get("dataset_id"),
+            purpose=item.get("purpose", "delivery"),
+            result_title=item.get("title", ""),
+            truncated=bool(item.get("truncated")),
+            display_limit=item.get("limit") or item.get("display_limit"),
+        )
+    return ws.model_dump(mode="json")
 
 
 def test_memory_slots_retention_and_baseline_extraction():
-    """验证场景1：会话槽位的持久化与多轮修改基线提取."""
+    """Session slots persist calibers; SQL truth lives on workspace revs."""
     slots = MemorySlots(
         confirmed_calibers={"amount": "actual_amount", "date": "pay_time"},
         excluded_filters=[{"field": "status", "op": "NOT IN", "value": ["CANCELLED"]}],
+        current_rev="r1",
+        active_dataset_outline={"fields": ["dept", "sum"], "row_count": 100, "rev": "r1"},
     )
-    # Simulate execution update
-    slots.update_from_execution(
-        executed_sql="SELECT dept, sum(actual_amount) FROM sales WHERE status NOT IN ('CANCELLED') GROUP BY dept",
-        fields=["dept", "sum"],
-        row_count=100,
-        sample_rows=[{"dept": "Sales", "sum": 50000}],
-    )
-    baseline = slots.extract_change_baseline()
-    assert baseline["sql"].startswith("SELECT dept")
-    assert "confirmed_calibers" not in baseline
-    assert "excluded_filters" not in baseline
-
-    prompt = build_agent_system_prompt(
-        memory_slots=slots.model_dump(),
-        change_baseline=baseline,
-    )
+    prompt = build_agent_system_prompt(memory_slots=slots.model_dump())
     assert "<memory_slots>" not in prompt
     assert "<change_baseline>" not in prompt
     assert "硬预算" not in prompt
+    assert "current_rev: r1" in prompt
 
 
 def test_incremental_patch_preserves_confirmed_filters():
     """验证场景3：增量修改在保留已确认口径（如排除项）的同时安全扩展维度."""
     base_sql = "SELECT dept, sum(actual_amount) AS total FROM sales WHERE status NOT IN ('CANCELLED') GROUP BY dept"
-    # User asks: "再按月份看"
     res = patch_and_compile_sql(base_sql, "add_dimension", {"fields": ["month"]})
     assert res["ok"] is True
     patched = res["data"]["sql"].lower()
@@ -68,9 +110,15 @@ def test_agent_route_after_agent_loop_with_tool_call():
 
 
 def test_route_after_tools_clarification_interrupt():
-    """验证场景2：质疑/歧义时触发澄清卡片中断路由."""
+    """质疑/歧义时触发澄清卡片中断路由."""
     tool_steps_normal = [
-        {"name": "patch_and_compile_sql", "result": {"ok": True, "data": {}}}
+        {
+            "name": "patch_and_compile_sql",
+            "ok": True,
+            "outcome": ToolOutcome(
+                ok=True, summary="ok", payload={}, signals=Signals()
+            ).model_dump(mode="json"),
+        }
     ]
     assert (
         route_after_tools_execution({"tool_steps": tool_steps_normal}) == "agent_loop"
@@ -79,7 +127,13 @@ def test_route_after_tools_clarification_interrupt():
     tool_steps_clarify = [
         {
             "name": "request_clarification",
-            "result": {"ok": True, "data": {"interrupt_required": True}},
+            "ok": True,
+            "outcome": ToolOutcome(
+                ok=True,
+                summary="card",
+                payload={},
+                signals=Signals(interrupt=True),
+            ).model_dump(mode="json"),
         }
     ]
     assert (
@@ -87,76 +141,81 @@ def test_route_after_tools_clarification_interrupt():
         == "await_clarification"
     )
 
-    tool_steps_text = [
+    tool_steps_compare = [
         {
             "ok": True,
-            "name": "complete_without_sql",
-            "result": {
-                "ok": True,
-                "data": {"terminal_answer": True, "content": "能力说明"},
-            },
+            "name": "compare_results",
+            "outcome": ToolOutcome(
+                ok=True,
+                summary="diff",
+                payload={"row_count_a": 3, "row_count_b": 5},
+                signals=Signals(),
+            ).model_dump(mode="json"),
         }
     ]
     assert (
-        route_after_tools_execution({"tool_steps": tool_steps_text}) == "finalize_turn"
+        route_after_tools_execution({"tool_steps": tool_steps_compare}) == "agent_loop"
     )
 
 
-from apps.chat.agent.delivery import finalize_agent_turn_node
+def _patch_finalize(monkeypatch, datasets):
+    @contextmanager
+    def _scope():
+        yield object()
+
+    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
+    monkeypatch.setattr(
+        "apps.chat.agent.delivery.load_result_datasets",
+        lambda *_a, **_k: datasets,
+    )
+    monkeypatch.setattr(
+        "apps.chat.agent.delivery.finalize_run",
+        lambda *_a, **_k: None,
+    )
 
 
-def test_finalize_agent_turn_publishes_delivery_datasets_only():
+def test_finalize_agent_turn_publishes_delivery_datasets_only(monkeypatch):
     """Probe SQL stays out of the answer; multiple delivery datasets are kept."""
+    deliveries = [
+        _result_ds(
+            dataset_id="ds1",
+            sql="SELECT code FROM t WHERE identify_style = 'INVITE_AGW'",
+            fields=["code"],
+            rows=[{"code": "c1"}],
+            row_count=1,
+            title="企业清单",
+        ),
+        _result_ds(
+            dataset_id="ds2",
+            sql="SELECT city, COUNT(*) FROM t GROUP BY city",
+            fields=["city", "cnt"],
+            rows=[{"city": "SZ", "cnt": 3}],
+            row_count=1,
+            title="城市分布",
+        ),
+    ]
+    _patch_finalize(monkeypatch, deliveries)
     state = {
         "run_id": "test_run_123",
         "record_id": 999,
         "final_text": "以下为企业清单。",
-        "tool_steps": [
+        "sql_workspace": _workspace(
             {
-                "ok": True,
-                "name": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {
-                        "sql": "SELECT identify_style, COUNT(*) FROM t GROUP BY 1",
-                        "fields": ["identify_style", "cnt"],
-                        "preview_rows": [{"identify_style": "INVITE", "cnt": 10}],
-                        "row_count": 1,
-                        "required": False,
-                    },
-                },
+                "sql": "SELECT identify_style, COUNT(*) FROM t GROUP BY 1",
+                "dataset_id": "probe",
+                "purpose": "probe",
             },
             {
-                "ok": True,
-                "name": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {
-                        "sql": "SELECT code FROM t WHERE identify_style = 'INVITE_AGW'",
-                        "fields": ["code"],
-                        "preview_rows": [{"code": "c1"}],
-                        "row_count": 1,
-                        "required": True,
-                        "result_title": "企业清单",
-                    },
-                },
+                "sql": "SELECT code FROM t WHERE identify_style = 'INVITE_AGW'",
+                "dataset_id": "ds1",
+                "title": "企业清单",
             },
             {
-                "ok": True,
-                "name": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {
-                        "sql": "SELECT city, COUNT(*) FROM t GROUP BY city",
-                        "fields": ["city", "cnt"],
-                        "preview_rows": [{"city": "SZ", "cnt": 3}],
-                        "row_count": 1,
-                        "required": True,
-                        "result_title": "城市分布",
-                    },
-                },
+                "sql": "SELECT city, COUNT(*) FROM t GROUP BY city",
+                "dataset_id": "ds2",
+                "title": "城市分布",
             },
-        ],
+        ),
     }
     out = finalize_agent_turn_node(state)
     ans = out["terminal_answer"]
@@ -166,7 +225,22 @@ def test_finalize_agent_turn_publishes_delivery_datasets_only():
     assert ans["content"].startswith("以下为企业清单")
 
 
-def test_finalize_compacts_truncated_copy():
+def test_finalize_compacts_truncated_copy(monkeypatch):
+    _patch_finalize(
+        monkeypatch,
+        [
+            _result_ds(
+                dataset_id="ds1",
+                sql="SELECT code FROM t LIMIT 1000",
+                fields=["code"],
+                rows=[{"code": "c1"}],
+                row_count=1000,
+                title="企业清单",
+                truncated=True,
+                limit=1000,
+            )
+        ],
+    )
     state = {
         "run_id": "test_run_trunc",
         "record_id": 1001,
@@ -175,25 +249,15 @@ def test_finalize_compacts_truncated_copy():
             "口径：认证方式为邀请认证-内管录入。\n\n"
             "本次查询返回 1000 条，符合条件的记录超过 1000 条，结果集有截断。\n"
         ),
-        "tool_steps": [
+        "sql_workspace": _workspace(
             {
-                "ok": True,
-                "name": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {
-                        "sql": "SELECT code FROM t LIMIT 1000",
-                        "fields": ["code"],
-                        "preview_rows": [{"code": "c1"}],
-                        "row_count": 1000,
-                        "limit": 1000,
-                        "truncated": True,
-                        "required": True,
-                        "result_title": "企业清单",
-                    },
-                },
-            },
-        ],
+                "sql": "SELECT code FROM t LIMIT 1000",
+                "dataset_id": "ds1",
+                "title": "企业清单",
+                "truncated": True,
+                "limit": 1000,
+            }
+        ),
     }
     out = finalize_agent_turn_node(state)
     content = out["terminal_answer"]["content"]
@@ -204,29 +268,22 @@ def test_finalize_compacts_truncated_copy():
     assert "仅展示前 1000 条。" in content
 
 
-def test_finalize_query_without_data_is_friendly_failure(monkeypatch):
-    from contextlib import contextmanager
-
-    @contextmanager
-    def _scope():
-        yield object()
-
-    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
+def test_finalize_empty_stop_is_friendly_failure(monkeypatch):
+    _patch_finalize(monkeypatch, [])
     monkeypatch.setattr(
-        "apps.chat.agent.delivery.load_result_datasets",
-        lambda *_a, **_k: [],
+        "apps.chat.graphs.turn_failure.persist_query_terminal_failure",
+        lambda payload, **_k: payload.get("outcome")
+        or {"status": "failed", "failures": []},
     )
     out = finalize_agent_turn_node(
         {
             "run_id": "empty_run",
-            "final_text": "我用最宽泛的词汇再探测一次可用数据表。",
             "turn_route": {"task_kind": "query"},
             "tool_steps": [],
         }
     )
     assert out["outcome"]["status"] == "failed"
     assert "error" in out
-    assert "再探测" not in out["final_text"]
     assert "换个问法" in out["public_error"] or "synced" in out["public_error"]
 
 
@@ -246,49 +303,45 @@ def test_route_after_agent_loop_salvages_sql_on_llm_error():
     state = {
         "error": "RateLimitError 429 TPM",
         "messages": [],
-        "tool_steps": [
+        "sql_workspace": _workspace(
             {
-                "ok": True,
-                "name": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {
-                        "sql": "SELECT code FROM t LIMIT 1000",
-                        "required": True,
-                    },
-                },
+                "sql": "SELECT code FROM t LIMIT 1000",
+                "dataset_id": "ds1",
             }
-        ],
+        ),
     }
     assert route_after_agent_loop(state) == "finalize_turn"
 
 
-def test_finalize_keeps_datasets_when_summary_incomplete():
+def test_finalize_keeps_datasets_when_summary_incomplete(monkeypatch):
+    _patch_finalize(
+        monkeypatch,
+        [
+            _result_ds(
+                dataset_id="ds1",
+                sql="SELECT code FROM t LIMIT 1000",
+                fields=["code"],
+                rows=[{"code": "c1"}],
+                row_count=1000,
+                title="企业清单",
+                truncated=True,
+                limit=1000,
+            )
+        ],
+    )
     state = {
         "run_id": "salvage_run",
         "record_id": 2002,
         "final_text": "",
         "error": "RateLimitError 429 TPM",
         "analysis_incomplete": True,
-        "tool_steps": [
+        "sql_workspace": _workspace(
             {
-                "ok": True,
-                "name": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {
-                        "sql": "SELECT code FROM t LIMIT 1000",
-                        "fields": ["code"],
-                        "preview_rows": [{"code": "c1"}],
-                        "row_count": 1000,
-                        "limit": 1000,
-                        "truncated": True,
-                        "required": True,
-                        "result_title": "企业清单",
-                    },
-                },
+                "sql": "SELECT code FROM t LIMIT 1000",
+                "dataset_id": "ds1",
+                "title": "企业清单",
             }
-        ],
+        ),
     }
     out = finalize_agent_turn_node(state)
     assert out.get("error") is None

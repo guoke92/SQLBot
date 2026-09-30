@@ -173,6 +173,7 @@ def test_memory_slots_hydrate_knowledge_refs_prior_questions_and_bindings() -> N
             "question": "加上管理员数量",
             "datasets": [
                 {
+                    "rev": "r2",
                     "sql": "SELECT 1 FROM cust_company_info",
                     "fields": ["n"],
                     "row_count": 1,
@@ -198,11 +199,10 @@ def test_memory_slots_hydrate_knowledge_refs_prior_questions_and_bindings() -> N
         "tables": ["cust_company_info", "cust_person_info"],
     }
     assert slots.prior_questions == ["查询启用的企业", "加上管理员数量"]
-    assert slots.active_baseline_sql == "SELECT 1 FROM cust_company_info"
+    assert slots.current_rev == "r2"
     entry = next(iter(slots.confirmed_calibers.values()))
     assert entry["fields"] == [{"table": "cust_person_info", "field": "user_type"}]
-    baseline = slots.extract_change_baseline()
-    assert baseline["prior_question"] == "加上管理员数量"
+    assert slots.prior_questions[-1] == "加上管理员数量"
     # Round-trip through the answer surface keeps the physical binding.
     surface = project_confirmed_calibers(slots.model_dump())
     assert surface[0]["fields"] == [{"table": "cust_person_info", "field": "user_type"}]
@@ -315,8 +315,11 @@ def test_clarify_resume_message_is_chinese_and_bound(monkeypatch) -> None:
         "tool_steps": [
             {
                 "ok": True,
-                "result": {
-                    "data": {
+                "tool": "request_clarification",
+                "outcome": {
+                    "ok": True,
+                    "summary": "card",
+                    "payload": {
                         "clarification_card": {
                             "questions": [
                                 {
@@ -338,7 +341,19 @@ def test_clarify_resume_message_is_chinese_and_bound(monkeypatch) -> None:
                                 }
                             ]
                         }
-                    }
+                    },
+                    "signals": {
+                        "interrupt": True,
+                        "terminal": False,
+                        "skipped": False,
+                        "purpose": "delivery",
+                        "dataset_id": None,
+                        "sql_rev": None,
+                        "exclusive": True,
+                        "parallel_safe": False,
+                    },
+                    "error": None,
+                    "failure": None,
                 },
             }
         ],

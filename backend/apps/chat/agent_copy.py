@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from typing import Any
 
 _MD_TABLE_RE = re.compile(
@@ -41,58 +40,6 @@ def truncated_display_note(limit: int | None, *, trans: Any | None = None) -> st
         except Exception:
             pass
     return _TRUNCATED_NOTE_FALLBACK.format(limit=n)
-
-
-def truncation_from_tool_steps(
-    steps: Any,
-) -> tuple[bool, int | None]:
-    """Last required SQL window: truncated flag and display limit."""
-    truncated = False
-    limit: int | None = None
-    for step in steps or []:
-        if not isinstance(step, Mapping) or not step.get("ok"):
-            continue
-        data = (step.get("result") or {}).get("data") or {}
-        if not isinstance(data, Mapping) or not data.get("sql"):
-            continue
-        if data.get("required") is False:
-            continue
-        if data.get("truncated"):
-            truncated = True
-            raw_limit = data.get("limit")
-            if raw_limit is None:
-                raw_limit = data.get("row_count") or data.get("total_rows")
-            try:
-                limit = int(raw_limit) if raw_limit is not None else limit
-            except (TypeError, ValueError):
-                pass
-    return truncated, limit
-
-
-def truncation_from_delivery_steps(
-    steps: Any,
-) -> tuple[bool, int | None]:
-    """Finalize ``all_steps``: truncated flag lives on ``step.data``."""
-    truncated = False
-    limit: int | None = None
-    for step in steps or []:
-        if not isinstance(step, Mapping):
-            continue
-        if step.get("required") is False:
-            continue
-        payload = step.get("data") if isinstance(step.get("data"), Mapping) else {}
-        if not payload.get("truncated"):
-            continue
-        truncated = True
-        raw_limit = payload.get("limit")
-        if raw_limit is None:
-            raw_limit = payload.get("row_count")
-        try:
-            if raw_limit is not None:
-                limit = int(raw_limit)
-        except (TypeError, ValueError):
-            pass
-    return truncated, limit
 
 
 def compact_agent_final_text(

@@ -368,10 +368,10 @@ class AiModelQuestion(BaseModel):
         return get_guess_question_template()['system'].format(lang=self.lang, articles_number=articles_number,
                                                               sqlbot_name=self.sqlbot_name)
 
-    def guess_user_question(self, old_questions: str = "[]"):
+    def guess_user_question(self, old_questions: str = "[]", schema: str = ""):
         return get_guess_question_template()['user'].format(
             question=self.generation_question or self.question,
-            schema=self.db_schema,
+            schema=schema,
             old_questions=old_questions,
         )
 

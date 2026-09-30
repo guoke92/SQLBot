@@ -14,11 +14,9 @@ from apps.chat.steps.observability import sanitize_audit_value
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.outcome import FailureInfo, FailureKind, classify_failure
 from apps.conversation.process_timeline import (
-    PREVIEW_ROW_LIMIT,
     attach_process_span,
     attach_running_tool_span,
     open_process_span,
-    preview_rows,
 )
 from apps.conversation.runtime_context import (
     runtime_value,
@@ -394,29 +392,6 @@ def serialize_tool_result(result: ToolResult) -> str:
     return orjson.dumps(result).decode()
 
 
-_KNOWLEDGE_TEXT_TOOLS = frozenset(
-    {
-        "search_knowledge",
-        "get_dict_values",
-        "lookup_values",
-        "get_table_relations",
-    }
-)
-_GENERIC_SKIP_KEYS = frozenset(
-    {
-        "schema_ready",
-        "interrupt_required",
-        "clarification_card",
-        "skipped",
-        "column_stats",
-        "dataset_id",
-        "plan_id",
-        "value_labels",
-    }
-)
-_SQL_PREVIEW_ROWS = 5
-
-
 def tool_result_from_message(message: Any) -> dict[str, Any]:
     """Structured ToolResult from artifact (current) or JSON content (legacy)."""
     artifact = getattr(message, "artifact", None)
@@ -442,84 +417,30 @@ def tool_result_from_message(message: Any) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _result_payload(result: Mapping[str, Any]) -> Mapping[str, Any]:
+    payload = result.get("payload")
+    if isinstance(payload, Mapping):
+        return payload
+    data = result.get("data")
+    if isinstance(data, Mapping):
+        return data
+    return {}
+
+
 def render_tool_message(name: str, result: Mapping[str, Any]) -> str:
-    """Compact plaintext for the model. Never dump the ToolResult JSON envelope."""
+    """Generic summary + payload text. ChatBI layout lives in Product render."""
+    del name
     if not result.get("ok"):
         err = str(result.get("error") or result.get("summary") or "failed").strip()
         return f"Failed: {err}"
-    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-    if not isinstance(data, Mapping):
-        data = {}
+    data = _result_payload(result)
     summary = str(result.get("summary") or "").strip()
-    if name == "get_table_schema":
-        body = str(data.get("schema_text") or "").strip()
-        if body and body not in summary:
-            return f"{summary}\n\n{body}".strip() if summary else body
-        return summary
-    if name == "execute_sql_sandbox":
-        return _render_sql_sandbox(summary, data)
-    if name == "compare_results":
-        return _render_compare_results(summary, data)
-    if name == "patch_and_compile_sql":
-        sql = str(data.get("sql") or "").strip()
-        if sql and sql not in summary:
-            return f"{summary}\n\n{sql}".strip() if summary else sql
-        return summary
-    if name in _KNOWLEDGE_TEXT_TOOLS:
-        return summary
     chunks = [summary] if summary else []
     if "\n" not in summary:
-        extra = _render_mapping(data, skip=_GENERIC_SKIP_KEYS)
+        extra = _render_mapping(data, skip=set())
         if extra:
             chunks.append(extra)
     return "\n".join(chunks).strip()
-
-
-def _render_sql_sandbox(summary: str, data: Mapping[str, Any]) -> str:
-    lines = [summary] if summary else []
-    sql = str(data.get("sql") or "").strip()
-    if sql:
-        lines.append("sql:")
-        lines.append(sql)
-    fields = data.get("fields") or []
-    if isinstance(fields, Sequence) and not isinstance(fields, str | bytes):
-        names = [str(item).strip() for item in fields if str(item).strip()]
-        if names:
-            lines.append("fields: " + ", ".join(names))
-    if data.get("truncated"):
-        lines.append("truncated: true")
-    rows = data.get("preview_rows") or data.get("sample_rows") or []
-    preview = _format_preview_rows(rows) if isinstance(rows, Sequence) else ""
-    if preview:
-        lines.append("preview:")
-        lines.append(preview)
-    return "\n".join(lines).strip()
-
-
-def _render_compare_results(summary: str, data: Mapping[str, Any]) -> str:
-    lines = [summary] if summary else []
-    for side in ("base", "new"):
-        side_data = data.get(side)
-        if not isinstance(side_data, Mapping):
-            continue
-        count = side_data.get("row_count")
-        header = f"{side}: {count} rows" if count is not None else f"{side}:"
-        lines.append(header)
-        sql = str(side_data.get("sql") or "").strip()
-        if sql:
-            lines.append(sql)
-    return "\n".join(lines).strip()
-
-
-def _format_preview_rows(rows: Sequence[Any], *, limit: int = _SQL_PREVIEW_ROWS) -> str:
-    lines: list[str] = []
-    for row in list(rows)[:limit]:
-        if isinstance(row, Mapping):
-            parts = [f"{key}={value}" for key, value in row.items()]
-            lines.append(" | ".join(parts))
-        else:
-            lines.append(str(row))
-    return "\n".join(lines)
 
 
 def _render_mapping(
@@ -595,30 +516,21 @@ def _tool_call_signature(name: str, args: Mapping[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _knowledge_tool_close(
+def _tool_span_close(
     name: str, result: Mapping[str, Any]
 ) -> tuple[str, dict[str, Any]]:
-    """Knowledge tools report hit counts; skipped budget is not a failure."""
+    """Generic Host span close. ChatBI hit-count keys live on Product audit."""
     data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-    if isinstance(data, Mapping) and data.get("skipped") == "knowledge_budget":
+    skipped = False
+    if isinstance(data, Mapping) and data.get("skipped"):
+        skipped = True
+    signals = result.get("signals") if isinstance(result.get("signals"), Mapping) else {}
+    if isinstance(signals, Mapping) and signals.get("skipped"):
+        skipped = True
+    if skipped:
         return "chat.summary.tool_skipped", {"tool": name}
     if not result.get("ok"):
         return "chat.summary.tool_failed", {"tool": name}
-    if name == "get_table_schema":
-        count = len(data.get("tables") or data.get("added_tables") or [])
-        return "chat.summary.schema_loaded", {"count": count}
-    if name == "get_table_relations":
-        count = len(data.get("direct") or []) + len(data.get("bridges") or [])
-        return "chat.summary.relations_loaded", {"count": count}
-    if name == "search_knowledge":
-        count = int(data.get("hit_count") or len(data.get("page_keys") or []) or 0)
-        return "chat.summary.wiki_prepared", {"count": count}
-    if name == "get_dict_values":
-        count = len(data.get("values") or [])
-        return "chat.summary.dict_loaded", {"count": count}
-    if name == "lookup_values":
-        count = len(data.get("candidates") or [])
-        return "chat.summary.values_loaded", {"count": count}
     return "chat.summary.tool_ok", {"tool": name}
 
 
@@ -714,80 +626,13 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         model_content = render_tool_message(name, safe_result)
         if span is not None:
             span.set_output(_truncate_for_log(safe_result))
-            summary_key, summary_params = _knowledge_tool_close(name, result)
+            summary_key, summary_params = _tool_span_close(name, result)
             span.close(
                 status="completed" if result["ok"] else "failed",
                 summary_key=summary_key,
                 summary_params=summary_params,
                 tool={"call_id": call_id, "name": name, "args": safe_args},
             )
-            data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-            if result["ok"] and isinstance(data, Mapping) and data.get("dataset_id"):
-                art = open_process_span(
-                    kind="artifact",
-                    record_id=record_id,
-                    sink=sink,
-                    run_id=str(state.get("run_id") or "") or None,
-                    parent_id=span.id,
-                    graph_node="execute_tools",
-                    title_key="chat.timeline.artifact",
-                    artifact={
-                        "dataset_id": data.get("dataset_id"),
-                        "sql": data.get("sql")
-                        or (args.get("sql") if isinstance(args, Mapping) else ""),
-                        "fields": list(data.get("fields") or []),
-                        "row_count": data.get("row_count") or data.get("total_rows"),
-                        "truncated": bool(data.get("truncated")),
-                        "limit": data.get("limit"),
-                        "preview_rows": preview_rows(
-                            data.get("preview_rows") or data.get("sample_rows") or [],
-                            limit=PREVIEW_ROW_LIMIT,
-                        ),
-                    },
-                    local_operation=True,
-                )
-                if art is not None:
-                    art.close(
-                        status="completed",
-                        summary_key="chat.summary.query_rows",
-                        summary_params={
-                            "count": int(
-                                data.get("row_count") or data.get("total_rows") or 0
-                            )
-                        },
-                    )
-            if result["ok"] and isinstance(data, Mapping) and name == "compare_results":
-                for side, side_data in (
-                    ("base", data.get("base")),
-                    ("new", data.get("new")),
-                ):
-                    if not isinstance(side_data, Mapping) or not side_data.get("sql"):
-                        continue
-                    art = open_process_span(
-                        kind="artifact",
-                        record_id=record_id,
-                        sink=sink,
-                        run_id=str(state.get("run_id") or "") or None,
-                        parent_id=span.id,
-                        graph_node="execute_tools",
-                        title_key="chat.timeline.artifact",
-                        title_params={"side": side},
-                        artifact={
-                            "dataset_id": side_data.get("dataset_id")
-                            or f"{call_id}_{side}",
-                            "sql": side_data.get("sql"),
-                            "row_count": side_data.get("row_count"),
-                            "preview_rows": preview_rows(
-                                side_data.get("sample_rows") or [],
-                                limit=PREVIEW_ROW_LIMIT,
-                            ),
-                        },
-                        local_operation=True,
-                    )
-                    if art is not None:
-                        art.close(
-                            status="completed", summary_key="chat.summary.tool_ok"
-                        )
 
         tool_messages.append(
             ToolMessage(

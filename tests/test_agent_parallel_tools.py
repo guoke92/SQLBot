@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage
 from apps.chat.agent.knowledge import load_plane, stage_plane
 from apps.chat.agent.tools.runtime import execute_tools_node
 from apps.chat.agent_knowledge import AgentKnowledgePlane
+from apps.chat.tools.contract import success_outcome
 from apps.conversation.runtime_context import (
     attach_runtime,
     detach_runtime,
@@ -34,13 +35,7 @@ def test_parallel_knowledge_tools_merge_plane(monkeypatch) -> None:
             plane = load_plane()
             plane.tables = list(dict.fromkeys([*(plane.tables or []), table]))
             stage_plane(plane)
-            return {
-                "ok": True,
-                "summary": name,
-                "data": {"tables": [table]},
-                "error": None,
-                "failure": None,
-            }
+            return success_outcome(name, payload={"tables": [table]}, name=name)
 
         tool.invoke.side_effect = _invoke
         return tool
@@ -102,13 +97,7 @@ def test_exclusive_tool_in_batch_runs_serially(monkeypatch) -> None:
             order.append(f"{name}:start")
             time.sleep(0.02)
             order.append(f"{name}:end")
-            return {
-                "ok": True,
-                "summary": name,
-                "data": {},
-                "error": None,
-                "failure": None,
-            }
+            return success_outcome(name, payload={}, name=name)
 
         tool.invoke.side_effect = _invoke
         return tool

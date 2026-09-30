@@ -131,7 +131,7 @@ def test_recommend_binds_llm_call_log_scope(monkeypatch) -> None:
             ai_modal_name="m",
             db_schema="",
             guess_sys_question=lambda _n: "sys",
-            guess_user_question=lambda _old: "user",
+            guess_user_question=lambda _old, schema="": "user",
         ),
         llm=SimpleNamespace(stream=lambda _messages: iter([])),
     )

@@ -29,9 +29,9 @@ class MemorySlots(BaseModel):
         default_factory=list,
         description="Persistent negative constraints, e.g. [{'field': 'status', 'op': 'NOT IN', 'value': ['CANCELLED']}]",
     )
-    active_baseline_sql: str = Field(
+    current_rev: str = Field(
         default="",
-        description="Latest successfully executed SQL query statement.",
+        description="Current SqlWorkspace revision handle (rN).",
     )
     active_dataset_outline: dict[str, Any] = Field(
         default_factory=dict,
@@ -45,34 +45,6 @@ class MemorySlots(BaseModel):
         default_factory=list,
         description="Questions of the referenced turns (oldest first) — retrieval context for follow-ups.",
     )
-
-    def extract_change_baseline(self) -> dict[str, Any]:
-        """Compact baseline for incremental patching in the current turn."""
-        if not self.active_baseline_sql:
-            return {}
-        baseline: dict[str, Any] = {
-            "sql": self.active_baseline_sql,
-            "outline": self.active_dataset_outline,
-        }
-        if self.prior_questions:
-            baseline["prior_question"] = self.prior_questions[-1]
-        return baseline
-
-    def update_from_execution(
-        self,
-        *,
-        executed_sql: str,
-        fields: list[str],
-        row_count: int,
-        sample_rows: list[dict[str, Any]] | None = None,
-    ) -> None:
-        if executed_sql:
-            self.active_baseline_sql = executed_sql
-            self.active_dataset_outline = {
-                "fields": fields,
-                "row_count": row_count,
-                "sample_rows": (sample_rows or [])[:3],
-            }
 
 
 def answer_has_executable_sql(answer: Mapping[str, Any] | None) -> bool:
@@ -94,19 +66,23 @@ def hydrate_memory_slots_from_referenced_turns(
     if not referenced_turns:
         return memory_slots
     latest = referenced_turns[-1]
-    if not memory_slots.active_baseline_sql:
+    if not memory_slots.current_rev:
         for ds in latest.get("datasets") or []:
             if not isinstance(ds, Mapping):
                 continue
-            sql = str(ds.get("sql") or "").strip()
-            if not sql:
-                continue
-            memory_slots.active_baseline_sql = sql
-            memory_slots.active_dataset_outline = {
-                "fields": list(ds.get("fields") or []),
-                "row_count": ds.get("row_count"),
-            }
-            break
+            rev = str(ds.get("rev") or "").strip()
+            if rev:
+                memory_slots.current_rev = rev
+            outline_fields = list(ds.get("fields") or [])
+            if outline_fields or ds.get("dataset_id"):
+                memory_slots.active_dataset_outline = {
+                    "dataset_id": ds.get("dataset_id"),
+                    "fields": outline_fields,
+                    "row_count": ds.get("row_count"),
+                    "rev": rev,
+                }
+            if rev:
+                break
 
     refs = latest.get("knowledge_refs")
     if not memory_slots.knowledge_refs and isinstance(refs, Mapping):

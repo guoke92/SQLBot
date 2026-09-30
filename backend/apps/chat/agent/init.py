@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Literal
 
 from sqlalchemy import select
 
-from apps.chat.agent.close import empty_delivery
-from apps.chat.agent.context import (
-    choose_data_strategy,
+from apps.chat.agent.budget import empty_budget
+from apps.chat.agent.context_spec import (
     context_fingerprint,
     recap_from_turn_answer,
 )
+from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_config import load_agent_config
 from apps.chat.agent_knowledge import EXECUTION_ROUND_LIMIT, AgentKnowledgePlane
 from apps.chat.graphs.turn_state import fail_turn_state, llm_service
@@ -121,7 +121,6 @@ def prepare_record(state: Mapping[str, Any]) -> dict[str, Any]:
             "json_result": json_result,
             "turn_route": {},
             "source_datasets": [],
-            "data_strategy": "direct_query",
             "terminal_answer": {},
             "outcome": running_outcome(),
         }
@@ -182,9 +181,9 @@ def referenced_dataset_outline(dataset: dict[str, Any]) -> dict[str, Any]:
     return {
         "dataset_id": dataset.get("dataset_id"),
         "title": dataset.get("title") or "",
+        "rev": dataset.get("rev") or "",
         "fields": fields,
         "row_count": dataset.get("row_count"),
-        "sql": str(dataset.get("sql") or "")[:1200],
         "sample_rows": sample_rows,
     }
 
@@ -208,6 +207,54 @@ def record_answer_datasets(record: ChatRecord) -> list[dict[str, Any]]:
     ]
 
 
+def sql_datasets_along_continue(
+    record: Any,
+    *,
+    load: Callable[[int], Any],
+    chat_id: int,
+    user_id: int,
+    datasource: int | None = None,
+    max_hops: int = 8,
+    seen: set[int] | None = None,
+) -> list[dict[str, Any]]:
+    """Walk continue parents until a turn that stored executable SQL datasets."""
+    visited = seen if seen is not None else set()
+    current: Any = record
+    hops = 0
+    while current is not None and hops < max_hops:
+        hops += 1
+        record_id = int(getattr(current, "id", 0) or 0)
+        if record_id <= 0 or record_id in visited:
+            break
+        visited.add(record_id)
+        if int(getattr(current, "chat_id", 0) or 0) != int(chat_id):
+            break
+        if int(getattr(current, "create_by", 0) or 0) != int(user_id):
+            break
+        current_ds = getattr(current, "datasource", None)
+        if (
+            datasource is not None
+            and current_ds is not None
+            and int(current_ds) != int(datasource)
+        ):
+            break
+        datasets = record_answer_datasets(current)
+        if any(str(item.get("sql") or "").strip() for item in datasets):
+            return datasets
+        parents = [
+            int(item)
+            for item in (getattr(current, "reference_record_ids", None) or [])
+            if int(item) > 0
+        ]
+        current = None
+        for parent_id in parents:
+            parent = load(parent_id)
+            if parent is not None:
+                current = parent
+                break
+    return []
+
+
 def assemble_turn_context(state: Mapping[str, Any]) -> dict[str, Any]:
     """Select durable history/results before any datasource or model work."""
     try:
@@ -225,6 +272,10 @@ def assemble_turn_context(state: Mapping[str, Any]) -> dict[str, Any]:
                 chat_id=int(current.chat_id),
                 user_id=int(run.user_id),
                 reference_record_ids=route.reference_record_ids,
+            )
+            seen_spine: set[int] = set()
+            current_ds = (
+                int(current.datasource) if current.datasource is not None else None
             )
             for record_id in route.reference_record_ids:
                 referenced = session.get(ChatRecord, int(record_id))
@@ -244,8 +295,15 @@ def assemble_turn_context(state: Mapping[str, Any]) -> dict[str, Any]:
                     raise SingleMessageError(
                         "Cannot continue a query across different datasources"
                     )
-                datasets = record_answer_datasets(referenced)
-                source_datasets.extend(datasets)
+                spine_datasets = sql_datasets_along_continue(
+                    referenced,
+                    load=lambda rid: session.get(ChatRecord, int(rid)),
+                    chat_id=int(current.chat_id),
+                    user_id=int(run.user_id),
+                    datasource=current_ds,
+                    seen=seen_spine,
+                )
+                source_datasets.extend(spine_datasets)
                 latest_run = (
                     session.exec(
                         select(ConversationRun)
@@ -262,41 +320,34 @@ def assemble_turn_context(state: Mapping[str, Any]) -> dict[str, Any]:
                     referenced.answer if isinstance(referenced.answer, dict) else {}
                 )
                 recap = recap_from_turn_answer(answer)
-                knowledge_refs = recap["knowledge_refs"]
-                outlines = [referenced_dataset_outline(item) for item in datasets]
-                if not outlines and recap["sql"]:
-                    outlines = [
-                        referenced_dataset_outline(
-                            {
-                                "dataset_id": recap["dataset_id"],
-                                "sql": recap["sql"],
-                                "status": "succeeded",
-                                "fields": [],
-                            }
-                        )
-                    ]
+                knowledge_refs = recap.knowledge_refs
+                outlines = [
+                    referenced_dataset_outline(item)
+                    for item in record_answer_datasets(referenced)
+                ]
+                if not outlines:
+                    for ds in recap.datasets:
+                        if ds.dataset_id or ds.rev:
+                            outlines.append(
+                                referenced_dataset_outline(ds.model_dump(mode="json"))
+                            )
                 referenced_turns.append(
                     {
                         "record_id": referenced.id,
                         "question": referenced.question,
                         "turn_kind": referenced.turn_kind,
-                        "answer_status": recap["status"],
-                        "answer_summary": recap["content"],
+                        "answer_status": recap.status,
+                        "answer_summary": recap.content,
                         "run_status": latest_run.status
                         if latest_run is not None
                         else None,
                         "datasets": outlines,
-                        "confirmed_calibers": recap["confirmed_calibers"],
-                        "assumptions": recap["assumptions"],
+                        "confirmed_calibers": recap.confirmed_calibers,
+                        "assumptions": recap.assumptions,
                         "knowledge_refs": knowledge_refs,
                         "revision_ids": list(knowledge_refs.get("page_keys") or []),
                     }
                 )
-            strategy = choose_data_strategy(
-                route,
-                referenced_datasets=tuple(source_datasets),
-                message_has_query_need=route.task_kind in {"query", "prediction"},
-            )
             business_now_text = run.business_now.isoformat()
             business_timezone = run.timezone
             fingerprint = context_fingerprint(
@@ -318,7 +369,6 @@ def assemble_turn_context(state: Mapping[str, Any]) -> dict[str, Any]:
             "referenced_turns": referenced_turns,
             "prior_user_evidence": prior_user_evidence,
             "source_datasets": source_datasets,
-            "data_strategy": strategy,
             "context_fingerprint": fingerprint,
             "business_now": business_now_text,
             "timezone": business_timezone,
@@ -482,6 +532,18 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
     memory_slots = MemorySlots.model_validate(raw_slots) if raw_slots else MemorySlots()
     referenced = list(base_state.get("referenced_turns") or [])
     memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
+    workspace = SqlWorkspace()
+    ds_id = getattr(getattr(service, "ds", None), "id", None)
+    dialect = getattr(getattr(service, "ds", None), "type", None)
+    for dataset in base_state.get("source_datasets") or []:
+        if isinstance(dataset, Mapping):
+            workspace.inherit_dataset(
+                dataset,
+                ds_id=int(ds_id) if ds_id is not None else None,
+                dialect=str(dialect) if dialect else None,
+            )
+    if workspace.current:
+        memory_slots.current_rev = workspace.current
 
     from apps.chat.steps.schema_outline import render_schema_outline
     from apps.chat.steps.wiki_recall import _store
@@ -510,30 +572,41 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         access_scope=access_scope,
         llm_service=service,
         knowledge_plane=plane.to_dump(),
-        probe_sql_calls=0,
         agent_config=agent_config,
         memory_slots=memory_slots.model_dump(),
+        sql_workspace=workspace.model_dump(mode="json"),
     )
 
     history: list[Any] = []
+    stored_folds: list[dict[str, Any]] = []
     if chat_id is not None:
         try:
-            from apps.chat.agent.context import load_agent_transcript
+            from apps.chat.agent.context_spec import (
+                load_agent_transcript,
+                load_fold_ledger,
+            )
 
             with session_scope() as session:
                 history = load_agent_transcript(session, int(chat_id))
+                stored_folds = load_fold_ledger(session, int(chat_id))
         except Exception as exc:
             SQLBotLogUtil.warning(
                 f"Failed to load agent_transcript for chat {chat_id}: {exc}"
             )
             history = []
 
-    from apps.chat.agent.context import build_continued_messages, save_fold_meta
+    from apps.chat.agent.context_spec import build_continued_messages, save_fold_meta
 
     initial_messages, turn_message_start, fold_meta = build_continued_messages(
         history=history,
         question=question_text,
         knowledge_plane=plane,
+        memory_slots=memory_slots.model_dump(),
+        referenced_turns=referenced,
+        workspace=workspace,
+        stored_folds=stored_folds,
+        state=base_state,
+        config=agent_config,
     )
     if fold_meta and chat_id is not None:
         try:
@@ -558,17 +631,19 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         except Exception as exc:
             SQLBotLogUtil.warning(f"compact span skipped: {exc}")
 
+    loop_budget = empty_budget(config=agent_config)
     return {
         **base_state,
         "messages": serialize_messages(initial_messages),
         "turn_message_start": turn_message_start,
-        "turn_delivery": empty_delivery(),
+        "loop_budget": loop_budget.model_dump(mode="json"),
+        "sql_workspace": workspace.model_dump(mode="json"),
+        "batch_signals": {},
         "tool_rounds": 0,
         "tool_round_limit": agent_config.param(
             "execution_round_limit", EXECUTION_ROUND_LIMIT
         ),
         "knowledge_plane": plane.to_dump(),
-        "probe_sql_calls": 0,
         "memory_slots": memory_slots.model_dump(),
         "outcome": running_outcome(),
     }

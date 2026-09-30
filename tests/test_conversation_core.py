@@ -459,13 +459,6 @@ class TestEmbeddingRecallContract:
             "chat layer must not pass embedding=; offenders:\n" + "\n".join(offenders)
         )
 
-    def test_match_table_schema_omits_embedding_kwarg(self) -> None:
-        text = (_BACKEND / "apps/chat/steps/schema.py").read_text(encoding="utf-8")
-        assert "retrieve_schema(" in text
-        assert "embedding=" not in text.split("retrieve_schema(")[1].split(")")[0]
-        assert "TABLE_EMBEDDING_ENABLED" in text
-        assert "table_name_list" in text
-
 
 class TestCreateChatConfigContract:
     """curd.create_chat is the single truth for config DS requirement."""

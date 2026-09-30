@@ -163,7 +163,7 @@ def _search_pace_note(plane: AgentKnowledgePlane) -> str:
     ):
         return ""
     return (
-        "已经检索多轮：优先基于当前系统提示写 SQL 或 complete_without_sql；"
+        "已经检索多轮：优先基于当前系统提示写 SQL 或停手终答；"
         "仅当出现新的缺口概念时再换检索词 search_wiki。"
     )
 
@@ -186,7 +186,7 @@ def _lookup_message(
         return (
             f"在当前表中未找到名为 {needle or '该对象'} 的{kind}。"
             "该列大概率无需查询或属于自定义扩展，请勿反复搜索，"
-            "可直接编写 SQL、complete_without_sql 或向用户澄清。"
+            "可直接编写 SQL、停手终答或向用户澄清。"
         )
     if kind == "dict":
         mappings = [
@@ -242,7 +242,7 @@ def _comprehensive_message(
             (
                 "本次检索没有新的 Wiki 证据（无证据的表未并入）。"
                 "不要用近义词再搜同一批表；出现新缺口再换检索词。"
-                "请基于系统提示写 SQL，或 request_clarification / complete_without_sql。"
+                "请基于系统提示写 SQL，或 request_clarification，或停手终答。"
             ),
             plane,
         )
@@ -260,10 +260,10 @@ def _comprehensive_message(
     if status == "schema_missing":
         gap = int(stub.get("schema_gap_searches") or 0)
         extra = (
-            f"已连续 {gap} 次没有表/枚举结构，换更具体的业务检索词，或 complete_without_sql。"
+            f"已连续 {gap} 次没有表/枚举结构，换更具体的业务检索词，或停手终答。"
             if gap
             >= _loop_param("wiki_schema_gap_search_limit", WIKI_SCHEMA_GAP_SEARCH_LIMIT)
-            else "换更具体的检索词再 search_wiki，或 complete_without_sql。"
+            else "换更具体的检索词再 search_wiki，或停手终答。"
         )
         return _with_pace(
             (
@@ -277,7 +277,7 @@ def _comprehensive_message(
         return _with_pace(
             (
                 "没有与该检索词匹配的知识。表/枚举结构仍缺失时，"
-                "换更具体的检索词再 search_wiki，或 complete_without_sql。"
+                "换更具体的检索词再 search_wiki，或停手终答。"
             ),
             plane,
         )

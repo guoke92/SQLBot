@@ -1730,7 +1730,6 @@
       "patch_and_compile_sql": "增量修补 SQL",
       "execute_sql_sandbox": "执行 SQL",
       "compare_results": "对比结果集",
-      "complete_without_sql": "不取数直接回答",
       "request_clarification": "发起澄清"
     }
   }

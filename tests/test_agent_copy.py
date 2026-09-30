@@ -10,11 +10,10 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+from apps.chat.agent.workspace import SqlWorkspace  # noqa: E402
 from apps.chat.agent_copy import (  # noqa: E402
     compact_agent_final_text,
     truncated_display_note,
-    truncation_from_delivery_steps,
-    truncation_from_tool_steps,
 )
 
 
@@ -64,43 +63,15 @@ def test_truncated_display_note_fallback() -> None:
     assert truncated_display_note(None) == ""
 
 
-def test_truncation_from_tool_steps_skips_probe() -> None:
-    truncated, limit = truncation_from_tool_steps(
-        [
-            {
-                "ok": True,
-                "result": {
-                    "data": {
-                        "sql": "SELECT 1",
-                        "truncated": True,
-                        "limit": 50,
-                        "required": False,
-                    }
-                },
-            },
-            {
-                "ok": True,
-                "result": {
-                    "data": {
-                        "sql": "SELECT * FROM t LIMIT 1000",
-                        "truncated": True,
-                        "limit": 1000,
-                        "required": True,
-                    }
-                },
-            },
-        ]
+def test_truncation_from_delivered_revision() -> None:
+    workspace = SqlWorkspace()
+    probe = workspace.add_revision("SELECT 1", status="executed")
+    workspace.mark_executed(
+        probe.rev, purpose="probe", truncated=True, display_limit=50
     )
-    assert truncated is True
-    assert limit == 1000
-
-
-def test_truncation_from_delivery_steps() -> None:
-    truncated, limit = truncation_from_delivery_steps(
-        [
-            {"required": False, "data": {"truncated": True, "limit": 10, "sql": "x"}},
-            {"required": True, "data": {"truncated": True, "limit": 1000, "sql": "y"}},
-        ]
+    assert workspace.truncation() == (False, None)
+    delivery = workspace.add_revision("SELECT * FROM t LIMIT 1000", status="executed")
+    workspace.mark_executed(
+        delivery.rev, purpose="delivery", truncated=True, display_limit=1000
     )
-    assert truncated is True
-    assert limit == 1000
+    assert workspace.truncation() == (True, 1000)

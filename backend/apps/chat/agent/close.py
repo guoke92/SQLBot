@@ -1,13 +1,8 @@
 """Single close-plane for a chat turn.
 
-Coding agents emit one ``result`` when the loop stops. Data agents emit one
-``Answer`` from the artifact store plus closing text. This module is that
-joint: a serializable delivery bit written by tools, and a single derivation
-when the bit has not been sealed yet.
-
-Loop / tools / fail / finalize only read ``TurnDelivery``. Graph routers only
-read ``compute_verdict``. They do not each invent a success or interrupt
-predicate.
+Delivery truth is ``SqlWorkspace.delivered``. Narration is the model's stop
+text (``final_text``). Interrupt flags come from this-batch
+``ToolOutcome.signals``. Graph routers read ``compute_verdict``.
 """
 
 from __future__ import annotations
@@ -18,23 +13,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 from apps.chat.agent.budget import budget_from_state
-from apps.chat.agent.tools.effect import step_signals
-from apps.chat.delivery import select_delivery_datasets
-from apps.conversation.process_timeline import load_result_datasets
-from apps.conversation.session import session_scope
+from apps.chat.agent.workspace import SqlWorkspace
+from apps.chat.tools.contract import Signals, ToolOutcome, step_outcome
 
 CloseKind = Literal["artifacts", "text", "empty", "error"]
 VerdictPhase = Literal["after_loop", "after_tools"]
-
-
-class TurnDelivery(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    has_artifacts: bool = False
-    dataset_id: str | None = None
-    text_only: bool = False
-    text: str = ""
-    interrupt: bool = False
 
 
 class Verdict(BaseModel):
@@ -45,134 +28,87 @@ class Verdict(BaseModel):
     phase: VerdictPhase
 
 
-def empty_delivery() -> dict[str, Any]:
-    return TurnDelivery().model_dump()
-
-
-def delivery_from_state(state: Mapping[str, Any]) -> TurnDelivery:
-    """Read the sealed bit when present; otherwise derive once from evidence."""
-    raw = state.get("turn_delivery")
-    if isinstance(raw, Mapping):
-        try:
-            return TurnDelivery.model_validate(raw)
-        except Exception:
-            pass
-    return observe_delivery(state)
+def workspace_from_state(state: Mapping[str, Any]) -> SqlWorkspace:
+    return SqlWorkspace.from_state(state)
 
 
 def has_turn_result(
     state: Mapping[str, Any], messages: Sequence[Any] | None = None
 ) -> bool:
-    """True when this turn sealed a required SQL delivery.
-
-    ``messages`` is accepted for call-site compatibility and ignored: transcript
-    scrape is not a delivery source.
-    """
+    """True when this turn sealed a delivery revision."""
     del messages
-    return delivery_from_state(state).has_artifacts
+    return bool(workspace_from_state(state).delivered)
 
 
-def stamp_delivery(
-    current: TurnDelivery,
-    *,
-    result: Mapping[str, Any],
-    signals: Any,
-) -> TurnDelivery:
-    """Fold one tool outcome into the close-plane.
-
-    Artifact/text bits only turn on. ``interrupt`` also turns on here; resume
-    uses ``clear_interrupt``.
-    """
-    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-    if not isinstance(data, Mapping):
-        data = {}
-    has_artifacts = current.has_artifacts
-    dataset_id = current.dataset_id
-    if bool(getattr(signals, "required", True)) and (
-        getattr(signals, "dataset_id", None) or _required_sql_payload(data)
-    ):
-        has_artifacts = True
-        dataset_id = str(getattr(signals, "dataset_id", None) or dataset_id or "") or (
-            current.dataset_id
-        )
-    text = current.text
-    text_only = current.text_only
-    if getattr(signals, "terminal_text", False):
-        text_only = True
-        content = str(data.get("content") or "").strip()
-        if content:
-            text = content
-    interrupt = current.interrupt or bool(getattr(signals, "interrupt", False))
-    return TurnDelivery(
-        has_artifacts=has_artifacts,
-        dataset_id=dataset_id,
-        text_only=text_only,
-        text=text,
-        interrupt=interrupt,
-    )
-
-
-def clear_interrupt(current: TurnDelivery) -> TurnDelivery:
-    """Resume from clarification: keep artifacts/text, drop the pause bit."""
-    return current.model_copy(update={"interrupt": False})
-
-
-def observe_delivery(state: Mapping[str, Any]) -> TurnDelivery:
-    """Derive delivery from tool_steps and persisted datasets. No message scrape."""
-    acc = TurnDelivery()
+def batch_signals(state: Mapping[str, Any]) -> Signals:
+    raw = state.get("batch_signals")
+    if isinstance(raw, Mapping):
+        try:
+            return Signals.model_validate(raw)
+        except Exception:
+            pass
+    acc = Signals()
     for step in state.get("tool_steps") or []:
-        if not isinstance(step, Mapping):
+        if not isinstance(step, Mapping) or step.get("superseded"):
             continue
-        result = step.get("result") if isinstance(step.get("result"), Mapping) else {}
-        acc = stamp_delivery(acc, result=result, signals=step_signals(step))
-    if acc.has_artifacts:
-        return acc
-    run_id = str(state.get("run_id") or "")
-    if not run_id:
-        return acc
-    try:
-        with session_scope() as session:
-            rows = load_result_datasets(session, run_id)
-        delivered = select_delivery_datasets(rows)
-    except Exception:
-        return acc
-    if not delivered:
-        return acc
-    last = delivered[-1]
-    return TurnDelivery(
-        has_artifacts=True,
-        dataset_id=str(getattr(last, "dataset_id", "") or "") or None,
-        text_only=acc.text_only,
-        text=acc.text,
-        interrupt=acc.interrupt,
-    )
+        outcome = step_outcome(step)
+        if outcome.signals.interrupt:
+            acc = acc.model_copy(update={"interrupt": True})
+        if outcome.signals.terminal:
+            acc = acc.model_copy(
+                update={
+                    "terminal": True,
+                    "dataset_id": outcome.signals.dataset_id or acc.dataset_id,
+                }
+            )
+    return acc
+
+
+def terminal_text(state: Mapping[str, Any]) -> str:
+    for step in reversed(list(state.get("tool_steps") or [])):
+        if not isinstance(step, Mapping) or step.get("superseded"):
+            continue
+        outcome = step_outcome(step)
+        if not outcome.ok or not outcome.signals.terminal:
+            continue
+        payload = outcome.payload if isinstance(outcome.payload, Mapping) else {}
+        text = str(payload.get("content") or "").strip()
+        if text:
+            return text
+    return ""
 
 
 def close_kind(state: Mapping[str, Any], *, has_cards: bool) -> CloseKind:
-    """Classify how this turn should close. One function, four outcomes."""
-    delivery = delivery_from_state(state)
-    if has_cards or delivery.has_artifacts:
+    """Classify how this turn should close. One function, four outcomes.
+
+    Stop text is always a valid narration. Cards exist only when this turn
+    sealed ``SqlWorkspace.delivered``. Relation / task_kind do not pick a
+    second close protocol.
+    """
+    ws = workspace_from_state(state)
+    if has_cards or ws.delivered:
         return "artifacts"
-    if delivery.text_only or delivery.text:
-        return "text"
     if state.get("error"):
         return "error"
+    text = str(state.get("final_text") or "").strip() or terminal_text(state)
+    if text:
+        return "text"
     route = (
         state.get("turn_route") if isinstance(state.get("turn_route"), Mapping) else {}
     )
     if str(route.get("task_kind") or "query") == "query":
         return "empty"
-    if str(state.get("final_text") or "").strip():
-        return "text"
     return "error"
 
 
 def compute_verdict(state: Mapping[str, Any], *, phase: VerdictPhase) -> Verdict:
     """Single graph-router decision. YAML edges still name the actions."""
-    delivery = delivery_from_state(state)
+    ws = workspace_from_state(state)
+    signals = batch_signals(state)
+    budget = budget_from_state(state)
     if phase == "after_loop":
         if state.get("error"):
-            if delivery.has_artifacts or state.get("analysis_incomplete"):
+            if ws.delivered or state.get("analysis_incomplete"):
                 return Verdict(
                     action="finalize_turn",
                     reason="salvage",
@@ -180,7 +116,6 @@ def compute_verdict(state: Mapping[str, Any], *, phase: VerdictPhase) -> Verdict
                 )
             return Verdict(action="fail", reason="error", phase=phase)
         if _pending_tool_calls(state):
-            budget = budget_from_state(state)
             if budget.exhausted:
                 return Verdict(
                     action="finalize_turn",
@@ -191,11 +126,122 @@ def compute_verdict(state: Mapping[str, Any], *, phase: VerdictPhase) -> Verdict
         return Verdict(action="finalize_turn", reason="model_stop", phase=phase)
     if state.get("error"):
         return Verdict(action="fail", reason="tool_error", phase=phase)
-    if delivery.interrupt:
+    if signals.interrupt:
         return Verdict(action="await_clarification", reason="interrupt", phase=phase)
-    if delivery.text_only:
+    if signals.terminal:
         return Verdict(action="finalize_turn", reason="text_exit", phase=phase)
+    if budget.exhausted:
+        return Verdict(action="finalize_turn", reason="budget_exhausted", phase=phase)
     return Verdict(action="agent_loop", reason="continue", phase=phase)
+
+
+def apply_outcome_to_workspace(
+    workspace: SqlWorkspace,
+    *,
+    name: str,
+    args: Mapping[str, Any],
+    outcome: ToolOutcome,
+    ds_id: int | None = None,
+    dialect: str | None = None,
+) -> tuple[SqlWorkspace, ToolOutcome]:
+    """Fold one chat-tool outcome into the SQL workspace. Tools stay ref-pure."""
+    if not outcome.ok or outcome.signals.skipped:
+        return workspace, outcome
+    payload = outcome.payload if isinstance(outcome.payload, Mapping) else {}
+    purpose = outcome.signals.purpose
+    if name == "execute_sql_sandbox":
+        sql = str(payload.get("sql") or "").strip()
+        sql_ref = str(args.get("sql_ref") or "").strip()
+        dataset_id = str(payload.get("dataset_id") or "") or None
+        fields = [str(item) for item in (payload.get("fields") or [])]
+        row_count = payload.get("row_count")
+        if not isinstance(row_count, int):
+            row_count = payload.get("total_rows")
+        title = str(payload.get("result_title") or "")
+        truncated = bool(payload.get("truncated"))
+        raw_limit = payload.get("limit")
+        if raw_limit is None and truncated:
+            raw_limit = payload.get("row_count") or payload.get("total_rows")
+        try:
+            display_limit = int(raw_limit) if raw_limit is not None else None
+        except (TypeError, ValueError):
+            display_limit = None
+        if not truncated:
+            display_limit = None
+        if sql_ref:
+            existing = workspace.resolve(sql_ref)
+            if existing is not None:
+                marked = workspace.mark_executed(
+                    existing.rev,
+                    dataset_id=dataset_id,
+                    row_count=row_count if isinstance(row_count, int) else None,
+                    fields=fields,
+                    result_title=title,
+                    purpose=purpose,
+                    truncated=truncated,
+                    display_limit=display_limit,
+                )
+                if marked is not None:
+                    outcome = outcome.model_copy(
+                        update={
+                            "signals": outcome.signals.model_copy(
+                                update={
+                                    "sql_rev": marked.rev,
+                                    "dataset_id": marked.dataset_id,
+                                }
+                            )
+                        }
+                    )
+                return workspace, outcome
+        if sql:
+            item = workspace.add_revision(
+                sql,
+                origin="model",
+                status="executed",
+                dataset_id=dataset_id,
+                ds_id=ds_id,
+                result_title=title,
+                row_count=row_count if isinstance(row_count, int) else None,
+                fields=fields,
+                truncated=truncated,
+                display_limit=display_limit,
+                dialect=dialect,
+            )
+            marked = workspace.mark_executed(
+                item.rev,
+                dataset_id=dataset_id,
+                row_count=row_count if isinstance(row_count, int) else None,
+                fields=fields,
+                result_title=title,
+                purpose=purpose,
+                truncated=truncated,
+                display_limit=display_limit,
+            )
+            rev = marked.rev if marked is not None else item.rev
+            outcome = outcome.model_copy(
+                update={
+                    "signals": outcome.signals.model_copy(
+                        update={"sql_rev": rev, "dataset_id": dataset_id}
+                    )
+                }
+            )
+        return workspace, outcome
+    if name == "patch_and_compile_sql":
+        new_sql = str(payload.get("sql") or "").strip()
+        if new_sql:
+            item = workspace.apply_patch(
+                str(args.get("sql_ref") or "active"),
+                new_sql,
+                ds_id=ds_id,
+                dialect=dialect,
+            )
+            outcome = outcome.model_copy(
+                update={
+                    "signals": outcome.signals.model_copy(update={"sql_rev": item.rev})
+                }
+            )
+        return workspace, outcome
+    return workspace, outcome
 
 
 def _pending_tool_calls(state: Mapping[str, Any]) -> bool:
@@ -214,9 +260,3 @@ def _pending_tool_calls(state: Mapping[str, Any]) -> bool:
             return False
         last = messages[-1] if messages else None
     return bool(isinstance(last, AIMessage) and getattr(last, "tool_calls", None))
-
-
-def _required_sql_payload(data: Mapping[str, Any] | Any) -> bool:
-    if not isinstance(data, Mapping) or not data.get("sql"):
-        return False
-    return data.get("required") is not False

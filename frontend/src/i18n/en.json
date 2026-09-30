@@ -1730,7 +1730,6 @@
       "patch_and_compile_sql": "Patch SQL incrementally",
       "execute_sql_sandbox": "Execute SQL",
       "compare_results": "Compare result sets",
-      "complete_without_sql": "Answer without SQL",
       "request_clarification": "Ask for clarification"
     }
   }

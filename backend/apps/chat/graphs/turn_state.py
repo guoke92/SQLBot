@@ -25,16 +25,12 @@ class ChatTurnState(RunState, total=False):
     referenced_turns: list[dict[str, Any]]
     prior_user_evidence: list[dict[str, Any]]
     source_datasets: list[dict[str, Any]]
-    data_strategy: Literal[
-        "direct_query", "existing_results", "derived_query", "unavailable"
-    ]
     business_now: str
     timezone: str
     context_fingerprint: str
     terminal_answer: dict[str, Any]
     json_result: dict[str, Any]
     knowledge_plane: dict[str, Any]
-    probe_sql_calls: int
     memory_slots: dict[str, Any]
     bound_tools: list[Any]
     final_text: str
@@ -46,7 +42,9 @@ class ChatTurnState(RunState, total=False):
     last_tool_failure_signature: str
     consecutive_tool_failures: int
     analysis_incomplete: bool
-    turn_delivery: dict[str, Any]
+    loop_budget: dict[str, Any]
+    sql_workspace: dict[str, Any]
+    batch_signals: dict[str, Any]
     ai_modal_id: Any
     ai_modal_name: str
     reference_record_ids: list[int]

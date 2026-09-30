@@ -9,8 +9,7 @@ from apps.chat.semantic_planning import (
     ClarificationCard,
     coerce_clarification_questions,
 )
-from apps.chat.tools.base import failure_result, success_result
-from apps.conversation.tooling import ToolResult
+from apps.chat.tools.contract import failure_outcome, signals_for_tool, success_outcome
 
 
 def _norm(value: Any) -> str:
@@ -86,10 +85,14 @@ def request_clarification(
     questions: Sequence[dict[str, Any]],
     *,
     catalog: Mapping[str, set[str]] | None = None,
-) -> ToolResult:
+) -> dict[str, Any]:
     """Trigger a clarification interrupt to ask user for confirmation on critical caliber ambiguities."""
     if not questions:
-        return failure_result("No clarification questions provided", retryable=False)
+        return failure_outcome(
+            "No clarification questions provided",
+            retryable=False,
+            name="request_clarification",
+        )
 
     try:
         # Pre-process questions to flexibly adapt LLM parameter variations
@@ -123,20 +126,24 @@ def request_clarification(
         if catalog is not None:
             normalized_questions = _ground_questions(normalized_questions, catalog)
             if not normalized_questions:
-                return failure_result(
+                return failure_outcome(
                     "Clarification options must map to real tables or fields; "
                     "invented products or objects were dropped.",
                     retryable=True,
+                    name="request_clarification",
                 )
 
         coerced = coerce_clarification_questions(normalized_questions)
         card = ClarificationCard.model_validate({"questions": coerced})
-        return success_result(
+        return success_outcome(
             f"Prepared clarification card with {len(card.questions)} questions.",
-            data={
-                "interrupt_required": True,
-                "clarification_card": card.model_dump(mode="json"),
-            },
+            payload={"clarification_card": card.model_dump(mode="json")},
+            signals=signals_for_tool("request_clarification", interrupt=True),
+            name="request_clarification",
         )
     except Exception as exc:
-        return failure_result(f"Failed to build clarification card: {exc}", retryable=True)
+        return failure_outcome(
+            f"Failed to build clarification card: {exc}",
+            retryable=True,
+            name="request_clarification",
+        )

@@ -16,7 +16,6 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.chat.agent_knowledge import (  # noqa: E402
-    PROBE_SQL_LIMIT,
     AgentKnowledgePlane,
     MergeDelta,
     strip_search_wiki_payload,
@@ -29,6 +28,7 @@ from apps.chat.agent.delivery import (  # noqa: E402
     select_delivery_datasets,
 )
 from apps.chat.task.agent_prompt import build_agent_system_prompt  # noqa: E402
+from apps.chat.tools.contract import Signals, success_outcome  # noqa: E402
 from apps.chat.tools.execute_sql import execute_sql_sandbox  # noqa: E402
 from apps.conversation.messages import deserialize_messages  # noqa: E402
 from apps.conversation.runtime_context import (  # noqa: E402
@@ -101,18 +101,16 @@ def test_search_wiki_stub_and_unchanged_stop(monkeypatch) -> None:
 def test_execute_tools_keeps_schema_text_for_catalog_tool(monkeypatch) -> None:
     fake_tool = MagicMock()
     fake_tool.name = "get_table_schema"
-    fake_tool.invoke.return_value = {
-        "ok": True,
-        "summary": "opened",
-        "data": {
+    fake_tool.invoke.return_value = success_outcome(
+        "opened",
+        payload={
             "schema_text": "# Table: t1\nFULL_SCHEMA",
             "added_tables": ["t1"],
             "tables": ["t1"],
             "schema_ready": True,
         },
-        "error": None,
-        "failure": None,
-    }
+        name="get_table_schema",
+    )
     monkeypatch.setattr(
         "apps.chat.agent.tools.runtime.open_process_span", lambda **_k: None
     )
@@ -146,7 +144,7 @@ def test_execute_tools_keeps_schema_text_for_catalog_tool(monkeypatch) -> None:
         "memory_slots": {},
     }
     out = execute_tools_node(state)
-    data = out["tool_steps"][0]["result"]["data"]
+    data = out["tool_steps"][0]["outcome"]["payload"]
     assert data["schema_text"] == "# Table: t1\nFULL_SCHEMA"
     assert data["added_tables"] == ["t1"]
     assert out.get("tool_stop_reason") in {"", None}
@@ -168,10 +166,9 @@ def test_execute_tools_keeps_schema_text_for_catalog_tool(monkeypatch) -> None:
 def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
     fake_tool = MagicMock()
     fake_tool.name = "get_table_schema"
-    fake_tool.invoke.return_value = {
-        "ok": True,
-        "summary": "stagnant",
-        "data": {
+    fake_tool.invoke.return_value = success_outcome(
+        "stagnant",
+        payload={
             "added_tables": [],
             "added_pages": [],
             "schema_ready": True,
@@ -182,9 +179,8 @@ def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
             "tables": ["t1"],
             "page_keys": ["p1"],
         },
-        "error": None,
-        "failure": None,
-    }
+        name="get_table_schema",
+    )
     monkeypatch.setattr(
         "apps.chat.agent.tools.runtime.open_process_span", lambda **_k: None
     )
@@ -219,7 +215,7 @@ def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
     }
     out = execute_tools_node(state)
     assert out.get("tool_stop_reason") in {"", None}
-    assert out["tool_steps"][0]["result"]["data"]["stop_search"] is True
+    assert out["tool_steps"][0]["outcome"]["payload"]["stop_search"] is True
 
 
 def test_search_wiki_timeline_summary_uses_recall_count() -> None:
@@ -238,7 +234,11 @@ def test_search_wiki_timeline_summary_uses_recall_count() -> None:
     assert ok_params == {"tool": "execute_sql_sandbox"}
     skip_key, skip_params = tool_close_keys(
         "search_knowledge",
-        {"ok": True, "data": {"skipped": "knowledge_budget"}},
+        {
+            "ok": True,
+            "payload": {"reason": "knowledge_budget"},
+            "signals": {"skipped": True},
+        },
     )
     assert skip_key == "chat.summary.tool_skipped"
     assert skip_params == {"tool": "search_knowledge"}
@@ -298,7 +298,7 @@ def test_clarify_resume_keeps_tool_rounds_and_does_not_rewrite_system(
         "run_id": "run-clarify",
         "record_id": 9,
         "sink": "json",
-        "tool_rounds": 5,
+        "tool_rounds": 2,
         "tool_stop_reason": "Tool calling budget reached",
         "knowledge_plane": plane.to_dump(),
         "memory_slots": {},
@@ -309,8 +309,10 @@ def test_clarify_resume_keeps_tool_rounds_and_does_not_rewrite_system(
         "tool_steps": [
             {
                 "ok": True,
-                "result": {
-                    "data": {
+                "tool": "request_clarification",
+                "outcome": success_outcome(
+                    "card",
+                    payload={
                         "clarification_card": {
                             "questions": [
                                 {
@@ -329,19 +331,21 @@ def test_clarify_resume_keeps_tool_rounds_and_does_not_rewrite_system(
                                 }
                             ],
                         }
-                    }
-                },
+                    },
+                    signals=Signals(interrupt=True),
+                    name="request_clarification",
+                ),
             }
         ],
     }
     out = await_agent_clarification_node(state)
-    assert out["tool_rounds"] == 5
+    assert out["tool_rounds"] == 2
     assert out["tool_stop_reason"] == ""
     assert any(item.get("superseded") for item in out["tool_steps"])
-    from apps.chat.agent.close import delivery_from_state
+    from apps.chat.agent.close import batch_signals
     from apps.chat.agent.loop import route_after_tools_execution
 
-    assert delivery_from_state(out).interrupt is False
+    assert batch_signals(out).interrupt is False
     assert route_after_tools_execution(out) == "agent_loop"
     confirmed = (out["memory_slots"] or {}).get("confirmed_calibers") or {}
     assert "caliber" in confirmed
@@ -373,35 +377,27 @@ def test_select_delivery_datasets_required_only() -> None:
 
 
 def test_agent_has_sql_result_ignores_probes() -> None:
-    probe_only = {
-        "tool_steps": [
-            {
-                "ok": True,
-                "result": {"data": {"sql": "SELECT 1", "required": False}},
-            }
-        ]
-    }
-    required = {
-        "tool_steps": [
-            {
-                "ok": True,
-                "result": {"data": {"sql": "SELECT 1", "required": True}},
-            }
-        ]
-    }
-    assert has_turn_result(probe_only, []) is False
-    assert has_turn_result(required, []) is True
+    from apps.chat.agent.workspace import SqlWorkspace
+
+    probe_ws = SqlWorkspace()
+    probe = probe_ws.add_revision("SELECT 1", status="executed", dataset_id="p")
+    probe_ws.mark_executed(probe.rev, dataset_id="p", purpose="probe")
+    delivered_ws = SqlWorkspace()
+    item = delivered_ws.add_revision("SELECT 1", status="executed", dataset_id="a")
+    delivered_ws.mark_executed(item.rev, dataset_id="a", purpose="delivery")
+    assert has_turn_result({"sql_workspace": probe_ws.model_dump(mode="json")}, []) is False
+    assert has_turn_result({"sql_workspace": delivered_ws.model_dump(mode="json")}, []) is True
 
 
 def test_agent_has_sql_result_ignores_prior_turn_transcript() -> None:
-    """Continue turns preload prior execute_sql ToolMessages; they must not count."""
+    """Prior-turn SQL is not this turn's delivery unless workspace.delivered is set."""
     prior = ToolMessage(
         content="Query executed successfully",
         name="execute_sql_sandbox",
         tool_call_id="prior-1",
         artifact={
             "ok": True,
-            "data": {"sql": "SELECT 1 AS prior", "required": True, "row_count": 1},
+            "payload": {"sql": "SELECT 1 AS prior", "row_count": 1},
         },
     )
     human = HumanMessage(content="哪些企业运营人员为空")
@@ -414,7 +410,7 @@ def test_agent_has_sql_result_ignores_prior_turn_transcript() -> None:
         tool_call_id="cur-1",
         artifact={
             "ok": True,
-            "data": {"sql": "SELECT 2 AS cur", "required": True, "row_count": 1},
+            "payload": {"sql": "SELECT 2 AS cur", "row_count": 1},
         },
     )
     assert (
@@ -424,24 +420,13 @@ def test_agent_has_sql_result_ignores_prior_turn_transcript() -> None:
         )
         is False
     )
-    with_step = {
-        **state,
-        "tool_steps": [
-            {
-                "ok": True,
-                "tool": "execute_sql_sandbox",
-                "result": {
-                    "ok": True,
-                    "data": {
-                        "sql": "SELECT 2 AS cur",
-                        "required": True,
-                        "dataset_id": "cur",
-                    },
-                },
-            }
-        ],
-    }
-    assert has_turn_result(with_step, [prior, human, current]) is True
+    from apps.chat.agent.workspace import SqlWorkspace
+
+    ws = SqlWorkspace()
+    item = ws.add_revision("SELECT 2 AS cur", status="executed", dataset_id="cur")
+    ws.mark_executed(item.rev, dataset_id="cur", purpose="delivery")
+    with_ws = {**state, "sql_workspace": ws.model_dump(mode="json")}
+    assert has_turn_result(with_ws, [prior, human, current]) is True
 
 
 def test_self_budgeted_tool_calls_do_not_advance_execution_rounds() -> None:
@@ -456,7 +441,7 @@ def test_self_budgeted_tool_calls_do_not_advance_execution_rounds() -> None:
         [{"name": "request_clarification"}, {"name": "get_table_schema"}]
     )
     assert not tool_calls_advance_round(
-        [{"name": "complete_without_sql"}, {"name": "search_knowledge"}]
+        [{"name": "request_clarification"}, {"name": "search_knowledge"}]
     )
     assert tool_calls_advance_round(
         [{"name": "get_table_schema"}, {"name": "execute_sql_sandbox"}]
@@ -537,26 +522,51 @@ def test_execute_sql_does_not_gate_on_schema_ready() -> None:
     assert "Datasource or protocol" in err
 
 
-def test_probe_sql_limit_soft_warns_instead_of_blocking() -> None:
-    """Over-budget probes still need a protocol/ds to run; budget note alone.
+def test_probe_sql_limit_is_hard_skip_in_execute_tools(monkeypatch) -> None:
+    """Probe over budget is skipped before invoke, not a fake SQL failure."""
+    from langchain_core.messages import AIMessage
+    from unittest.mock import MagicMock
 
-    When schema/runtime cannot execute, the soft budget must not invent a
-    hard probe-limit failure — that was the chat-245 timeline false failure.
-    """
-    run_id = "probe-limit"
-    attach_runtime(run_id, probe_sql_calls=PROBE_SQL_LIMIT)
-    llm = SimpleNamespace()
-    try:
-        with worker_scope(run_id, "tok"):
-            blocked = execute_sql_sandbox(llm, "SELECT 1", required=False)
-    finally:
-        detach_runtime(run_id)
-    assert blocked["ok"] is False
-    err = blocked.get("error") or ""
-    assert "Probe SQL limit" not in err
-    assert "Datasource or protocol" in err
-    assert "probe_budget" in err
-    assert "上限" not in err
+    from apps.chat.agent.budget import empty_budget
+    from apps.chat.agent.tools.runtime import execute_tools_node
+
+    budget = empty_budget()
+    budget.probe_calls.used = budget.probe_calls.max
+    tool = MagicMock()
+    tool.name = "execute_sql_sandbox"
+    tool.invoke.side_effect = AssertionError("probe must be skipped before invoke")
+    monkeypatch.setattr(
+        "apps.chat.agent.tools.runtime.open_process_span", lambda **_k: None
+    )
+    monkeypatch.setattr(
+        "apps.chat.agent.tools.runtime.attach_process_span", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        "apps.chat.agent.tools.runtime.attach_running_tool_span",
+        lambda **_k: None,
+    )
+    result = execute_tools_node(
+        {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "id": "p1",
+                            "name": "execute_sql_sandbox",
+                            "args": {"sql": "SELECT 1", "purpose": "probe"},
+                        }
+                    ],
+                )
+            ],
+            "bound_tools": [tool],
+            "sink": "json",
+            "loop_budget": budget.model_dump(mode="json"),
+        }
+    )
+    step = result["tool_steps"][0]
+    assert step["outcome"]["signals"]["skipped"] is True
+    assert step["outcome"]["payload"]["reason"] == "probe_budget"
 
 
 def test_display_sql_uses_protocol_formatter() -> None:
@@ -572,24 +582,6 @@ def test_display_sql_uses_protocol_formatter() -> None:
 
     assert "\n" in _display_sql(_Proto(), plan, plan.statement)
     assert _display_sql(SimpleNamespace(), plan, "fallback") == "fallback"
-
-
-def test_consume_probe_budget_advises_without_blocking() -> None:
-    from apps.chat.tools.execute_sql import _consume_probe_budget
-
-    run_id = "probe-soft"
-    attach_runtime(run_id, probe_sql_calls=0)
-    try:
-        with worker_scope(run_id, "tok"):
-            assert _consume_probe_budget(True) is None
-            assert _consume_probe_budget(False) is None  # 1/2
-            note = _consume_probe_budget(False)  # 2/2
-            assert note and "probe_budget" in note and "required=true" in note
-            over = _consume_probe_budget(False)  # 3rd still allowed
-            assert over and "probe_budget" in over
-            assert "required=true" in over
-    finally:
-        detach_runtime(run_id)
 
 
 def test_kernel_conflicts_are_evidence_not_auto_cards() -> None:

@@ -5,7 +5,9 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
+from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.tools.clarification import request_clarification
+from apps.chat.tools.compare_results import compare_query_results
 from apps.chat.tools.patch_sql import patch_and_compile_sql
 from apps.chat.tools.registry import (
     ExecuteSqlInput,
@@ -53,7 +55,7 @@ def test_patch_sql_input_rejects_bad_payload():
     with pytest.raises(ValidationError):
         PatchSqlInput.model_validate(
             {
-                "base_sql": "SELECT 1",
+                "sql_ref": "active",
                 "action": "add_filter",
                 "payload": {"fields": ["x"]},
             }
@@ -61,14 +63,14 @@ def test_patch_sql_input_rejects_bad_payload():
     with pytest.raises(ValidationError):
         PatchSqlInput.model_validate(
             {
-                "base_sql": "SELECT 1",
+                "sql_ref": "active",
                 "action": "nope",
                 "payload": {},
             }
         )
     ok = PatchSqlInput.model_validate(
         {
-            "base_sql": "SELECT 1",
+            "sql_ref": "active",
             "action": "add_filter",
             "payload": {"condition": "a = 1"},
         }
@@ -78,11 +80,11 @@ def test_patch_sql_input_rejects_bad_payload():
 
 def test_execute_sql_chart_type_enum():
     ExecuteSqlInput.model_validate(
-        {"sql": "SELECT 1", "required": True, "chart_type": "table"}
+        {"sql": "SELECT 1", "purpose": "delivery", "chart_type": "table"}
     )
     with pytest.raises(ValidationError):
         ExecuteSqlInput.model_validate(
-            {"sql": "SELECT 1", "required": True, "chart_type": "scatter"}
+            {"sql": "SELECT 1", "purpose": "delivery", "chart_type": "scatter"}
         )
 
 
@@ -99,7 +101,7 @@ def test_tool_descriptions_state_side_effects():
     }
     assert "waits for the user" in (tools["request_clarification"].description or "")
     assert "replaces" in (tools["execute_sql_sandbox"].description or "").lower()
-    assert "Terminal exit" in (tools["complete_without_sql"].description or "")
+    assert "complete_without_sql" not in tools
     assert "hint_table" not in str(LookupValuesInput.model_json_schema())
 
 
@@ -116,7 +118,52 @@ def test_request_clarification_tool():
     ]
     res = request_clarification(questions)
     assert res["ok"] is True
-    assert res["data"]["interrupt_required"] is True
-    card = res["data"]["clarification_card"]
+    assert res["signals"]["interrupt"] is True
+    card = res["payload"]["clarification_card"]
     assert len(card["questions"]) == 1
     assert len(card["questions"][0]["options"]) == 2
+
+
+def test_compare_reads_workspace_counts_not_a_new_window() -> None:
+    ws = SqlWorkspace()
+    base = ws.add_revision("SELECT id FROM t", status="executed")
+    ws.mark_executed(
+        base.rev,
+        row_count=1000,
+        fields=["id"],
+        purpose="delivery",
+        truncated=True,
+        display_limit=1000,
+    )
+    probe = ws.add_revision(
+        "SELECT id FROM t LIMIT 100",
+        origin="model",
+        status="compiled",
+        parent_rev=base.rev,
+    )
+    ws.mark_executed(probe.rev, row_count=100, fields=["id"], purpose="probe")
+    out = compare_query_results(
+        ws, sql_ref=base.rev, new_ref=probe.rev, hypothesis="LIMIT 100 vs 1000"
+    )
+    assert out["ok"] is True
+    assert out["signals"]["purpose"] == "probe"
+    payload = out["payload"]
+    assert payload["base"]["row_count"] == 1000
+    assert payload["base"]["truncated"] is True
+    assert payload["base"]["display_limit"] == 1000
+    assert payload["new"]["row_count"] == 100
+    assert payload["row_diff"] == -900
+    assert "sql" not in payload["base"]
+    assert "truncated at 1000" in out["summary"]
+
+
+def test_compare_requires_executed_revisions() -> None:
+    ws = SqlWorkspace()
+    base = ws.add_revision("SELECT 1 FROM t", status="executed")
+    ws.mark_executed(base.rev, row_count=10, purpose="delivery")
+    patched = ws.apply_patch(base.rev, "SELECT 1 FROM t WHERE 0")
+    missing = compare_query_results(ws, sql_ref=base.rev, new_ref=patched.rev)
+    assert missing["ok"] is False
+    assert "execute" in (missing.get("error") or missing.get("summary") or "")
+    unknown = compare_query_results(ws, sql_ref="active", new_ref="r9")
+    assert unknown["ok"] is False

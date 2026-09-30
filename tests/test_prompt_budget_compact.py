@@ -175,15 +175,15 @@ def test_agent_prompt_prefers_sql_accuracy_and_llm_drop() -> None:
     assert "生成准确的业务 SQL" in _SYSTEM_PROMPT_TEMPLATE
     assert "get_table_schema" in _SYSTEM_PROMPT_TEMPLATE
     assert "schema_outline" in _SYSTEM_PROMPT_TEMPLATE
-    assert "complete_without_sql" in _SYSTEM_PROMPT_TEMPLATE
-    assert "终答只有两条路" in _SYSTEM_PROMPT_TEMPLATE
-    assert "禁止**只写纯文本就停" in _SYSTEM_PROMPT_TEMPLATE
+    assert "complete_without_sql" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "停手即终答" in _SYSTEM_PROMPT_TEMPLATE
+    assert "禁止**用旁白代替取数" in _SYSTEM_PROMPT_TEMPLATE
     assert "search_wiki" not in _SYSTEM_PROMPT_TEMPLATE
     assert "focus=all" not in _SYSTEM_PROMPT_TEMPLATE
     assert "search_wiki` ≤" not in _SYSTEM_PROMPT_TEMPLATE
     assert "探查 SQL（`required=false`）≤" not in _SYSTEM_PROMPT_TEMPLATE
     assert "早停" not in _SYSTEM_PROMPT_TEMPLATE
-    assert "必要的形态验证仍可再探查" in _SYSTEM_PROMPT_TEMPLATE
+    assert "purpose=probe" in _SYSTEM_PROMPT_TEMPLATE
 
 
 def test_agent_prompt_locks_output_field_ambiguity_policy() -> None:

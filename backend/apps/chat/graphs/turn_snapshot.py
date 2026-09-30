@@ -129,6 +129,7 @@ def record_snapshot_values(
         answer_datasets.append(
             {
                 "dataset_id": str(step.get("dataset_id") or f"dataset_{index + 1}"),
+                "rev": str(step.get("rev") or ""),
                 "status": "degraded"
                 if published_outcome.get("status") == "degraded"
                 else "succeeded",

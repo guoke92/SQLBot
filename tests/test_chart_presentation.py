@@ -146,7 +146,6 @@ def test_execute_sql_defaults_delivery_chart_type_table(monkeypatch) -> None:  #
     monkeypatch.setattr(mod, "upsert_result_dataset", _upsert)
     monkeypatch.setattr(mod, "current_worker_identity", lambda: ("run1", None))
     monkeypatch.setattr(mod, "_reject_enum_discovery", lambda *_a, **_k: None)
-    monkeypatch.setattr(mod, "_consume_probe_budget", lambda *_a, **_k: None)
     monkeypatch.setattr(
         mod,
         "apply_wiki_enum_labels",
@@ -156,13 +155,13 @@ def test_execute_sql_defaults_delivery_chart_type_table(monkeypatch) -> None:  #
     monkeypatch.setattr(mod, "resolve_exec_row_limit", lambda *_a, **_k: 1000)
 
     llm = SimpleNamespace(protocol=_Proto(), ds=SimpleNamespace(id=1, type="mysql"))
-    res = mod.execute_sql_sandbox(llm, "SELECT 1", required=True)
+    res = mod.execute_sql_sandbox(llm, "SELECT 1", purpose="delivery")
     assert res.get("ok") is True
-    assert res["data"]["chart_type"] == "table"
+    assert res["payload"]["chart_type"] == "table"
     assert captured.get("chart_type") == "table"
 
     res2 = mod.execute_sql_sandbox(
-        llm, "SELECT 1", required=False, chart_type="line"
+        llm, "SELECT 1", purpose="probe", chart_type="line"
     )
     assert res2.get("ok") is True
-    assert "chart_type" not in (res2.get("data") or {})
+    assert "chart_type" not in (res2.get("payload") or {})

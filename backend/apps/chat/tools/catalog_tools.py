@@ -441,9 +441,6 @@ def get_table_schema(
         delta = MergeDelta(unchanged=True, schema_ready=plane.schema_ready)
 
     catalog = plane.schema_catalog_text()
-    chat_q = getattr(llm_service, "chat_question", None)
-    if chat_q is not None and catalog:
-        chat_q.db_schema = catalog
     stage_plane(plane)
 
     shown = strip_relation_lines(

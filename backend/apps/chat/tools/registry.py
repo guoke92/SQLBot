@@ -18,7 +18,6 @@ from apps.chat.tools.catalog_tools import (
 )
 from apps.chat.tools.clarification import request_clarification
 from apps.chat.tools.compare_results import compare_query_results
-from apps.chat.tools.complete_answer import complete_without_sql
 from apps.chat.tools.execute_sql import execute_sql_sandbox
 from apps.chat.tools.patch_sql import patch_and_compile_sql
 
@@ -292,13 +291,9 @@ class PatchSqlInput(BaseModel):
     sql_ref: str = Field(
         default="active",
         description=(
-            'Handle for the SQL to patch: "active" (latest delivered query) '
-            "or a dataset_id. Prefer this over pasting the full statement."
+            'Revision handle to patch: "active" (current workspace rev) or rN. '
+            "Do not paste the full SQL."
         ),
-    )
-    base_sql: str = Field(
-        default="",
-        description="Optional full SQL. When empty, sql_ref is resolved.",
     )
     action: PatchAction = Field(
         description=(
@@ -349,7 +344,19 @@ class PatchSqlInput(BaseModel):
 
 
 class ExecuteSqlInput(BaseModel):
-    sql: str = Field(description="SQL query string to execute safely in the sandbox.")
+    sql: str = Field(
+        default="",
+        description=(
+            "SQL for the first execution of a new statement. "
+            "Leave empty when re-executing an existing revision via sql_ref."
+        ),
+    )
+    sql_ref: str = Field(
+        default="",
+        description=(
+            "Existing workspace revision (active or rN). Mutually exclusive with sql."
+        ),
+    )
     limit: int = Field(
         default=1000,
         description=(
@@ -358,11 +365,11 @@ class ExecuteSqlInput(BaseModel):
             "when the user names a row count, write it into the SQL LIMIT."
         ),
     )
-    required: bool = Field(
-        default=True,
+    purpose: Literal["probe", "delivery"] = Field(
+        default="delivery",
         description=(
-            "True: delivery — mounts/replaces a result card in the final answer. "
-            "False: probe only — not a terminal exit; use for GROUP BY shape checks."
+            "delivery: mount/replace a result card in the final answer. "
+            "probe: shape check only — not a terminal exit."
         ),
     )
     result_title: str = Field(
@@ -370,7 +377,7 @@ class ExecuteSqlInput(BaseModel):
         description=(
             "Short business title for this result card. No SQL or physical table "
             "names. Same title replaces the previous delivery card; a new title "
-            "adds another card. Empty for probes (required=false)."
+            "adds another card. Empty for probes."
         ),
     )
     chart_type: ChartType = Field(
@@ -378,54 +385,55 @@ class ExecuteSqlInput(BaseModel):
         description=(
             "Delivery chart: table|line|bar|column|pie. table for lists; line for "
             "trends; bar/column for category comparison; pie for share. "
-            "Empty only when required=false."
+            "Empty only when purpose=probe."
         ),
     )
 
     @model_validator(mode="after")
-    def _delivery_needs_chart(self) -> Self:
+    def _sql_xor_ref(self) -> Self:
+        has_sql = bool(str(self.sql or "").strip())
+        has_ref = bool(str(self.sql_ref or "").strip())
+        if has_sql and has_ref:
+            raise ValueError("pass sql or sql_ref, not both")
+        if not has_sql and not has_ref:
+            raise ValueError("sql is required unless sql_ref points at a revision")
         chart = str(self.chart_type or "").strip().lower()
         if chart and chart not in LEGAL_CHART_TYPES:
             raise ValueError(
                 f"chart_type must be one of {sorted(LEGAL_CHART_TYPES)} or empty"
             )
-        if self.required and not chart:
-            # Allow empty at schema time; execute_sql defaults to table — but
-            # nudge the model via description. Soft: do not hard-fail empty.
-            return self
         return self
-
-
-class CompleteWithoutSqlInput(BaseModel):
-    content: str = Field(
-        description=(
-            "User-facing terminal answer for this turn (no SQL delivery). "
-            "Lead with whether it can be done or what is missing, in business "
-            "language. No boilerplate, no contrastive 'not X but Y', no physical "
-            "table dump."
-        ),
-    )
 
 
 class CompareResultsInput(BaseModel):
     sql_ref: str = Field(
         default="active",
-        description=(
-            'Handle for the original SQL: "active" or a dataset_id. '
-            "Prefer this over pasting the full base statement."
-        ),
+        description='Base revision: "active" or rN. Do not paste SQL.',
     )
-    base_sql: str = Field(
-        default="",
-        description="Optional original SQL. When empty, sql_ref is resolved.",
-    )
-    new_sql: str = Field(
-        description="New SQL representing the challenged or revised caliber."
+    new_ref: str = Field(
+        description="Revised revision (rN from patch or a prior execute). Do not paste SQL."
     )
     hypothesis: str = Field(
         default="",
         description="The hypothesis being tested, e.g. 'Exclude cancelled orders'.",
     )
+
+
+def _workspace():
+    from apps.chat.agent.workspace import SqlWorkspace
+    from apps.conversation.runtime_context import current_worker_identity, peek_runtime
+
+    run_id, _token = current_worker_identity()
+    snap = peek_runtime(run_id) if run_id else {}
+    return SqlWorkspace.from_state(snap if isinstance(snap, Mapping) else {})
+
+
+def _wrap(name: str, raw: Mapping[str, Any]) -> dict[str, Any]:
+    if isinstance(raw, Mapping) and "signals" in raw and "payload" in raw:
+        return dict(raw)
+    from apps.chat.tools.contract import wrap_tool_result
+
+    return wrap_tool_result(raw, name=name)
 
 
 def _apply_config(tools: list[StructuredTool], config: Any) -> list[StructuredTool]:
@@ -456,108 +464,128 @@ def build_agent_tools(
     """Construct bound LangChain tools scoped to current LLMService and access permissions."""
 
     def _get_table_schema(tables: list[str]) -> dict[str, Any]:
-        return dict(get_table_schema(llm_service, tables, access_scope=access_scope))
+        return _wrap(
+            "get_table_schema",
+            get_table_schema(llm_service, tables, access_scope=access_scope),
+        )
 
     def _get_table_relations(tables: list[str]) -> dict[str, Any]:
-        return dict(get_table_relations(llm_service, tables, access_scope=access_scope))
+        return _wrap(
+            "get_table_relations",
+            get_table_relations(llm_service, tables, access_scope=access_scope),
+        )
 
     def _search_knowledge(query: str) -> dict[str, Any]:
-        return dict(search_knowledge(llm_service, query, access_scope=access_scope))
+        return _wrap(
+            "search_knowledge",
+            search_knowledge(llm_service, query, access_scope=access_scope),
+        )
 
     def _lookup_values(
         phrases: list[str] | None = None,
         scope: list[str] | None = None,
     ) -> dict[str, Any]:
-        return dict(
+        return _wrap(
+            "lookup_values",
             lookup_values(
                 llm_service,
                 phrases or [],
                 scope=scope or [],
                 access_scope=access_scope,
-            )
+            ),
         )
 
     def _get_dict_values(
         dict_name: str = "", table: str = "", field: str = ""
     ) -> dict[str, Any]:
-        return dict(
+        return _wrap(
+            "get_dict_values",
             get_dict_values(
                 llm_service,
                 dict_name=dict_name,
                 table=table,
                 field=field,
                 access_scope=access_scope,
-            )
+            ),
         )
 
     def _patch_sql(
         action: str,
         payload: dict[str, Any],
-        base_sql: str = "",
         sql_ref: str = "active",
     ) -> dict[str, Any]:
-        from apps.chat.agent.tools.sql_ref import resolve_sql_handle
-        from apps.chat.tools.base import failure_result
+        from apps.chat.tools.contract import failure_outcome
 
         dialect = getattr(getattr(llm_service, "datasource", None), "type", None)
-        resolved = resolve_sql_handle(sql=base_sql, sql_ref=sql_ref)
+        resolved = _workspace().resolve_sql(sql_ref)
         if not resolved:
-            return dict(
-                failure_result(
-                    "sql_ref could not be resolved; pass base_sql or execute SQL first",
-                    retryable=True,
-                )
+            return failure_outcome(
+                "sql_ref could not be resolved; execute SQL first",
+                retryable=True,
+                name="patch_and_compile_sql",
             )
-        res = patch_and_compile_sql(resolved, action, payload, dialect=dialect)
-        return dict(res)
+        return _wrap(
+            "patch_and_compile_sql",
+            patch_and_compile_sql(resolved, action, payload, dialect=dialect),
+        )
 
     def _execute_sql(
-        sql: str,
+        sql: str = "",
+        sql_ref: str = "",
         limit: int = 1000,
-        required: bool = True,
+        purpose: str = "delivery",
         result_title: str = "",
         chart_type: str = "",
     ) -> dict[str, Any]:
-        res = execute_sql_sandbox(
+        from apps.chat.tools.contract import failure_outcome
+
+        text = str(sql or "").strip()
+        ref = str(sql_ref or "").strip()
+        if text and ref:
+            return failure_outcome(
+                "pass sql or sql_ref, not both",
+                retryable=True,
+                name="execute_sql_sandbox",
+            )
+        if ref:
+            resolved = _workspace().resolve_sql(ref)
+            if not resolved:
+                return failure_outcome(
+                    "sql_ref could not be resolved; execute SQL first",
+                    retryable=True,
+                    name="execute_sql_sandbox",
+                )
+            text = resolved
+        if not text:
+            return failure_outcome(
+                "sql is required for the first execution",
+                retryable=True,
+                name="execute_sql_sandbox",
+            )
+        kind: Literal["probe", "delivery"] = (
+            "probe" if purpose == "probe" else "delivery"
+        )
+        return execute_sql_sandbox(
             llm_service,
-            sql,
+            text,
             access_scope=access_scope,
             limit=limit,
-            required=required,
+            purpose=kind,
             result_title=result_title,
             chart_type=chart_type,
         )
-        return dict(res)
 
     def _compare_results(
-        new_sql: str,
+        new_ref: str,
         hypothesis: str = "",
-        base_sql: str = "",
         sql_ref: str = "active",
     ) -> dict[str, Any]:
-        from apps.chat.agent.tools.sql_ref import resolve_sql_handle
-        from apps.chat.tools.base import failure_result
-
-        resolved = resolve_sql_handle(sql=base_sql, sql_ref=sql_ref)
-        if not resolved:
-            return dict(
-                failure_result(
-                    "sql_ref could not be resolved; pass base_sql or execute SQL first",
-                    retryable=True,
-                )
-            )
-        res = compare_query_results(
-            llm_service,
-            resolved,
-            new_sql,
+        return compare_query_results(
+            _workspace(),
+            sql_ref=sql_ref,
+            new_ref=new_ref,
             hypothesis=hypothesis,
-            access_scope=access_scope,
         )
-        return dict(res)
-
-    def _complete_without_sql(content: str) -> dict[str, Any]:
-        res = complete_without_sql(content)
-        return dict(res)
 
     def _request_clarification(questions: list[Any]) -> dict[str, Any]:
         raw_list = []
@@ -636,9 +664,8 @@ def build_agent_tools(
             description=(
                 "Incrementally patch an existing valid SQL (follow-up caliber edits). "
                 "Call for add_dimension / add_filter / replace_filter / change_limit / "
-                "change_order. Pass sql_ref='active' (default) or a dataset_id instead "
-                "of repeating the full statement. Do not use for a brand-new query — "
-                "write SQL and execute_sql_sandbox instead."
+                "change_order. Pass sql_ref='active' (default) or rN. Do not paste SQL. "
+                "Do not use for a brand-new query — write SQL and execute_sql_sandbox."
             ),
             args_schema=PatchSqlInput,
         ),
@@ -646,12 +673,12 @@ def build_agent_tools(
             func=_execute_sql,
             name="execute_sql_sandbox",
             description=(
-                "Execute business SQL. required=true delivers a result card "
-                "(same result_title replaces; new title appends) and is a terminal "
-                "data exit; required=false is probe-only and not a final answer. "
-                "Set chart_type table|line|bar|column|pie for delivery. "
-                "Do not inspect catalogs (information_schema, SHOW COLUMNS, DESCRIBE). "
-                "Call get_table_schema first if needed tables are not in schema_catalog."
+                "Execute business SQL. purpose=delivery mounts a result card "
+                "(same result_title replaces; new title appends). purpose=probe is "
+                "shape-only and not a final answer. First call passes sql; later "
+                "calls pass sql_ref. Set chart_type table|line|bar|column|pie for "
+                "delivery. Do not inspect catalogs (information_schema, SHOW COLUMNS). "
+                "Call get_table_schema first if needed tables are not in schema_outline."
             ),
             args_schema=ExecuteSqlInput,
         ),
@@ -659,25 +686,14 @@ def build_agent_tools(
             func=_compare_results,
             name="compare_results",
             description=(
-                "Compare result sets of a base SQL and a revised SQL. Call when "
-                "the user challenges numbers or a caliber change must be verified. "
-                "Pass sql_ref='active' (default) or a dataset_id for the original SQL. "
-                "Do not use as the delivery exit — follow with execute_sql_sandbox "
-                "or complete_without_sql."
+                "Diff two executed workspace revisions by recorded row_count "
+                "and truncation. Call when the user challenges numbers. "
+                "Pass sql_ref (base) and new_ref (patched then executed). "
+                "Does not run SQL. Not a delivery exit — if the user wants a new "
+                "result card, follow with execute_sql_sandbox purpose=delivery; "
+                "otherwise stop and write the attribution."
             ),
             args_schema=CompareResultsInput,
-        ),
-        StructuredTool.from_function(
-            func=_complete_without_sql,
-            name="complete_without_sql",
-            description=(
-                "Terminal exit without SQL delivery. Call for capability, usage, or "
-                "catalog-gap answers. content is the only user-facing answer for this "
-                "turn (lead with the conclusion; business language; no physical names). "
-                "Do not use to skip a data query; probes (required=false) are not an "
-                "exit. After a successful delivery SQL, do not call this tool."
-            ),
-            args_schema=CompleteWithoutSqlInput,
         ),
         StructuredTool.from_function(
             func=_request_clarification,

@@ -79,11 +79,11 @@ def cache_from_state(state: Mapping[str, Any]) -> None:
     attach_runtime(
         run_id,
         knowledge_plane=dump,
-        probe_sql_calls=int(state.get("probe_sql_calls") or 0),
         tool_steps=list(state.get("tool_steps") or []),
         messages=list(state.get("messages") or []),
         turn_message_start=state.get("turn_message_start"),
-        turn_delivery=dict(state.get("turn_delivery") or {}),
+        sql_workspace=dict(state.get("sql_workspace") or {}),
+        loop_budget=dict(state.get("loop_budget") or {}),
     )
     _working.set(None)
 

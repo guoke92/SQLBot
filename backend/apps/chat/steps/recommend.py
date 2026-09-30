@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, List, Union
+from collections.abc import Iterator
+from typing import Any
 
 import orjson
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -17,9 +18,6 @@ from apps.chat.steps.stream import process_stream
 
 def _recalled_schema_text(llm_service: Any) -> str:
     """Reuse the turn's knowledge-plane schema. Never dump the full catalog."""
-    existing = str(getattr(llm_service.chat_question, "db_schema", "") or "").strip()
-    if existing:
-        return existing
     record = getattr(llm_service, "record", None)
     run_id = str(getattr(record, "active_run_id", "") or "")
     if not run_id:
@@ -34,18 +32,16 @@ def _recalled_schema_text(llm_service: Any) -> str:
 
 def generate_recommend_questions(
     llm_service: Any, session: Session
-) -> Iterator[Dict[str, Any]]:
+) -> Iterator[dict[str, Any]]:
     """Stream recommended-question tokens; yield final list under key recommended_question."""
     recalled = _recalled_schema_text(llm_service)
-    if recalled:
-        llm_service.chat_question.db_schema = recalled
 
     record = getattr(llm_service, "record", None)
     chat_id = int(record.chat_id) if record is not None and record.chat_id else None
     record_id = int(record.id) if record is not None and record.id else None
     datasource = getattr(record, "datasource", None) if record is not None else None
 
-    guess_msg: List[Union[BaseMessage, dict[str, Any]]] = [
+    guess_msg: list[BaseMessage | dict[str, Any]] = [
         SystemPromptMessage(
             content=llm_service.chat_question.guess_sys_question(
                 llm_service.articles_number
@@ -61,7 +57,8 @@ def generate_recommend_questions(
     guess_msg.append(
         HumanMessage(
             content=llm_service.chat_question.guess_user_question(
-                orjson.dumps(old_questions).decode()
+                orjson.dumps(old_questions).decode(),
+                schema=recalled,
             )
         )
     )
@@ -78,7 +75,7 @@ def generate_recommend_questions(
         ) as span:
             full_thinking_text = ""
             full_guess_text = ""
-            token_usage: Dict[str, Any] = {}
+            token_usage: dict[str, Any] = {}
             for chunk in process_stream(llm_service.llm.stream(guess_msg), token_usage):
                 if chunk.get("content"):
                     full_guess_text += chunk.get("content")

@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Literal
 
-from apps.chat.agent_knowledge import PROBE_SQL_LIMIT
 from apps.chat.chart_presentation import LEGAL_CHART_TYPES, normalize_chart_type
 from apps.chat.plan_policy import ROW_LIMIT
 from apps.chat.result_window import apply_result_window, resolve_exec_row_limit
@@ -13,7 +12,7 @@ from apps.chat.steps.enum_display import (
     apply_wiki_enum_labels,
     is_wiki_enum_discovery_sql,
 )
-from apps.chat.tools.base import failure_result, success_result
+from apps.chat.tools.contract import failure_outcome, signals_for_tool, success_outcome
 from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
     new_dataset_id,
@@ -21,12 +20,9 @@ from apps.conversation.process_timeline import (
     upsert_result_dataset,
 )
 from apps.conversation.runtime_context import (
-    attach_runtime,
     current_tool_call_id,
     current_worker_identity,
-    peek_runtime,
 )
-from apps.conversation.tooling import ToolResult
 from apps.datasource.access import AccessScope
 from common.utils.utils import SQLBotLogUtil
 
@@ -48,28 +44,11 @@ def is_catalog_probe_sql(sql: str) -> bool:
     return first in _CATALOG_COMMANDS
 
 
-def _runtime_snapshot() -> dict[str, Any]:
-    run_id, _token = current_worker_identity()
-    if not run_id:
-        return {}
-    return peek_runtime(run_id) or {}
-
-
 EXECUTE_SQL_TOOL_NAME = "execute_sql_sandbox"
+Purpose = Literal["probe", "delivery"]
 
 
-def _probe_sql_limit() -> int:
-    """Probe budget: per-tool override > loop param > code constant."""
-    from apps.chat.agent_config import load_agent_config_for_run
-
-    config = load_agent_config_for_run()
-    budget = config.tool_round_budget(EXECUTE_SQL_TOOL_NAME)
-    if budget is not None:
-        return budget
-    return config.param("probe_sql_limit", PROBE_SQL_LIMIT)
-
-
-def _reject_enum_discovery(sql: str, llm_service: Any) -> ToolResult | None:
+def _reject_enum_discovery(sql: str, llm_service: Any) -> dict[str, Any] | None:
     ds = getattr(llm_service, "ds", None) or getattr(llm_service, "datasource", None)
     ds_id = getattr(ds, "id", None)
     if ds_id is None:
@@ -84,42 +63,12 @@ def _reject_enum_discovery(sql: str, llm_service: Any) -> ToolResult | None:
         return None
     if not is_wiki_enum_discovery_sql(sql, carriers, dialect=str(dialect or "mysql")):
         return None
-    return failure_result(
+    return failure_outcome(
         "Wiki enum pages already define these field values. Do not SELECT "
         "DISTINCT Wiki enum columns to discover codes. Use get_dict_values "
         "or labels= on the schema field.",
         retryable=False,
-    )
-
-
-def _with_probe_note(message: str, note: str | None) -> str:
-    if not note:
-        return message
-    return f"{message} {note}"
-
-
-def _consume_probe_budget(required: bool) -> str | None:
-    """Soft probe budget: always allow execution; return advisory when exhausted.
-
-    Hard-rejecting the N+1 probe wastes an already-written SQL and surfaces a
-    fake "execution failed" in the timeline. The budget is an agent steering
-    signal — keep counting, still run, and append guidance into the tool result.
-    """
-    if required is not False:
-        return None
-    used = int(_runtime_snapshot().get("probe_sql_calls") or 0)
-    run_id, _token = current_worker_identity()
-    if run_id:
-        attach_runtime(run_id, probe_sql_calls=used + 1)
-    # ``used`` is the count *before* this call; after attach it is used+1.
-    after = used + 1
-    if after < _probe_sql_limit():
-        return None
-    return (
-        "[probe_budget] Probe SQL already ran. If the shape is enough, the next "
-        "execute_sql_sandbox must use required=true. If the caliber is still "
-        "unclear, call request_clarification. Do not keep probing fields/enums. "
-        "A further probe is allowed only to confirm shape."
+        name=EXECUTE_SQL_TOOL_NAME,
     )
 
 
@@ -149,10 +98,10 @@ def execute_sql_sandbox(
     sample_limit: int = PREVIEW_ROW_LIMIT,
     plan_id: str | None = None,
     dataset_id: str | None = None,
-    required: bool = True,
+    purpose: Purpose = "delivery",
     result_title: str = "",
     chart_type: str = "",
-) -> ToolResult:
+) -> dict[str, Any]:
     """Safely execute SQL with permission rewrites and token-safe output.
 
     Schema readiness belongs to planning (``get_table_schema`` / wiki recall).
@@ -163,35 +112,36 @@ def execute_sql_sandbox(
     """
     clean_sql = (sql or "").strip().rstrip(";")
     if not clean_sql:
-        return failure_result("SQL query cannot be empty")
+        return failure_outcome(
+            "SQL query cannot be empty", name=EXECUTE_SQL_TOOL_NAME
+        )
 
-    delivery = required is not False
+    delivery = purpose != "probe"
     resolved_chart = ""
     if delivery:
         resolved_chart = normalize_chart_type(chart_type)
         if chart_type and not resolved_chart:
-            return failure_result(
+            return failure_outcome(
                 "Invalid chart_type. Use one of: "
                 + ", ".join(sorted(LEGAL_CHART_TYPES)),
                 retryable=True,
+                name=EXECUTE_SQL_TOOL_NAME,
             )
         if not resolved_chart:
-            # Missing hint defaults to table so a silent omit still delivers.
             resolved_chart = "table"
 
     if is_catalog_probe_sql(clean_sql):
-        return failure_result(
+        return failure_outcome(
             "Catalog probes are not allowed (information_schema / pg_catalog / "
             "SHOW COLUMNS / DESCRIBE). Table structure must come from Wiki or "
             "the schema context already in the prompt.",
             retryable=False,
+            name=EXECUTE_SQL_TOOL_NAME,
         )
 
     enum_block = _reject_enum_discovery(clean_sql, llm_service)
     if enum_block is not None:
         return enum_block
-
-    probe_note = _consume_probe_budget(required)
 
     try:
         proto = getattr(llm_service, "protocol", None)
@@ -199,17 +149,17 @@ def execute_sql_sandbox(
             llm_service, "datasource", None
         )
         if proto is None or ds is None:
-            return failure_result(
-                _with_probe_note(
-                    "Datasource or protocol not configured on session",
-                    probe_note,
-                )
+            return failure_outcome(
+                "Datasource or protocol not configured on session",
+                name=EXECUTE_SQL_TOOL_NAME,
             )
 
         payload = {"sql": clean_sql}
         plan = proto.parse_candidate_payload(payload)
         if not plan.success:
-            return failure_result(f"Invalid SQL payload: {plan.message}")
+            return failure_outcome(
+                f"Invalid SQL payload: {plan.message}", name=EXECUTE_SQL_TOOL_NAME
+            )
 
         allowed_resources = (
             getattr(access_scope, "resource_names", None)
@@ -219,7 +169,10 @@ def execute_sql_sandbox(
         if allowed_resources:
             plan = proto.validate_plan(ds, plan, allowed_resources)
             if not plan.success:
-                return failure_result(f"SQL validation error: {plan.message}")
+                return failure_outcome(
+                    f"SQL validation error: {plan.message}",
+                    name=EXECUTE_SQL_TOOL_NAME,
+                )
 
         dialect_raw = getattr(ds, "type", None) or getattr(proto, "type_key", None)
         dialect = dialect_raw if isinstance(dialect_raw, str) else None
@@ -230,7 +183,6 @@ def execute_sql_sandbox(
             tool_limit=limit,
             dialect=dialect,
         )
-        # Protocol/exec_sql already fetches limit+1 to detect hard overflow.
         qr = proto.execute(ds, plan, max_rows=exec_limit)
         fetched = [row for row in list(qr.data or []) if isinstance(row, dict)]
         truncated, display_limit = apply_result_window(
@@ -240,9 +192,6 @@ def execute_sql_sandbox(
         )
         rows = fetched[:exec_limit]
         fields = [str(item) for item in (qr.fields or [])]
-        # Agent always sees raw codes. Enum labels are a delivery/UI projection
-        # only — labeling probe samples (e.g. PAID→已缴费) made models write
-        # Chinese literals into WHERE and return empty sets (chat 247).
         raw_rows = [dict(row) for row in rows if isinstance(row, dict)]
         value_labels: dict[str, dict[str, str]] = {}
         store_rows = raw_rows
@@ -273,8 +222,6 @@ def execute_sql_sandbox(
                 "non_null_count": len(vals),
                 "null_count": row_count - len(vals),
             }
-            # Skip min/max/sum for wide integers (snowflake IDs, codes). Summing
-            # them overflows msgpack int64 and crashes LangGraph interrupt().
             wide_ids = any(
                 isinstance(v, int)
                 and not isinstance(v, bool)
@@ -308,27 +255,15 @@ def execute_sql_sandbox(
                 sql=display_sql,
                 value_labels=value_labels,
                 limit=display_limit if truncated else exec_limit,
-                required=required,
+                required=delivery,
                 result_title=result_title,
                 chart_type=resolved_chart,
             )
-            if delivery:
-                snap = peek_runtime(run_id) or {}
-                slots = dict(snap.get("memory_slots") or {})
-                slots["active_baseline_sql"] = display_sql
-                outline = dict(slots.get("active_dataset_outline") or {})
-                outline["dataset_id"] = resolved_dataset_id
-                slots["active_dataset_outline"] = outline
-                attach_runtime(run_id, memory_slots=slots)
 
         title = str(result_title or "").strip()
-        summary = _with_probe_note(
+        return success_outcome(
             f"Query executed successfully, returned {row_count} rows.",
-            probe_note,
-        )
-        return success_result(
-            summary,
-            data={
+            payload={
                 "sql": display_sql,
                 "fields": fields,
                 "total_rows": row_count,
@@ -339,8 +274,6 @@ def execute_sql_sandbox(
                 "column_stats": col_stats,
                 "dataset_id": resolved_dataset_id,
                 "plan_id": resolved_plan_id,
-                "required": bool(required),
-                **({"probe_note": probe_note} if probe_note else {}),
                 **({"chart_type": resolved_chart} if resolved_chart else {}),
                 **({"result_title": title} if title else {}),
                 **(
@@ -350,9 +283,17 @@ def execute_sql_sandbox(
                 ),
                 **({"value_labels": value_labels} if value_labels else {}),
             },
+            signals=signals_for_tool(
+                EXECUTE_SQL_TOOL_NAME,
+                purpose="delivery" if delivery else "probe",
+                dataset_id=resolved_dataset_id,
+            ),
+            name=EXECUTE_SQL_TOOL_NAME,
         )
     except Exception as exc:
-        return failure_result(
-            _with_probe_note(f"SQL Execution Error: {exc}", probe_note),
+        return failure_outcome(
+            f"SQL Execution Error: {exc}",
             retryable=True,
+            name=EXECUTE_SQL_TOOL_NAME,
         )
+

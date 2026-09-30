@@ -9,10 +9,9 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from langgraph.types import interrupt
 
-from apps.chat.agent.close import clear_interrupt, delivery_from_state
-from apps.chat.agent.tools.effect import step_signals
 from apps.chat.agent_knowledge import AgentKnowledgePlane
 from apps.chat.caliber_surface import render_caliber_lines
+from apps.chat.tools.contract import step_outcome
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.process_timeline import ensure_clarification_span
 from apps.conversation.run_service import create_interrupt
@@ -29,9 +28,10 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
     for step in reversed(state.get("tool_steps") or []):
         if not isinstance(step, Mapping):
             continue
-        if step_signals(step).interrupt:
-            data = (step.get("result") or {}).get("data") or {}
-            if isinstance(data, Mapping) and data.get("clarification_card"):
+        if step_outcome(step).signals.interrupt:
+            payload = step_outcome(step).payload
+            data = payload if isinstance(payload, Mapping) else {}
+            if data.get("clarification_card"):
                 card_payload = data["clarification_card"]
                 break
 
@@ -170,10 +170,14 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(step, Mapping):
             continue
         item = dict(step)
-        if step_signals(item).interrupt:
+        if step_outcome(item).signals.interrupt:
             item["superseded"] = True
         steps.append(item)
-    delivery = clear_interrupt(delivery_from_state(state))
+    from apps.chat.agent.budget import budget_from_state
+
+    budget = budget_from_state(state)
+    budget.clarify_count.used += 1
+    budget.stop_reason = ""
 
     return {
         **state,
@@ -181,6 +185,7 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "memory_slots": raw_slots,
         "knowledge_plane": plane.to_dump(),
         "tool_steps": steps,
-        "turn_delivery": delivery.model_dump(),
+        "batch_signals": {},
+        "loop_budget": budget.model_dump(mode="json"),
         "tool_stop_reason": "",
     }

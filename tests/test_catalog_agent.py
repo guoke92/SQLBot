@@ -24,7 +24,6 @@ from apps.chat.tools.catalog_tools import (  # noqa: E402
 )
 from apps.chat.tools.registry import (  # noqa: E402
     ClarificationOptionSchema,
-    CompleteWithoutSqlInput,
     build_agent_tools,
 )
 from apps.knowledge.wiki.recall import InMemoryWikiStore, recall  # noqa: E402
@@ -380,13 +379,11 @@ def test_user_facing_tool_schema_copy() -> None:
     assert "Physical mapping belongs only in" in option_desc
     label_desc = ClarificationOptionSchema.model_fields["label"].description or ""
     assert "No physical table" in label_desc
-    complete_desc = CompleteWithoutSqlInput.model_fields["content"].description or ""
-    assert "Lead with" in complete_desc
     tools = build_agent_tools(SimpleNamespace(ds=None, datasource=None))
     clarify = next(item for item in tools if item.name == "request_clarification")
     assert "user-facing" in (clarify.description or "")
-    complete = next(item for item in tools if item.name == "complete_without_sql")
-    assert "business language" in (complete.description or "")
+    names = {item.name for item in tools}
+    assert "complete_without_sql" not in names
 
 
 def test_plane_renders_outline_and_full_opened_table() -> None:

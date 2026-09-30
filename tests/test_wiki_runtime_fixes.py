@@ -751,7 +751,7 @@ def test_recommend_reuses_plane_schema_not_protocol(monkeypatch) -> None:
         ).to_dump(),
     )
     llm = SimpleNamespace(
-        chat_question=SimpleNamespace(db_schema=""),
+        chat_question=SimpleNamespace(),
         record=SimpleNamespace(active_run_id="run-rec-1"),
         protocol=SimpleNamespace(
             retrieve_schema=lambda **_k: (_ for _ in ()).throw(
@@ -761,7 +761,6 @@ def test_recommend_reuses_plane_schema_not_protocol(monkeypatch) -> None:
     )
     try:
         assert rec._recalled_schema_text(llm) == "# Table: d_task\n(id:bigint, 主键)"
-        llm.chat_question.db_schema = ""
         llm.record = SimpleNamespace(active_run_id="")
         assert rec._recalled_schema_text(llm) == ""
     finally:

@@ -668,10 +668,6 @@ def recall_schema_context(
             for item in candidates
             if item.name in kept_set
         }
-        chat_question = getattr(llm_service, "chat_question", None)
-        if chat_question is not None:
-            chat_question.db_schema = schema_text
-            chat_question.sample_data = ""
         llm_service.table_name_list = list(kept)
         return {
             "knowledge_text": "",
