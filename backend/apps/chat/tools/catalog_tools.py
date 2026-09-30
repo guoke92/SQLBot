@@ -10,6 +10,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from apps.chat.agent.knowledge import load_plane, stage_plane
 from apps.chat.agent_knowledge import (
     AgentKnowledgePlane,
     MergeDelta,
@@ -22,11 +23,6 @@ from apps.chat.steps.wiki_schema import (
     table_field_enum,
 )
 from apps.chat.tools.base import failure_result, success_result
-from apps.conversation.runtime_context import (
-    attach_runtime,
-    current_worker_identity,
-    peek_runtime,
-)
 from apps.conversation.tooling import ToolResult
 from common.utils.utils import SQLBotLogUtil
 
@@ -140,21 +136,6 @@ def _store_page(store: Any, slug: str, *, belong: str | None = None) -> Any | No
         if page is not None:
             return page
     return getter(slug)
-
-
-def load_plane() -> AgentKnowledgePlane:
-    run_id, _token = current_worker_identity()
-    if not run_id:
-        return AgentKnowledgePlane()
-    snap = peek_runtime(run_id) or {}
-    return AgentKnowledgePlane.from_dump(snap.get("knowledge_plane"))
-
-
-def save_plane(plane: AgentKnowledgePlane) -> None:
-    run_id, _token = current_worker_identity()
-    if not run_id:
-        return
-    attach_runtime(run_id, knowledge_plane=plane.to_dump())
 
 
 def strip_relation_lines(schema_text: str) -> str:
@@ -463,7 +444,7 @@ def get_table_schema(
     chat_q = getattr(llm_service, "chat_question", None)
     if chat_q is not None and catalog:
         chat_q.db_schema = catalog
-    save_plane(plane)
+    stage_plane(plane)
 
     shown = strip_relation_lines(
         "\n".join(
@@ -508,7 +489,6 @@ def get_table_relations(
     access_scope: Any = None,
 ) -> ToolResult:
     """Return known JOIN edges among the named tables. No field definitions."""
-    plane = load_plane()
     requested, _fenced = _fence_tables(tables, access_scope)
     if len(requested) < 2:
         return failure_result(
@@ -530,7 +510,6 @@ def get_table_relations(
         parse_relation_edges(raw),
     )
     grouped = classify_relations(requested, edges)
-    save_plane(plane)
     direct_lines = [item["line"] for item in grouped["direct"] if item.get("line")]
     bridge_notes = [str(item.get("note") or "") for item in grouped["bridges"]]
     if direct_lines:
@@ -615,7 +594,7 @@ def search_knowledge(
     for key in page_keys:
         if key and key not in plane.page_keys:
             plane.page_keys.append(key)
-    save_plane(plane)
+    stage_plane(plane)
     if not hits:
         return success_result(
             (

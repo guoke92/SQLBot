@@ -455,7 +455,7 @@ def test_get_dict_values_resolves_unprefixed_and_inline(monkeypatch) -> None:
     store = _company_person_store()
     plane = AgentKnowledgePlane()
     monkeypatch.setattr(ct, "load_plane", lambda: plane)
-    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "stage_plane", lambda _p: None)
     monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
     monkeypatch.setattr(ct, "_value_index_field_values", lambda *_a, **_k: [])
 
@@ -643,7 +643,7 @@ def test_search_knowledge_returns_structured_hits(monkeypatch) -> None:
 
     plane = AgentKnowledgePlane()
     monkeypatch.setattr(ct, "load_plane", lambda: plane)
-    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "stage_plane", lambda _p: None)
     monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
 
     result = search_knowledge(SimpleNamespace(ds=None), "认证方式 平台录入")
@@ -726,7 +726,7 @@ def test_lookup_values_skips_closed_concept_alias(monkeypatch) -> None:
         ]
     )
     monkeypatch.setattr(ct, "load_plane", lambda: AgentKnowledgePlane())
-    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "stage_plane", lambda _p: None)
     monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
     result = lookup_values(SimpleNamespace(ds=SimpleNamespace(id=1)), ["平台录入"])
     assert result["ok"] is False
@@ -740,7 +740,7 @@ def test_search_knowledge_page_keys_are_store_keys(monkeypatch) -> None:
     store = _company_person_store()
     plane = AgentKnowledgePlane()
     monkeypatch.setattr(ct, "load_plane", lambda: plane)
-    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "stage_plane", lambda _p: None)
     monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
     result = search_knowledge(SimpleNamespace(ds=None), "认证方式")
     keys = (result.get("data") or {}).get("page_keys") or []

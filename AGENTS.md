@@ -65,7 +65,7 @@ alembic upgrade head
 From repo root for focused tests:
 
 ```bash
-pytest tests/test_query_intent_v6.py -v
+pytest tests/test_unified_agent_e2e.py -v
 pytest -k name_substring
 ```
 
@@ -89,7 +89,7 @@ Production Q&A runs through LangGraph. `LLMService` (`apps/chat/task/llm.py`) is
 1. `apps/api.py` calls `bootstrap_graphs()` (defined in `apps/conversation/graph_loader.py`) at import time.
 2. YAML under `backend/graphs/current/` (override via `GRAPH_SPEC_DIR`) is the **sole topology source**.
 3. Callers use `submit_graph(graph_key, state)` from `apps.conversation.runtime`.
-4. Chat node bodies live in `apps/chat/graphs/nodes/` (`unified_agent`, `agent_finalize`, `agent_clarify`) plus `apps/conversation/tooling.execute_tools_node`; recommend nodes in `apps/chat/graphs/nodes/recommend.py`; metadata graph nodes in `apps/datasource/profiling/graphs/nodes/`.
+4. Chat node bodies live in `apps/chat/agent/` (`loop`, `init`, `tools/runtime`, `clarify`, `delivery`) plus `apps/conversation/tooling.execute_tools_node` for config; recommend nodes in `apps/chat/graphs/nodes/recommend.py`; metadata graph nodes in `apps/datasource/profiling/graphs/nodes/`.
 5. Production `chat.yaml`: `START → agent_loop ⇄ execute_tools → finalize_turn`. `agent_loop` calls `init_agent_turn` once when `turn_message_start` is missing (record header, referenced-turn assembly, tools, transcript). Tool calls go to `execute_tools`; clarifications pause at `await_clarification` then resume the loop. Continuation references are decided by `resolve_continue_reference_ids` plus `ensure_agent_turn_route`. Failures route to `fail`.
 6. Domain steps / observability live in `apps/chat/steps/` (prefer existing steps + `log_span`).
 
@@ -110,14 +110,11 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 |------|------|
 | `apps/conversation/` | Graph loader, runtime, sinks, session, tooling |
 | `apps/chat/api/chat.py` | HTTP/SSE entry; dispatches `submit_graph` |
-| `apps/chat/graphs/turn_init.py` | Record header, referenced-turn assembly, `init_agent_turn`; continuation refs via `resolve_continue_reference_ids` |
-| `apps/chat/graphs/nodes/unified_agent.py` | Production ReAct loop (`agent_loop` ⇄ tools) |
+| `apps/chat/agent/` | Product chat agent: `loop` / `init` / `prompt` / `context` / `tools/runtime` / `clarify` / `delivery` / `knowledge` / `budget` |
 | `apps/chat/turn_contracts.py` | `TurnRoute` + terminal answer payload contracts (single validation home) |
-| `apps/chat/query_intent.py` | Compact business intent — what the user wants, not physical tables/joins |
-| `apps/chat/semantic_planning.py` | Planning decisions + the single clarification-card contract |
-| `apps/chat/planning_context.py` | Durable, replayable retrieval boundary persisted on the `nlq_run` row |
-| `apps/chat/plan_policy.py` / `planning.py` | Batch planning limits & policy |
-| `apps/chat/steps/` | Schema/SQL/chart/knowledge steps + `observability.log_span`; planner maps in `recall_map.py` |
+| `apps/chat/semantic_planning.py` | Clarification-card contract |
+| `apps/chat/plan_policy.py` | Batch row/timeout limits |
+| `apps/chat/steps/` | Schema/SQL/knowledge steps + `observability.log_span`; planner maps in `recall_map.py` |
 | `apps/datasource/recall/` | Value index: per-DS process-local index (published dictionary values ∪ profiling low-cardinality `top_values`), "value ⊂ text" containment matching, generation-stamped invalidation |
 | `apps/dictionary/` | Dictionary domain |
 | `apps/knowledge/` | 问数 Wiki（权威 `docs/wiki/`） |
@@ -170,10 +167,10 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 - DI: `SessionDep`, `CurrentUser`, `CurrentAssistant`, `Trans` from `common.core.deps`
 - Mutating routes: `@system_log(...)` + `@require_permissions` where applicable
 - New settings: extend `Settings` in `common/core/config.py`
-- Graph topology changes → edit YAML in `backend/graphs/`; node logic → Python under `apps/chat/graphs/nodes/`
-- Prefer contracts in `turn_contracts` / `query_intent` / `planning_context` over ad-hoc dicts
+- Graph topology changes → edit YAML in `backend/graphs/`; chat node logic → Python under `apps/chat/agent/`
+- Prefer contracts in `turn_contracts` / clarification cards over ad-hoc dicts
 
-### Turn routing & planning contracts
+### Turn routing contracts
 
 - `apps/chat/turn_contracts.py` is the single validation home for turn routing
   and terminal answers. `TurnRoute.task_kind` is one of
@@ -182,13 +179,9 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
   referenced datasets, continuation/revision require references, unsupported
   turns cannot reference records) live in the model validator — extend it
   instead of re-checking in callers.
-- `apps/chat/planning_context.py` is the durable, replayable input boundary for
-  semantic planning: LangGraph checkpoints carry IDs and orchestration state
-  only; retrieval snapshots persist on the `nlq_run` row (`planning_context`
-  column) and are restored on resume.
-- `apps/chat/query_intent.py` describes what the user wants — never physical
-  tables, joins, or expressions; `semantic_planning.py` owns planning decisions
-  and the single clarification-card contract.
+- Continue-turn recap reads `ChatRecord.answer` (`TurnAnswer` SQL / 口径 /
+  `knowledge_refs`). `apps/chat/semantic_planning.py` owns the clarification-card
+  contract.
 
 ### TypeScript / Vue
 

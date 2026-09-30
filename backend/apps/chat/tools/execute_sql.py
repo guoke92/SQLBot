@@ -116,9 +116,10 @@ def _consume_probe_budget(required: bool) -> str | None:
     if after < _probe_sql_limit():
         return None
     return (
-        "[probe_budget] 探查已执行。若数据形态已经够用，下一次 execute_sql_sandbox "
-        "请用 required=true 交付；口径仍不清则 request_clarification。"
-        "不要继续用探查摸字段/枚举。必要的形态验证仍可再探查。"
+        "[probe_budget] Probe SQL already ran. If the shape is enough, the next "
+        "execute_sql_sandbox must use required=true. If the caliber is still "
+        "unclear, call request_clarification. Do not keep probing fields/enums. "
+        "A further probe is allowed only to confirm shape."
     )
 
 
@@ -312,7 +313,13 @@ def execute_sql_sandbox(
                 chart_type=resolved_chart,
             )
             if delivery:
-                attach_runtime(run_id, sql_delivered=True)
+                snap = peek_runtime(run_id) or {}
+                slots = dict(snap.get("memory_slots") or {})
+                slots["active_baseline_sql"] = display_sql
+                outline = dict(slots.get("active_dataset_outline") or {})
+                outline["dataset_id"] = resolved_dataset_id
+                slots["active_dataset_outline"] = outline
+                attach_runtime(run_id, memory_slots=slots)
 
         title = str(result_title or "").strip()
         summary = _with_probe_note(

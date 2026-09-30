@@ -188,7 +188,7 @@ const allInterrupts = computed<ConversationInterrupt[]>(() => {
   return interrupts
 })
 
-/** Clarification cards are anchored onto request_clarification rows in the chain. */
+/** Clarification cards are anchored onto clarification spans (kind / interrupt_id). */
 const timelineItems = computed(() =>
   bindClarificationInterrupts(
     itemsForRun(sortedItems(timelineMap.value), props.message?.record?.run_id),

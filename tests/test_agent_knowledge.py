@@ -21,14 +21,12 @@ from apps.chat.agent_knowledge import (  # noqa: E402
     MergeDelta,
     strip_search_wiki_payload,
 )
-from apps.chat.graphs.nodes.agent_clarify import (  # noqa: E402
+from apps.chat.agent.clarify import (  # noqa: E402
     await_agent_clarification_node,
 )
-from apps.chat.graphs.nodes.agent_finalize import (  # noqa: E402
+from apps.chat.agent.delivery import (  # noqa: E402
+    has_turn_result,
     select_delivery_datasets,
-)
-from apps.chat.graphs.nodes.unified_agent import (  # noqa: E402
-    _agent_has_sql_result,
 )
 from apps.chat.task.agent_prompt import build_agent_system_prompt  # noqa: E402
 from apps.chat.tools.execute_sql import execute_sql_sandbox  # noqa: E402
@@ -36,10 +34,10 @@ from apps.conversation.messages import deserialize_messages  # noqa: E402
 from apps.conversation.runtime_context import (  # noqa: E402
     attach_runtime,
     detach_runtime,
-    peek_runtime,
     worker_scope,
 )
-from apps.conversation.tooling import execute_tools_node  # noqa: E402
+from apps.chat.agent.tools.runtime import execute_tools_node  # noqa: E402
+from apps.chat.agent.knowledge import load_plane, take_working  # noqa: E402
 
 
 def test_plane_same_table_merge_does_not_grow() -> None:
@@ -79,6 +77,7 @@ def test_search_wiki_stub_and_unchanged_stop(monkeypatch) -> None:
         "hit_count": 1,
     }
     monkeypatch.setattr(ws, "retrieve_wiki_context", lambda *_a, **_k: payload)
+    take_working()
     run_id = "wiki-stub"
     attach_runtime(run_id, knowledge_plane=AgentKnowledgePlane().to_dump())
     llm = SimpleNamespace(ds=SimpleNamespace(id=1))
@@ -115,10 +114,14 @@ def test_execute_tools_keeps_schema_text_for_catalog_tool(monkeypatch) -> None:
         "failure": None,
     }
     monkeypatch.setattr(
-        "apps.conversation.tooling.open_process_span", lambda **_k: None
+        "apps.chat.agent.tools.runtime.open_process_span", lambda **_k: None
     )
     monkeypatch.setattr(
-        "apps.conversation.tooling.attach_process_span", lambda *_a, **_k: None
+        "apps.chat.agent.tools.runtime.attach_process_span", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        "apps.chat.agent.tools.runtime.attach_running_tool_span",
+        lambda **_k: None,
     )
     state = {
         "run_id": "keep-schema",
@@ -183,10 +186,14 @@ def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
         "failure": None,
     }
     monkeypatch.setattr(
-        "apps.conversation.tooling.open_process_span", lambda **_k: None
+        "apps.chat.agent.tools.runtime.open_process_span", lambda **_k: None
     )
     monkeypatch.setattr(
-        "apps.conversation.tooling.attach_process_span", lambda *_a, **_k: None
+        "apps.chat.agent.tools.runtime.attach_process_span", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        "apps.chat.agent.tools.runtime.attach_running_tool_span",
+        lambda **_k: None,
     )
     state = {
         "run_id": "no-lock-search",
@@ -216,24 +223,20 @@ def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
 
 
 def test_search_wiki_timeline_summary_uses_recall_count() -> None:
-    from apps.conversation.tooling import _knowledge_tool_close
+    from apps.chat.agent.audit import tool_close_keys
 
-    key, params = _knowledge_tool_close(
+    key, params = tool_close_keys(
         "search_knowledge",
         {"ok": True, "data": {"hit_count": 4, "page_keys": ["a", "b", "c", "d"]}},
     )
     assert key == "chat.summary.wiki_prepared"
     assert params == {"count": 4}
-    failed_key, _failed = _knowledge_tool_close(
-        "get_table_schema", {"ok": False, "data": {}}
-    )
+    failed_key, _failed = tool_close_keys("get_table_schema", {"ok": False, "data": {}})
     assert failed_key == "chat.summary.tool_failed"
-    ok_key, ok_params = _knowledge_tool_close(
-        "execute_sql_sandbox", {"ok": True, "data": {}}
-    )
+    ok_key, ok_params = tool_close_keys("execute_sql_sandbox", {"ok": True, "data": {}})
     assert ok_key == "chat.summary.tool_ok"
     assert ok_params == {"tool": "execute_sql_sandbox"}
-    skip_key, skip_params = _knowledge_tool_close(
+    skip_key, skip_params = tool_close_keys(
         "search_knowledge",
         {"ok": True, "data": {"skipped": "knowledge_budget"}},
     )
@@ -257,7 +260,9 @@ def test_strip_search_wiki_payload_drops_full_text() -> None:
     assert cleaned["stop_search"] is True
 
 
-def test_clarify_resume_resets_tool_rounds_and_refreshes_system(monkeypatch) -> None:
+def test_clarify_resume_keeps_tool_rounds_and_does_not_rewrite_system(
+    monkeypatch,
+) -> None:
     plane = AgentKnowledgePlane()
     plane.merge_recall(
         {
@@ -275,17 +280,17 @@ def test_clarify_resume_resets_tool_rounds_and_refreshes_system(monkeypatch) -> 
     pending = SimpleNamespace(interrupt_id="i1", version=1, status="answered")
     dummy_span = MagicMock()
     dummy_span.id = 1
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_clarify.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.clarify.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.create_interrupt",
+        "apps.chat.agent.clarify.create_interrupt",
         lambda *_a, **_k: pending,
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.ensure_clarification_span",
+        "apps.chat.agent.clarify.ensure_clarification_span",
         lambda **_k: dummy_span,
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.interrupt",
+        "apps.chat.agent.clarify.interrupt",
         lambda _public: [{"question_id": "caliber", "option_id": "opt_a"}],
     )
 
@@ -330,15 +335,22 @@ def test_clarify_resume_resets_tool_rounds_and_refreshes_system(monkeypatch) -> 
         ],
     }
     out = await_agent_clarification_node(state)
-    assert out["tool_rounds"] == 0
+    assert out["tool_rounds"] == 5
     assert out["tool_stop_reason"] == ""
+    assert any(item.get("superseded") for item in out["tool_steps"])
+    from apps.chat.agent.close import delivery_from_state
+    from apps.chat.agent.loop import route_after_tools_execution
+
+    assert delivery_from_state(out).interrupt is False
+    assert route_after_tools_execution(out) == "agent_loop"
     confirmed = (out["memory_slots"] or {}).get("confirmed_calibers") or {}
     assert "caliber" in confirmed
     messages = deserialize_messages(out["messages"])
     system = messages[0]
-    text = str(system.content)
-    assert "<schema_catalog>" not in text
-    assert "<memory_slots>" not in text
+    original = str(state["messages"][0].content)
+    assert str(system.content) == original
+    assert "<schema_catalog>" not in str(system.content)
+    assert "<memory_slots>" not in str(system.content)
     human_text = "\n".join(
         str(item.content)
         for item in messages
@@ -377,8 +389,8 @@ def test_agent_has_sql_result_ignores_probes() -> None:
             }
         ]
     }
-    assert _agent_has_sql_result(probe_only, []) is False
-    assert _agent_has_sql_result(required, []) is True
+    assert has_turn_result(probe_only, []) is False
+    assert has_turn_result(required, []) is True
 
 
 def test_agent_has_sql_result_ignores_prior_turn_transcript() -> None:
@@ -394,7 +406,7 @@ def test_agent_has_sql_result_ignores_prior_turn_transcript() -> None:
     )
     human = HumanMessage(content="哪些企业运营人员为空")
     state = {"turn_message_start": 1, "tool_steps": []}
-    assert _agent_has_sql_result(state, [prior, human]) is False
+    assert has_turn_result(state, [prior, human]) is False
 
     current = ToolMessage(
         content="Query executed successfully",
@@ -406,12 +418,30 @@ def test_agent_has_sql_result_ignores_prior_turn_transcript() -> None:
         },
     )
     assert (
-        _agent_has_sql_result(
+        has_turn_result(
             state,
             [prior, human, AIMessage(content="", tool_calls=[]), current],
         )
-        is True
+        is False
     )
+    with_step = {
+        **state,
+        "tool_steps": [
+            {
+                "ok": True,
+                "tool": "execute_sql_sandbox",
+                "result": {
+                    "ok": True,
+                    "data": {
+                        "sql": "SELECT 2 AS cur",
+                        "required": True,
+                        "dataset_id": "cur",
+                    },
+                },
+            }
+        ],
+    }
+    assert has_turn_result(with_step, [prior, human, current]) is True
 
 
 def test_self_budgeted_tool_calls_do_not_advance_execution_rounds() -> None:
@@ -498,9 +528,7 @@ def test_execute_sql_does_not_gate_on_schema_ready() -> None:
     llm = SimpleNamespace()
     try:
         with worker_scope(run_id, "tok"):
-            result = execute_sql_sandbox(
-                llm, "SELECT * FROM cust_company_info LIMIT 1"
-            )
+            result = execute_sql_sandbox(llm, "SELECT * FROM cust_company_info LIMIT 1")
     finally:
         detach_runtime(run_id)
     assert result["ok"] is False
@@ -556,12 +584,10 @@ def test_consume_probe_budget_advises_without_blocking() -> None:
             assert _consume_probe_budget(True) is None
             assert _consume_probe_budget(False) is None  # 1/2
             note = _consume_probe_budget(False)  # 2/2
-            assert note and "probe_budget" in note and "探查已执行" in note
-            assert "上限" not in note
+            assert note and "probe_budget" in note and "required=true" in note
             over = _consume_probe_budget(False)  # 3rd still allowed
             assert over and "probe_budget" in over
-            assert "上限" not in over
-            assert "必要的形态验证仍可再探查" in over
+            assert "required=true" in over
     finally:
         detach_runtime(run_id)
 
@@ -723,6 +749,7 @@ def test_search_wiki_drop_only_skips_retrieve(monkeypatch) -> None:
         raise AssertionError("drop-only must not retrieve")
 
     monkeypatch.setattr(ws, "retrieve_wiki_context", _boom)
+    take_working()
     plane = AgentKnowledgePlane()
     plane.merge_recall(
         {
@@ -739,7 +766,7 @@ def test_search_wiki_drop_only_skips_retrieve(monkeypatch) -> None:
     try:
         with worker_scope(run_id, "tok"):
             result = ws.search_wiki_knowledge(llm, "", drop=["cust_change_cfg"])
-            snap = peek_runtime(run_id)
+            restored = load_plane()
     finally:
         detach_runtime(run_id)
     assert result["ok"] is True
@@ -747,6 +774,5 @@ def test_search_wiki_drop_only_skips_retrieve(monkeypatch) -> None:
     assert result["data"]["dropped_tables"] == ["cust_change_cfg"]
     assert result["data"]["tables"] == ["cust_company_info"]
     assert "cust_change_cfg" in result["data"]["excluded"]
-    restored = AgentKnowledgePlane.from_dump((snap or {}).get("knowledge_plane"))
     assert restored.tables == ["cust_company_info"]
     assert restored.search_rounds == 0

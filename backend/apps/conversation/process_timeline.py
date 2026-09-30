@@ -1153,18 +1153,22 @@ def ensure_clarification_span(
 
 
 def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse tool + wait/confirm for the *same* interrupt_id into one card.
+    """Collapse tool + wait/confirm for the *same* interrupt into one card.
 
-    Different interrupt rounds stay separate. A lone ``request_clarification``
-    tool is left as a tool — never promoted to a fake "口径已确认" card.
+    Folding keys off the interrupt control plane (kind / meta.interrupt_id /
+    meta.interrupt_required), never a tool name. Different interrupt rounds stay
+    separate. A tool without interrupt signals is left as a tool.
     """
 
-    def _is_clarify_tool(item: Mapping[str, Any]) -> bool:
-        tool = item.get("tool") if isinstance(item.get("tool"), Mapping) else {}
-        return (
-            item.get("kind") == "tool"
-            and str(tool.get("name") or "") == "request_clarification"
-        )
+    def _is_clarify_anchor(item: Mapping[str, Any]) -> bool:
+        if item.get("kind") == "clarification":
+            return True
+        meta = item.get("meta") if isinstance(item.get("meta"), Mapping) else None
+        if not isinstance(meta, Mapping):
+            return False
+        if str(meta.get("interrupt_id") or "").strip():
+            return True
+        return bool(meta.get("interrupt_required"))
 
     def _duration_ms_iso(start: Any, end: Any) -> int | None:
         if not start or not end:
@@ -1261,7 +1265,7 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
 
     while index < len(seq):
         item = seq[index]
-        if _is_clarify_tool(item):
+        if _is_clarify_anchor(item) and item.get("kind") != "clarification":
             pending_tools.append(item)
             index += 1
             continue
@@ -1272,9 +1276,13 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
             index += 1
             while index < len(seq):
                 nxt = seq[index]
-                if _is_clarify_tool(nxt):
+                if _is_clarify_anchor(nxt) and nxt.get("kind") != "clarification":
                     look = index + 1
-                    while look < len(seq) and _is_clarify_tool(seq[look]):
+                    while (
+                        look < len(seq)
+                        and _is_clarify_anchor(seq[look])
+                        and seq[look].get("kind") != "clarification"
+                    ):
                         look += 1
                     if look < len(seq) and seq[look].get("kind") == "clarification":
                         nxt_key = _clarification_interrupt_id(seq[look])

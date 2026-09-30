@@ -12,6 +12,7 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+from apps.chat.agent import init as agent_init  # noqa: E402
 from apps.chat.models.chat_model import ChatRecord  # noqa: E402
 from apps.conversation import runtime_context as runtime_context_module  # noqa: E402
 from apps.conversation.models import ConversationRun  # noqa: E402
@@ -35,7 +36,7 @@ def _run(graph_key: str = "chat") -> ConversationRun:
     )
 
 
-def test_chat_runtime_rehydrates_access_scope_with_llm_service(monkeypatch) -> None:  # noqa: ANN001
+def test_chat_runtime_rehydrates_via_graph_hook(monkeypatch) -> None:  # noqa: ANN001
     record = _record()
     user = SimpleNamespace(id=1, language="zh-CN")
     llm = object()
@@ -51,6 +52,7 @@ def test_chat_runtime_rehydrates_access_scope_with_llm_service(monkeypatch) -> N
         yield session
 
     monkeypatch.setattr(runtime_context_module, "session_scope", fake_session_scope)
+    monkeypatch.setattr(agent_init, "session_scope", fake_session_scope)
     monkeypatch.setattr(runtime_context_module, "get_user_info", lambda **_kwargs: user)
     monkeypatch.setattr(runtime_context_module, "run_coro_sync", lambda value: value)
     monkeypatch.setattr(
@@ -59,18 +61,13 @@ def test_chat_runtime_rehydrates_access_scope_with_llm_service(monkeypatch) -> N
         lambda *_args, **_kwargs: service,
     )
     monkeypatch.setattr(
-        runtime_context_module,
-        "_rehydrate_chat_access_scope",
-        lambda _session, _service: access_scope,
+        agent_init, "rehydrate_access_scope", lambda _session, _service: access_scope
     )
-    # Both are imported inside ``_hydrate_chat``, so patch the source modules.
-    monkeypatch.setattr(
-        "apps.chat.agent_config.load_agent_config", lambda *a, **kw: agent_config
-    )
+    monkeypatch.setattr(agent_init, "load_agent_config", lambda *a, **kw: agent_config)
     tools_factory = Mock(return_value=bound_tools)
-    monkeypatch.setattr("apps.chat.tools.registry.build_agent_tools", tools_factory)
+    monkeypatch.setattr(agent_init, "build_agent_tools", tools_factory)
 
-    values = runtime_context_module._hydrate_chat(_run())
+    values = runtime_context_module._hydrate_run(_run())
 
     assert values == {
         "llm_service": service,
@@ -85,7 +82,7 @@ def test_chat_runtime_rehydrates_access_scope_with_llm_service(monkeypatch) -> N
     )
 
 
-def test_non_nlq_runtime_does_not_resolve_access_scope(monkeypatch) -> None:  # noqa: ANN001
+def test_non_chat_runtime_does_not_resolve_access_scope(monkeypatch) -> None:  # noqa: ANN001
     record = _record()
     user = SimpleNamespace(id=1, language="zh-CN")
     service = SimpleNamespace(ds=SimpleNamespace(id=10), set_record=Mock())
@@ -105,13 +102,9 @@ def test_non_nlq_runtime_does_not_resolve_access_scope(monkeypatch) -> None:  # 
         lambda *_args, **_kwargs: service,
     )
     resolver = Mock(return_value=object())
-    monkeypatch.setattr(
-        runtime_context_module,
-        "_rehydrate_chat_access_scope",
-        resolver,
-    )
+    monkeypatch.setattr(agent_init, "rehydrate_access_scope", resolver)
 
-    values = runtime_context_module._hydrate_chat(_run("analysis"))
+    values = runtime_context_module._hydrate_run(_run("recommend"))
 
     assert values == {"llm_service": service}
     resolver.assert_not_called()
@@ -132,7 +125,7 @@ def test_rehydrated_access_scope_reuses_datasource_validation(monkeypatch) -> No
     monkeypatch.setattr(datasource_step, "validate_history_ds", validate)
     monkeypatch.setattr(datasource_access, "resolve_access_scope", resolve)
 
-    result = runtime_context_module._rehydrate_chat_access_scope(session, service)
+    result = agent_init.rehydrate_access_scope(session, service)
 
     assert result is scope
     validate.assert_called_once_with(service, session)
@@ -146,4 +139,4 @@ def test_rehydrated_access_scope_reuses_datasource_validation(monkeypatch) -> No
 def test_rehydrated_access_scope_is_explicitly_none_without_datasource() -> None:
     service: Any = SimpleNamespace(ds=None)
 
-    assert runtime_context_module._rehydrate_chat_access_scope(Mock(), service) is None
+    assert agent_init.rehydrate_access_scope(Mock(), service) is None

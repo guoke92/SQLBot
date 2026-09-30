@@ -171,9 +171,9 @@ export function sortedItems(map: TimelineMap): ProcessItem[] {
 }
 
 /**
- * Anchor clarification interrupts onto the ``request_clarification`` tool row
- * (or an existing clarification span). Cards render inline in the thought
- * chain — never as a detached footer list.
+ * Anchor clarification interrupts onto existing clarification spans
+ * (kind === 'clarification' or meta.interrupt_id). Cards render inline
+ * in the thought chain — never as a detached footer list.
  */
 export function bindClarificationInterrupts(
   items: ProcessItem[],
@@ -198,38 +198,8 @@ export function bindClarificationInterrupts(
   if (!unbound.length) return items
 
   const next = items.map((item) => ({ ...item }))
-  const claimedTools = new Set<number>()
 
   for (const interrupt of unbound) {
-    const toolIdx = next.findIndex(
-      (item, index) =>
-        !claimedTools.has(index) &&
-        item.kind === 'tool' &&
-        item.tool?.name === 'request_clarification'
-    )
-    if (toolIdx >= 0) {
-      claimedTools.add(toolIdx)
-      const tool = next[toolIdx]
-      next[toolIdx] = {
-        ...tool,
-        kind: 'clarification',
-        status: interrupt.status === 'open' ? 'running' : 'completed',
-        title_key: 'chat.timeline.clarification',
-        summary_key:
-          interrupt.status === 'open'
-            ? 'chat.summary.clarification_waiting'
-            : 'chat.summary.clarification_confirmed',
-        meta: {
-          ...(tool.meta || {}),
-          interrupt_id: interrupt.interrupt_id,
-          version: interrupt.version,
-          clarification_card: interrupt.payload,
-        },
-      }
-      delete next[toolIdx].tool
-      continue
-    }
-
     const bareIdx = next.findIndex(
       (item) =>
         item.kind === 'clarification' &&
@@ -301,9 +271,11 @@ export function projectNarrative(items: ProcessItem[]): NarrativeBlock[] {
     if (used.has(key)) continue
     if (item.kind === 'answer') continue
     if (item.kind === 'thought') {
+      const isCompact =
+        item.meta?.compact === true || item.thought?.source === 'compact'
       const body = String(item.thought?.content || '').trim()
       // Hide completed empty thoughts (final-answer rounds without reasoning).
-      if (item.status !== 'running' && !body) continue
+      if (!isCompact && item.status !== 'running' && !body) continue
       out.push({ type: 'thought', key, item })
       continue
     }
@@ -371,12 +343,13 @@ export function thoughtSnippet(content: string, limit = THOUGHT_SNIPPET_CHARS): 
   return sentence.slice(0, limit)
 }
 
-/** Collapse tool + wait/confirm for the same interrupt_id into one card.
- * Different rounds stay separate. A lone request_clarification tool is left as a tool.
+/** Collapse wait/confirm for the same interrupt_id into one card.
+ * Different rounds stay separate. Tools without interrupt_id stay as tools.
  */
 export function foldClarificationFlow(items: ProcessItem[]): ProcessItem[] {
-  const isClarifyTool = (item: ProcessItem) =>
-    item.kind === 'tool' && item.tool?.name === 'request_clarification'
+  const isClarifyAnchor = (item: ProcessItem) =>
+    item.kind === 'clarification' ||
+    (typeof item.meta?.interrupt_id === 'string' && Boolean(item.meta.interrupt_id))
 
   const interruptIdOf = (item: ProcessItem): string | undefined => {
     const id = item.meta?.interrupt_id
@@ -451,7 +424,7 @@ export function foldClarificationFlow(items: ProcessItem[]): ProcessItem[] {
 
   while (index < items.length) {
     const item = items[index]
-    if (isClarifyTool(item)) {
+    if (isClarifyAnchor(item) && item.kind !== 'clarification') {
       pendingTools.push(item)
       index += 1
       continue
@@ -463,9 +436,10 @@ export function foldClarificationFlow(items: ProcessItem[]): ProcessItem[] {
       index += 1
       while (index < items.length) {
         const next = items[index]
-        if (isClarifyTool(next)) {
+        if (isClarifyAnchor(next) && next.kind !== 'clarification') {
           let look = index + 1
-          while (look < items.length && isClarifyTool(items[look])) look += 1
+          while (look < items.length && isClarifyAnchor(items[look]) && items[look].kind !== 'clarification')
+            look += 1
           if (look < items.length && items[look].kind === 'clarification') {
             const nextKey = interruptIdOf(items[look])
             if (groupKey && nextKey && nextKey !== groupKey) break

@@ -379,13 +379,11 @@ def submit_graph(
                         terminal_already_committed = bool(
                             current is not None and current.status in TERMINAL_STATUSES
                         )
-                    if not terminal_already_committed and graph_key == "chat":
+                    if not terminal_already_committed:
                         try:
-                            from apps.chat.graphs.nodes.agent_finalize import (
-                                try_publish_query_salvage,
-                            )
+                            from apps.conversation.graph_hooks import try_recover
 
-                            if try_publish_query_salvage(run_id, state):
+                            if try_recover(str(graph_key or ""), run_id, state):
                                 terminal_already_committed = True
                         except Exception:
                             traceback.print_exc()

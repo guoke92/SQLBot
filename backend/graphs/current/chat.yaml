@@ -7,25 +7,25 @@ description: >
   clarifications pause durably at await_clarification; errors route to fail.
 
 nodes:
-  agent_loop: apps.chat.graphs.nodes.unified_agent.agent_loop_node
-  execute_tools: apps.conversation.tooling.execute_tools_node
-  await_clarification: apps.chat.graphs.nodes.agent_clarify.await_agent_clarification_node
-  finalize_turn: apps.chat.graphs.nodes.agent_finalize.finalize_agent_turn_node
-  fail: apps.chat.graphs.turn_failure.fail_node
+  agent_loop: apps.chat.agent.loop.agent_loop_node
+  execute_tools: apps.chat.agent.tools.runtime.execute_tools_node
+  await_clarification: apps.chat.agent.clarify.await_agent_clarification_node
+  finalize_turn: apps.chat.agent.delivery.finalize_agent_turn_node
+  fail: apps.chat.agent.delivery.fail_node
 
 edges:
   - from: START
     to: agent_loop
 
   - from: agent_loop
-    router: apps.chat.graphs.nodes.unified_agent.route_after_agent_loop
+    router: apps.chat.agent.loop.route_after_agent_loop
     paths:
       execute_tools: execute_tools
       finalize_turn: finalize_turn
       fail: fail
 
   - from: execute_tools
-    router: apps.chat.graphs.nodes.unified_agent.route_after_tools_execution
+    router: apps.chat.agent.loop.route_after_tools_execution
     paths:
       agent_loop: agent_loop
       await_clarification: await_clarification

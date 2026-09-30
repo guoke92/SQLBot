@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from typing import TypedDict
-
-from apps.chat.query_intent import IntentRevision
+from typing import Any, TypedDict
 
 _SCHEMA_FIELD_RE = re.compile(
     r"^\s*(?P<bare>[A-Za-z_]\w*:.*)\s*$",
@@ -83,9 +81,9 @@ def build_result_presentation(
     fields: Iterable[str],
     *,
     title: str = "",
-    intent_revision: IntentRevision | None = None,
     projection_requirements: Mapping[str, Sequence[str]] | None = None,
     schema_text: str = "",
+    item_catalog: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> ResultPresentation:
     """Build stable labels from projection lineage, contract and schema.
 
@@ -93,7 +91,7 @@ def build_result_presentation(
     bindings are the protocol-neutral fallback. Schema comments are used only
     when neither source can establish one unambiguous business meaning.
     """
-    requirements = dict(intent_revision.item_catalog) if intent_revision else {}
+    requirements = dict(item_catalog or {})
     lineage = {
         _bare_identifier(field): tuple(keys)
         for field, keys in (projection_requirements or {}).items()

@@ -15,6 +15,7 @@ from apps.chat.curd.chat import save_question
 from apps.chat.models.chat_model import Chat, ChatQuestion, ChatRecord
 from apps.config_assistant.prompt import SYSTEM_PROMPT, TOOL_FREE_COMPLETION_MARKER
 from apps.config_assistant.tools import build_tools
+from apps.conversation.graph_hooks import register_hydrate
 from apps.conversation.llm import (
     get_chat_model,
     get_default_chat_config,
@@ -75,9 +76,7 @@ async def initialize_config_state(
             f"Chat {chat_id} is chat_type={chat.chat_type!r}, expected config"
         )
 
-    model_config = await resolve_chat_llm_config(
-        session, user, None, reasoning_effort
-    )
+    model_config = await resolve_chat_llm_config(session, user, None, reasoning_effort)
     bound_tools = build_tools(user)
     llm = get_chat_model(model_config)
     history = load_text_history(session, chat_id, limit=_HISTORY_TURNS)
@@ -200,3 +199,10 @@ def recover_config_state(run: ConversationRun) -> ConfigState:
         "oid": run.oid,
         "outcome": running_outcome(),
     }
+
+
+def _hydrate_config_hook(run: ConversationRun, _service: Any = None) -> dict[str, Any]:
+    return hydrate_config_runtime(run)
+
+
+register_hydrate("config", _hydrate_config_hook)

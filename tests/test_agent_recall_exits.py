@@ -14,8 +14,8 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.chat.agent_knowledge import AgentKnowledgePlane  # noqa: E402
-from apps.chat.graphs.nodes.agent_finalize import finalize_agent_turn_node  # noqa: E402
-from apps.chat.graphs.nodes.unified_agent import (  # noqa: E402
+from apps.chat.agent.delivery import finalize_agent_turn_node  # noqa: E402
+from apps.chat.agent.loop import (  # noqa: E402
     route_after_tools_execution,
 )
 from apps.chat.memory_slots import MemorySlots  # noqa: E402
@@ -112,9 +112,12 @@ def test_complete_without_sql_tool_schema_and_payload() -> None:
 
 
 def test_complete_without_sql_rejected_after_delivery(monkeypatch) -> None:
-    from apps.conversation.runtime_context import attach_runtime
+    from apps.chat.agent.close import TurnDelivery
 
-    attach_runtime("run-sql", sql_delivered=True)
+    monkeypatch.setattr(
+        "apps.chat.tools.complete_answer.delivery_from_state",
+        lambda _state: TurnDelivery(has_artifacts=True),
+    )
     monkeypatch.setattr(
         "apps.chat.tools.complete_answer.current_worker_identity",
         lambda: ("run-sql", None),
@@ -143,13 +146,13 @@ def test_finalize_text_exit_uses_tool_content(monkeypatch) -> None:
     def _scope():
         yield object()
 
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        "apps.chat.agent.delivery.load_result_datasets",
         lambda *_a, **_k: [],
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.finalize_run",
+        "apps.chat.agent.delivery.finalize_run",
         lambda *_a, **_k: None,
     )
     content = "我可以帮你查询企业认证、协议签署等相关数据。"
@@ -185,13 +188,13 @@ def test_complete_without_sql_writes_empty_knowledge_refs(monkeypatch) -> None:
     def _scope():
         yield object()
 
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        "apps.chat.agent.delivery.load_result_datasets",
         lambda *_a, **_k: [],
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.finalize_run",
+        "apps.chat.agent.delivery.finalize_run",
         lambda *_a, **_k: None,
     )
     content = "我可以帮你查询企业认证、协议签署等相关数据。"
@@ -236,13 +239,13 @@ def test_sql_delivery_scopes_knowledge_refs_to_used_tables(monkeypatch) -> None:
     def _scope():
         yield object()
 
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        "apps.chat.agent.delivery.load_result_datasets",
         lambda *_a, **_k: [],
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.finalize_run",
+        "apps.chat.agent.delivery.finalize_run",
         lambda *_a, **_k: None,
     )
     out = finalize_agent_turn_node(
@@ -298,13 +301,13 @@ def test_sql_delivery_wins_over_text_exit(monkeypatch) -> None:
     def _scope():
         yield object()
 
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        "apps.chat.agent.delivery.load_result_datasets",
         lambda *_a, **_k: [],
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.finalize_run",
+        "apps.chat.agent.delivery.finalize_run",
         lambda *_a, **_k: None,
     )
     out = finalize_agent_turn_node(
@@ -354,9 +357,9 @@ def test_bare_text_without_exit_still_fails(monkeypatch) -> None:
     def _scope():
         yield object()
 
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        "apps.chat.agent.delivery.load_result_datasets",
         lambda *_a, **_k: [],
     )
     out = finalize_agent_turn_node(

@@ -566,7 +566,7 @@ def test_lookup_values_field_topk_and_scope(monkeypatch) -> None:
     from apps.datasource.instance_index.service import ValueAnchor
 
     monkeypatch.setattr(ct, "load_plane", lambda: AgentKnowledgePlane())
-    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "stage_plane", lambda _p: None)
     monkeypatch.setattr(
         ct, "_catalog_sources", lambda _svc: (InMemoryWikiStore.load([]), {}, [])
     )

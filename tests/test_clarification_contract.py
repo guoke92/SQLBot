@@ -2,17 +2,15 @@ from __future__ import annotations
 
 from apps.chat.semantic_planning import (
     MAX_CLARIFICATION_QUESTIONS,
-    PLANNING_DECISION_ADAPTER,
     ClarificationCard,
     ClarificationOption,
-    NeedClarification,
     public_interrupt_payload,
 )
 from apps.conversation.run_service import ResumeAnswer, ResumeRequest
 
 
 def test_legacy_ambiguity_set_coerces_to_questions() -> None:
-    decision = PLANNING_DECISION_ADAPTER.validate_python(
+    decision = ClarificationCard.model_validate(
         {
             "decision": "clarify",
             "ambiguity_set": {
@@ -42,8 +40,8 @@ def test_legacy_ambiguity_set_coerces_to_questions() -> None:
             "can_proceed_with_assumptions": True,
         }
     )
-    assert isinstance(decision, NeedClarification)
-    card = decision.as_card()
+    assert isinstance(decision, ClarificationCard)
+    card = decision
     assert len(card.questions) == 1
     assert card.questions[0].question == "销售额按什么口径统计？"
     assert card.questions[0].why == "两种口径会产生不同金额"
@@ -120,13 +118,13 @@ def test_clarification_card_accepts_four_questions() -> None:
         {"questions": [_question(i) for i in range(MAX_CLARIFICATION_QUESTIONS)]}
     )
     assert len(card.questions) == MAX_CLARIFICATION_QUESTIONS
-    decision = PLANNING_DECISION_ADAPTER.validate_python(
+    decision = ClarificationCard.model_validate(
         {
             "decision": "clarify",
             "questions": [_question(i) for i in range(MAX_CLARIFICATION_QUESTIONS)],
         }
     )
-    assert isinstance(decision, NeedClarification)
+    assert isinstance(decision, ClarificationCard)
     assert len(decision.questions) == MAX_CLARIFICATION_QUESTIONS
 
 
@@ -143,7 +141,7 @@ def test_clarification_card_rejects_five_questions() -> None:
 
 
 def test_clarification_option_keeps_field_identity() -> None:
-    decision = PLANNING_DECISION_ADAPTER.validate_python(
+    decision = ClarificationCard.model_validate(
         {
             "decision": "clarify",
             "questions": [
@@ -168,8 +166,8 @@ def test_clarification_option_keeps_field_identity() -> None:
             ],
         }
     )
-    assert isinstance(decision, NeedClarification)
-    options = decision.as_card().questions[0].options
+    assert isinstance(decision, ClarificationCard)
+    options = decision.questions[0].options
     assert options[0].field == "company_name"
     assert options[0].field_comment == "原始供应商"
     assert options[0].fields[0].name == "company_name"
@@ -178,7 +176,7 @@ def test_clarification_option_keeps_field_identity() -> None:
 
 
 def test_clarification_option_keeps_composite_fields_and_table() -> None:
-    decision = PLANNING_DECISION_ADAPTER.validate_python(
+    decision = ClarificationCard.model_validate(
         {
             "decision": "clarify",
             "questions": [
@@ -218,12 +216,12 @@ def test_clarification_option_keeps_composite_fields_and_table() -> None:
             ],
         }
     )
-    assert isinstance(decision, NeedClarification)
-    option = decision.as_card().questions[0].options[0]
+    assert isinstance(decision, ClarificationCard)
+    option = decision.questions[0].options[0]
     assert option.field == "sign_date"
     assert option.table == "fin_list"
     assert [item.name for item in option.fields] == ["sign_date", "fin_apply_date"]
-    dumped = public_interrupt_payload(decision.as_card().model_dump(mode="json"))
+    dumped = public_interrupt_payload(decision.model_dump(mode="json"))
     assert dumped["questions"][0]["options"][0]["fields"][1]["name"] == "fin_apply_date"
 
 

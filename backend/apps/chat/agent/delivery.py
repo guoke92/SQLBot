@@ -5,6 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, cast
 
+from apps.chat.agent.close import (
+    close_kind,
+    delivery_from_state,
+    has_turn_result,
+)
 from apps.chat.agent_copy import (
     compact_agent_final_text,
     truncated_display_note,
@@ -24,6 +29,7 @@ from apps.chat.presentation import (
     ResultPresentation,
     build_result_presentation,
 )
+from apps.conversation.graph_hooks import register_recover
 from apps.conversation.outcome import (
     degraded_outcome,
     failed_outcome,
@@ -41,9 +47,12 @@ from common.utils.utils import SQLBotLogUtil
 
 # Re-export for tests / callers that historically imported from here.
 __all__ = [
+    "close_turn",
+    "fail_node",
     "finalize_agent_turn_node",
-    "has_publishable_query_result",
+    "has_turn_result",
     "infer_chart_for_presentation",
+    "recover",
     "select_delivery_datasets",
     "try_publish_query_salvage",
 ]
@@ -57,27 +66,22 @@ def _safe_delivery_chart(**kwargs: Any) -> dict[str, Any] | None:
         return None
 
 
-def has_publishable_query_result(state: Mapping[str, Any]) -> bool:
-    """True when this turn already has a required successful SQL dataset.
+# has_turn_result lives on the close-plane; re-exported for callers / tests.
 
-    Prefers in-memory tool_steps / current-turn messages; falls back to
-    ``result_dataset`` rows for ``run_id`` (never prior-turn transcript).
-    """
-    from apps.chat.graphs.nodes.unified_agent import _agent_has_sql_result
-    from apps.conversation.messages import deserialize_messages
 
-    messages = deserialize_messages(list(state.get("messages") or []))
-    if _agent_has_sql_result(state, messages):
-        return True
-    run_id = str(state.get("run_id") or "")
-    if not run_id:
-        return False
+def incomplete_query_message(state: Mapping[str, Any]) -> str:
+    key = "i18n_chat.agent.incomplete_no_data"
+    fallback = "这次没能查出结果。请换个问法试试，或确认数据源表结构已同步。"
     try:
-        with session_scope() as session:
-            rows = load_result_datasets(session, run_id)
-        return bool(select_delivery_datasets(rows))
+        service = _llm_service(state)
+        trans = getattr(service, "trans", None)
+        if callable(trans):
+            text = str(trans(key) or "").strip()
+            if text and text != key:
+                return text
     except Exception:
-        return False
+        pass
+    return fallback
 
 
 def try_publish_query_salvage(
@@ -109,9 +113,12 @@ def _assumptions_from_slots(memory_slots: Mapping[str, Any]) -> list[dict[str, A
     return [*surface["confirmed_calibers"], *surface["assumptions"]]
 
 
-def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
-    """Assemble final TurnAnswerV1 from result_dataset rows and emit finish once."""
-    analysis_incomplete = bool(state.get("analysis_incomplete"))
+def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
+    """Project one TurnAnswer from the close-plane plus the artifact store."""
+    delivery = delivery_from_state(state)
+    analysis_incomplete = bool(state.get("analysis_incomplete")) or bool(
+        state.get("error") and delivery.has_artifacts
+    )
     try:
         llm_service = _llm_service(state)
     except Exception:
@@ -269,34 +276,15 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             latest_fields = fields
             latest_row_count = int(data.get("row_count") or data.get("total_rows") or 0)
 
-    route = (
-        state.get("turn_route") if isinstance(state.get("turn_route"), Mapping) else {}
-    )
-    from apps.chat.tools.complete_answer import terminal_text_from_steps
-
-    text_exit = terminal_text_from_steps(state.get("tool_steps"))
-    if all_steps:
-        text_exit = ""
-    elif text_exit:
-        final_text = text_exit
-    elif str(route.get("task_kind") or "query") == "query":
-        from apps.chat.graphs.nodes.unified_agent import _incomplete_query_message
-
-        text = _incomplete_query_message(state)
-        failed = {
-            **state,
-            "error": text,
-            "public_error": text,
-            "final_text": text,
-            "outcome": failed_outcome(text, kind="empty_response"),
-        }
-        try:
-            from apps.chat.session_transcript import persist_turn_from_state
-
-            failed["agent_transcript_saved"] = persist_turn_from_state(failed)
-        except Exception as exc:
-            SQLBotLogUtil.warning(f"agent_transcript append skipped: {exc}")
-        return failed
+    kind = close_kind(state, has_cards=bool(all_steps))
+    if kind == "artifacts" and state.get("error"):
+        analysis_incomplete = True
+    elif kind == "text":
+        text_exit = delivery.text or str(state.get("final_text") or "").strip()
+        if text_exit:
+            final_text = text_exit
+    elif kind in {"empty", "error"}:
+        return _publish_failure(state)
 
     truncated, trunc_limit = truncation_from_delivery_steps(all_steps)
     trans = getattr(llm_service, "trans", None) if llm_service is not None else None
@@ -317,7 +305,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         )
     else:
         outcome = successful_outcome()
-    if text_exit and not all_steps:
+    if kind == "text" and not all_steps:
         from apps.chat.result_quality import build_text_answer_quality
 
         outcome["quality"] = build_text_answer_quality()
@@ -411,4 +399,71 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "outcome": outcome,
         "analysis_incomplete": analysis_incomplete,
         "agent_transcript_saved": saved,
+        "turn_delivery": delivery.model_dump(),
     }
+
+
+def recover(run_id: str, state: Mapping[str, Any] | None = None) -> bool:
+    return try_publish_query_salvage(run_id, state)
+
+
+finalize_agent_turn_node = close_turn
+fail_node = close_turn
+
+
+def _publish_failure(state: Mapping[str, Any]) -> dict[str, Any]:
+    from apps.chat.graphs.turn_failure import persist_query_terminal_failure
+    from apps.conversation.outcome import public_error_message
+
+    delivery = delivery_from_state(state)
+    if state.get("error"):
+        error = str(state.get("error") or "unknown error")
+        public_error = str(state.get("public_error") or public_error_message(error))
+        kind = "internal"
+    else:
+        error = incomplete_query_message(state)
+        public_error = error
+        kind = "empty_response"
+    current_outcome = state.get("outcome")
+    outcome = (
+        dict(current_outcome)
+        if current_outcome and current_outcome.get("status") != "running"
+        else failed_outcome(error, kind=kind)  # type: ignore[arg-type]
+    )
+    payload = {
+        **dict(state),
+        "execution_mode": state.get("execution_mode") or "agent",
+        "error": error,
+        "public_error": public_error,
+        "final_text": error,
+        "turn_delivery": delivery.model_dump(),
+    }
+    outcome = persist_query_terminal_failure(
+        payload,
+        error_summary=error,
+        public_error=public_error,
+        outcome=outcome,
+    )
+    try:
+        StreamSink.from_state(state).error(public_error)
+    except Exception as stream_exc:
+        SQLBotLogUtil.warning(f"failure stream skipped: {stream_exc}")
+    failed = {
+        **dict(state),
+        "error": error,
+        "public_error": public_error,
+        "final_text": error,
+        "outcome": outcome,
+        "turn_delivery": delivery.model_dump(),
+    }
+    if not failed.get("agent_transcript_saved"):
+        try:
+            from apps.chat.session_transcript import persist_turn_from_state
+
+            failed["agent_transcript_saved"] = persist_turn_from_state(failed)
+        except Exception as exc:
+            SQLBotLogUtil.warning(f"agent_transcript append skipped: {exc}")
+    return failed
+
+
+register_recover("chat", recover)

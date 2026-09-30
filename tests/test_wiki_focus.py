@@ -26,14 +26,15 @@ from apps.chat.steps.wiki_focus import (  # noqa: E402
     lookup_payload,
     normalize_focus,
 )
+from apps.chat.agent.audit import tool_close_keys  # noqa: E402
+from apps.chat.agent.knowledge import load_plane, take_working  # noqa: E402
+from apps.chat.agent.tools.runtime import execute_tools_node  # noqa: E402
 from apps.chat.tools.registry import GetTableSchemaInput  # noqa: E402
 from apps.conversation.runtime_context import (  # noqa: E402
     attach_runtime,
     detach_runtime,
-    peek_runtime,
     worker_scope,
 )
-from apps.conversation.tooling import _knowledge_tool_close, execute_tools_node  # noqa: E402
 
 _PROJECT_SCHEMA = """## 项目 (tenant_project)
 id:int, 主键
@@ -135,6 +136,7 @@ def test_field_lookup_lights_keep_fields_without_prose() -> None:
     assert payload["evidence_fields"]["tenant_project"] == ["name"]
 
     run_id = "focus-field"
+    take_working()
     attach_runtime(run_id, knowledge_plane=plane.to_dump())
     try:
         with worker_scope(run_id, "tok"):
@@ -143,9 +145,7 @@ def test_field_lookup_lights_keep_fields_without_prose() -> None:
                 "项目名称",
                 focus="field",
             )
-        saved = AgentKnowledgePlane.from_dump(
-            (peek_runtime(run_id) or {}).get("knowledge_plane")
-        )
+            saved = load_plane()
     finally:
         detach_runtime(run_id)
     assert out["ok"] is True
@@ -339,9 +339,9 @@ def test_working_set_folds_low_coverage_noise_instead_of_evicting() -> None:
     assert "tenant_project" in catalog
     # Opened tables are fully expanded; folding is no longer a recall policy.
     assert "cfg_key" in catalog
-    index = plane.render_system_sections()
-    assert "folded:" not in index
-    assert "tenant_setting_config" in index
+    # System prompt is outline-only; opened tables stay on the plane.
+    assert "folded:" not in plane.render_system_sections()
+    assert "tenant_setting_config" in plane.tables
 
 
 def test_expanded_tables_uses_human_question_not_later_tool_query() -> None:
@@ -400,7 +400,7 @@ def test_relation_lookup_checks_join_edge() -> None:
 
 
 def test_timeline_lookup_uses_wiki_lookup_key() -> None:
-    key, params = _knowledge_tool_close(
+    key, params = tool_close_keys(
         "get_table_schema",
         {
             "ok": True,
@@ -412,7 +412,7 @@ def test_timeline_lookup_uses_wiki_lookup_key() -> None:
     )
     assert key == "chat.summary.schema_loaded"
     assert params == {"count": 1}
-    knowledge_key, knowledge_params = _knowledge_tool_close(
+    knowledge_key, knowledge_params = tool_close_keys(
         "search_knowledge",
         {"ok": True, "data": {"hit_count": 3, "page_keys": ["a", "b", "c"]}},
     )
@@ -438,10 +438,14 @@ def test_stop_search_does_not_lock_execute_tools(monkeypatch) -> None:
         "failure": None,
     }
     monkeypatch.setattr(
-        "apps.conversation.tooling.open_process_span", lambda **_k: None
+        "apps.chat.agent.tools.runtime.open_process_span", lambda **_k: None
     )
     monkeypatch.setattr(
-        "apps.conversation.tooling.attach_process_span", lambda *_a, **_k: None
+        "apps.chat.agent.tools.runtime.attach_process_span", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        "apps.chat.agent.tools.runtime.attach_running_tool_span",
+        lambda **_k: None,
     )
     state = {
         "run_id": "focus-no-lock",

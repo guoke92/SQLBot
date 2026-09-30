@@ -727,7 +727,7 @@ def test_render_tool_message_failure_is_one_line() -> None:
             },
         },
     )
-    assert text == "失败：get_table_schema 需要至少一张可见表名"
+    assert text == "Failed: get_table_schema 需要至少一张可见表名"
     assert "retryable" not in text
 
 

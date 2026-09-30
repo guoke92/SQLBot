@@ -5,7 +5,7 @@ from apps.chat.memory_slots import MemorySlots
 from apps.chat.task.agent_prompt import build_agent_system_prompt
 from apps.chat.tools.compare_results import compare_query_results
 from apps.chat.tools.patch_sql import patch_and_compile_sql
-from apps.chat.graphs.nodes.unified_agent import (
+from apps.chat.agent.loop import (
     route_after_agent_loop,
     route_after_tools_execution,
 )
@@ -102,7 +102,7 @@ def test_route_after_tools_clarification_interrupt():
     )
 
 
-from apps.chat.graphs.nodes.agent_finalize import finalize_agent_turn_node
+from apps.chat.agent.delivery import finalize_agent_turn_node
 
 
 def test_finalize_agent_turn_publishes_delivery_datasets_only():
@@ -211,9 +211,9 @@ def test_finalize_query_without_data_is_friendly_failure(monkeypatch):
     def _scope():
         yield object()
 
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.delivery.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        "apps.chat.agent.delivery.load_result_datasets",
         lambda *_a, **_k: [],
     )
     out = finalize_agent_turn_node(

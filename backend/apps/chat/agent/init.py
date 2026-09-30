@@ -8,9 +8,14 @@ from typing import Any, Literal
 
 from sqlalchemy import select
 
+from apps.chat.agent.close import empty_delivery
+from apps.chat.agent.context import (
+    choose_data_strategy,
+    context_fingerprint,
+    recap_from_turn_answer,
+)
 from apps.chat.agent_config import load_agent_config
 from apps.chat.agent_knowledge import EXECUTION_ROUND_LIMIT, AgentKnowledgePlane
-from apps.chat.context_bundle import choose_data_strategy, context_fingerprint
 from apps.chat.graphs.turn_state import fail_turn_state, llm_service
 from apps.chat.memory_slots import (
     MemorySlots,
@@ -20,8 +25,9 @@ from apps.chat.memory_slots import (
 from apps.chat.models.chat_model import ChatRecord
 from apps.chat.tools.registry import build_agent_tools
 from apps.chat.turn_contracts import TurnRoute
+from apps.conversation.graph_hooks import register_hydrate
 from apps.conversation.messages import serialize_messages
-from apps.conversation.models import ConversationRun, QueryRun
+from apps.conversation.models import ConversationRun
 from apps.conversation.outcome import running_outcome
 from apps.conversation.run_service import (
     load_prior_user_evidence,
@@ -38,6 +44,54 @@ _REFERENCED_FIELD_LIMIT = 20
 _REFERENCED_ROW_LIMIT = 3
 _REFERENCED_CELL_WIDTH = 24
 _TEMPORAL_RE = re.compile(r"^\d{4}[-/]\d{1,2}([-/]\d{1,2})?$")
+
+
+def rehydrate_access_scope(session: Any, service: Any) -> Any:
+    """Rebuild datasource access after a checkpoint resume."""
+    if getattr(service, "ds", None) is None:
+        from apps.chat.models.chat_model import Chat
+        from apps.datasource.models.datasource import CoreDatasource
+
+        rec = (
+            service.get_record()
+            if hasattr(service, "get_record")
+            else getattr(service, "record", None)
+        )
+        ds_id = getattr(rec, "datasource", None) if rec else None
+        if not ds_id and rec and getattr(rec, "chat_id", None):
+            chat = session.get(Chat, rec.chat_id)
+            if chat:
+                ds_id = chat.datasource
+        if ds_id:
+            ds = session.get(CoreDatasource, ds_id)
+            if ds:
+                service.ds = ds
+    if getattr(service, "ds", None) is None:
+        return None
+    from apps.chat.steps.datasource import validate_history_ds
+    from apps.datasource.access import resolve_access_scope
+
+    validate_history_ds(service, session)
+    return resolve_access_scope(
+        session,
+        current_user=service.current_user,
+        ds=service.ds,
+    )
+
+
+def hydrate_runtime(_run: ConversationRun, service: Any) -> dict[str, Any]:
+    """Resume extras for the chat graph: tools, config, access scope."""
+    with session_scope() as session:
+        scope = rehydrate_access_scope(session, service)
+    agent_config = load_agent_config()
+    return {
+        "access_scope": scope,
+        "llm": service.llm,
+        "agent_config": agent_config,
+        "bound_tools": build_agent_tools(
+            service, access_scope=scope, config=agent_config
+        ),
+    }
 
 
 def prepare_record(state: Mapping[str, Any]) -> dict[str, Any]:
@@ -144,7 +198,9 @@ def record_answer_datasets(record: ChatRecord) -> list[dict[str, Any]]:
                 **dict(item),
                 "source_record_id": int(record.id or 0),
                 "rows": list(item.get("preview_rows") or item.get("rows") or []),
-                "preview_rows": list(item.get("preview_rows") or item.get("rows") or []),
+                "preview_rows": list(
+                    item.get("preview_rows") or item.get("rows") or []
+                ),
             }
         )
         for item in raw
@@ -202,50 +258,38 @@ def assemble_turn_context(state: Mapping[str, Any]) -> dict[str, Any]:
                     .scalars()
                     .one_or_none()
                 )
-                latest_query = (
-                    session.get(QueryRun, latest_run.run_id)
-                    if latest_run is not None
-                    else None
-                )
                 answer = (
                     referenced.answer if isinstance(referenced.answer, dict) else {}
                 )
-                planning = (
-                    dict(latest_query.planning_context or {})
-                    if latest_query is not None
-                    else {}
-                )
+                recap = recap_from_turn_answer(answer)
+                knowledge_refs = recap["knowledge_refs"]
+                outlines = [referenced_dataset_outline(item) for item in datasets]
+                if not outlines and recap["sql"]:
+                    outlines = [
+                        referenced_dataset_outline(
+                            {
+                                "dataset_id": recap["dataset_id"],
+                                "sql": recap["sql"],
+                                "status": "succeeded",
+                                "fields": [],
+                            }
+                        )
+                    ]
                 referenced_turns.append(
                     {
                         "record_id": referenced.id,
                         "question": referenced.question,
                         "turn_kind": referenced.turn_kind,
-                        "answer_status": answer.get("status"),
-                        "answer_summary": str(answer.get("content") or "")[:1000],
+                        "answer_status": recap["status"],
+                        "answer_summary": recap["content"],
                         "run_status": latest_run.status
                         if latest_run is not None
                         else None,
-                        "planning_status": (
-                            latest_query.planning_status
-                            if latest_query is not None
-                            else None
-                        ),
-                        "datasets": [
-                            referenced_dataset_outline(item) for item in datasets
-                        ],
-                        "confirmed_calibers": list(
-                            answer.get("confirmed_calibers") or []
-                        ),
-                        "assumptions": list(answer.get("assumptions") or []),
-                        "knowledge_refs": dict(answer.get("knowledge_refs") or {}),
-                        "revision_ids": list(
-                            (planning.get("compiled_knowledge") or {}).get(
-                                "revision_ids"
-                            )
-                            or []
-                            if isinstance(planning.get("compiled_knowledge"), dict)
-                            else []
-                        ),
+                        "datasets": outlines,
+                        "confirmed_calibers": recap["confirmed_calibers"],
+                        "assumptions": recap["assumptions"],
+                        "knowledge_refs": knowledge_refs,
+                        "revision_ids": list(knowledge_refs.get("page_keys") or []),
                     }
                 )
             strategy = choose_data_strategy(
@@ -468,12 +512,13 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         knowledge_plane=plane.to_dump(),
         probe_sql_calls=0,
         agent_config=agent_config,
+        memory_slots=memory_slots.model_dump(),
     )
 
     history: list[Any] = []
     if chat_id is not None:
         try:
-            from apps.chat.session_transcript import load_agent_transcript
+            from apps.chat.agent.context import load_agent_transcript
 
             with session_scope() as session:
                 history = load_agent_transcript(session, int(chat_id))
@@ -483,7 +528,7 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             history = []
 
-    from apps.chat.session_transcript import build_continued_messages, save_fold_meta
+    from apps.chat.agent.context import build_continued_messages, save_fold_meta
 
     initial_messages, turn_message_start, fold_meta = build_continued_messages(
         history=history,
@@ -499,11 +544,25 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
             SQLBotLogUtil.warning(
                 f"Failed to persist fold meta for chat {chat_id}: {exc}"
             )
+        try:
+            from apps.chat.agent.audit import emit_compact_span
+
+            emit_compact_span(
+                record_id=record_id,
+                run_id=run_id,
+                sink=StreamSink.from_state(base_state),
+                folds=list(fold_meta),
+                ai_modal_id=base_state.get("ai_modal_id"),
+                ai_modal_name=base_state.get("ai_modal_name"),
+            )
+        except Exception as exc:
+            SQLBotLogUtil.warning(f"compact span skipped: {exc}")
 
     return {
         **base_state,
         "messages": serialize_messages(initial_messages),
         "turn_message_start": turn_message_start,
+        "turn_delivery": empty_delivery(),
         "tool_rounds": 0,
         "tool_round_limit": agent_config.param(
             "execution_round_limit", EXECUTION_ROUND_LIMIT
@@ -513,3 +572,6 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         "memory_slots": memory_slots.model_dump(),
         "outcome": running_outcome(),
     }
+
+
+register_hydrate("chat", hydrate_runtime)

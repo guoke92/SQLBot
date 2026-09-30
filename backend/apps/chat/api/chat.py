@@ -176,9 +176,9 @@ async def _launch_run(
             if regenerate_record is not None
             else request.route_hint
         )
-        preset_route = None
+        turn_route = None
         if regenerate_record is not None:
-            preset_route = {
+            turn_route = {
                 "task_kind": regenerate_record.turn_kind or "query",
                 "relation": regenerate_record.relation or "independent",
                 "reference_record_ids": explicit_refs,
@@ -186,7 +186,7 @@ async def _launch_run(
                 "confidence": 1.0,
             }
         elif explicit_refs:
-            preset_route = {
+            turn_route = {
                 "task_kind": route_hint or "query",
                 "relation": "continue",
                 "reference_record_ids": explicit_refs,
@@ -202,8 +202,7 @@ async def _launch_run(
             "mode": "primary",
             "route_hint": route_hint,
             "reference_record_ids": explicit_refs,
-            "preset_route": preset_route,
-            "turn_route": preset_route or {},
+            "turn_route": turn_route or {},
             "finish_step": request.finish_step
             or int(ChatFinishStep.GENERATE_CHART.value),
             "return_img": request.return_img,

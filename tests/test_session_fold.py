@@ -16,16 +16,14 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.chat.agent_knowledge import AgentKnowledgePlane  # noqa: E402
-from apps.chat.graphs.nodes.unified_agent import route_after_tools_execution  # noqa: E402
+from apps.chat.agent.loop import route_after_tools_execution  # noqa: E402
 from apps.chat.session_transcript import build_continued_messages  # noqa: E402
 from apps.chat.task.agent_prompt import build_agent_system_prompt  # noqa: E402
 from apps.chat.tools.base import success_result  # noqa: E402
 from apps.chat.turn_fold import estimate_tokens, fold_history, fold_turn, split_turns  # noqa: E402
+from apps.chat.agent.tools.runtime import execute_tools_node  # noqa: E402
 from apps.conversation.messages import deserialize_messages  # noqa: E402
-from apps.conversation.tooling import (  # noqa: E402
-    execute_tools_node,
-    tool_result_from_message,
-)
+from apps.conversation.tooling import tool_result_from_message  # noqa: E402
 
 
 def _tool(name: str, data: dict, call_id: str) -> ToolMessage:
@@ -199,8 +197,8 @@ def test_fold_demotes_oldest_to_level_two() -> None:
     assert any(getattr(item, "tool_calls", None) for item in folded[1:])
 
 
-def test_knowledge_tools_still_run_after_two_rounds() -> None:
-    plane = AgentKnowledgePlane(knowledge_rounds=8)
+def test_knowledge_tools_run_before_budget() -> None:
+    plane = AgentKnowledgePlane(knowledge_rounds=0)
 
     def get_table_schema(tables: list[str] | None = None) -> dict:
         return success_result(
@@ -251,6 +249,46 @@ def test_knowledge_tools_still_run_after_two_rounds() -> None:
     assert "\\n" not in content
     assert not content.lstrip().startswith("{")
     assert route_after_tools_execution(result) == "agent_loop"
+
+
+def test_knowledge_tools_skip_when_budget_exhausted() -> None:
+    plane = AgentKnowledgePlane(knowledge_rounds=8)
+
+    def get_table_schema(tables: list[str] | None = None) -> dict:
+        raise AssertionError("knowledge tools must not run after LoopBudget is exhausted")
+
+    tool = StructuredTool.from_function(
+        func=get_table_schema,
+        name="get_table_schema",
+        description="schema",
+    )
+    result = execute_tools_node(
+        {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "id": "call-1",
+                            "name": "get_table_schema",
+                            "args": {"tables": ["tenant_product"]},
+                        }
+                    ],
+                )
+            ],
+            "bound_tools": [tool],
+            "sink": "json",
+            "knowledge_plane": plane.to_dump(),
+        }
+    )
+    tool_message = next(
+        item
+        for item in deserialize_messages(result["messages"])
+        if isinstance(item, ToolMessage)
+    )
+    payload = tool_result_from_message(tool_message)
+    assert payload["ok"] is True
+    assert payload["data"].get("skipped") == "knowledge_budget"
 
 
 def test_system_prompt_has_no_slot_or_hard_budget_copy() -> None:

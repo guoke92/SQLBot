@@ -42,10 +42,9 @@ REQUIRED_TOOL_NAMES: frozenset[str] = frozenset(
     }
 )
 
-# Tools with no cross-tool ordering dependency and no shared mutable state.
-# NOTE: parallel *execution* is deliberately NOT enabled yet — knowledge tools
-# currently persist a run-level accumulator (see docs/reviews). This set only
-# records the intent so the management page can show/edit it.
+# Tools with no cross-tool ordering dependency. Parallel dispatch is enabled
+# for this set in ``apps.chat.agent.tools.runtime``; exclusive tools serialize
+# the whole batch.
 DEFAULT_PARALLEL_SAFE: frozenset[str] = KNOWLEDGE_TOOLS
 
 

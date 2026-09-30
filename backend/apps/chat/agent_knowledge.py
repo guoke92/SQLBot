@@ -11,16 +11,16 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from langchain_core.messages import BaseMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, Field
 
 WIKI_SCHEMA_GAP_SEARCH_LIMIT = 2
 # Tool budgets by category (single definition; the system prompt renders them).
 PROBE_SQL_LIMIT = 2
-KNOWLEDGE_ROUND_LIMIT = 2  # telemetry only; recall tools are not gated
-KNOWLEDGE_SEARCH_LIMIT = 1  # legacy unused
+KNOWLEDGE_ROUND_LIMIT = (
+    2  # LoopBudget.knowledge_limit; runtime skips knowledge tools when exhausted
+)
 KNOWLEDGE_BUDGET_SKIP = "knowledge_budget"
-SEARCH_WIKI_ROUND_LIMIT = 2  # legacy alias of KNOWLEDGE_ROUND_LIMIT
+SEARCH_WIKI_ROUND_LIMIT = 2  # alias of KNOWLEDGE_ROUND_LIMIT
 EXECUTION_ROUND_LIMIT = 5
 KNOWLEDGE_TOOLS = frozenset(
     {
@@ -460,15 +460,6 @@ class AgentKnowledgePlane(BaseModel):
     def has_new_coverage(self, delta: MergeDelta) -> bool:
         return not delta.unchanged
 
-    def apply_to_system_message(
-        self,
-        messages: Sequence[BaseMessage],
-        *,
-        memory_slots: Mapping[str, Any] | None = None,  # noqa: ARG002 — calibers live in chat
-        change_baseline: Mapping[str, Any] | None = None,  # noqa: ARG002
-    ) -> list[BaseMessage]:
-        return rebuild_system_message(messages, plane=self)
-
     def schema_catalog_text(self) -> str:
         """Prompt view of opened tables: full fields + JOINs among the working set."""
         from apps.chat.steps.wiki_schema import (
@@ -796,24 +787,6 @@ def strip_search_wiki_payload(data: Mapping[str, Any] | None) -> dict[str, Any]:
     """Guard: drop full-text fields if a caller still attached them."""
     raw = dict(data or {})
     return {key: raw[key] for key in _STUB_DATA_KEYS if key in raw}
-
-
-def rebuild_system_message(
-    messages: Sequence[BaseMessage],
-    *,
-    plane: AgentKnowledgePlane,
-    memory_slots: Mapping[str, Any] | None = None,  # noqa: ARG001
-    change_baseline: Mapping[str, Any] | None = None,  # noqa: ARG001
-) -> list[BaseMessage]:
-    from apps.chat.task.agent_prompt import build_agent_system_prompt
-
-    text = build_agent_system_prompt(knowledge_plane=plane)
-    out = list(messages)
-    if out and isinstance(out[0], SystemMessage):
-        out[0] = SystemMessage(content=text)
-    else:
-        out.insert(0, SystemMessage(content=text))
-    return out
 
 
 def _page_keys_from(data: Mapping[str, Any]) -> list[str]:

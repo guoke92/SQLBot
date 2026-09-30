@@ -6,21 +6,17 @@ import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any
-
-from sqlmodel import Session
+from typing import Any
 
 from apps.chat.models.chat_model import ChatQuestion, ChatRecord
 from apps.chat.task.llm import LLMService
 from apps.conversation.async_util import run_coro_sync
+from apps.conversation.graph_hooks import try_hydrate
 from apps.conversation.models import ConversationRun
 from apps.conversation.session import session_scope
 from apps.system.crud.user import get_user_info
 from apps.system.models.system_model import AssistantModel
 from apps.system.schemas.system_schema import AssistantHeader
-
-if TYPE_CHECKING:
-    from apps.datasource.access import AccessScope
 
 _lock = threading.RLock()
 _contexts: dict[str, dict[str, Any]] = {}
@@ -97,46 +93,8 @@ def detach_runtime(run_id: str) -> None:
         _contexts.pop(run_id, None)
 
 
-def _rehydrate_chat_access_scope(
-    session: Session, service: LLMService
-) -> AccessScope | None:
-    """Rebuild datasource access after a checkpoint resume.
-
-    Checkpoints intentionally contain no ORM-backed request objects.  Access
-    scope is therefore recomputed from the current user and datasource instead
-    of being retained in memory or serialized as stale permission data.
-    """
-    if service.ds is None:
-        from apps.chat.models.chat_model import ChatRecord, Chat
-        from apps.datasource.models.datasource import CoreDatasource
-        rec = service.get_record() if hasattr(service, 'get_record') else getattr(service, 'record', None)
-        ds_id = getattr(rec, 'datasource', None) if rec else None
-        if not ds_id and rec and getattr(rec, 'chat_id', None):
-            chat = session.get(Chat, rec.chat_id)
-            if chat:
-                ds_id = chat.datasource
-        if ds_id:
-            ds = session.get(CoreDatasource, ds_id)
-            if ds:
-                service.ds = ds
-
-    if service.ds is None:
-        return None
-
-    # Lazy imports avoid coupling runtime bootstrap to graph module order while
-    # reusing exactly the same rules as the initial chat path.
-    from apps.chat.steps.datasource import validate_history_ds
-    from apps.datasource.access import resolve_access_scope
-
-    validate_history_ds(service, session)
-    return resolve_access_scope(
-        session,
-        current_user=service.current_user,
-        ds=service.ds,
-    )
-
-
-def _hydrate_chat(run: ConversationRun) -> dict[str, Any]:
+def _rebuild_llm_service(run: ConversationRun) -> dict[str, Any]:
+    """Host-owned resume of LLMService. Product extras come from graph hydrate hooks."""
     with session_scope() as session:
         record = session.get(ChatRecord, run.chat_record_id)
         if record is None:
@@ -166,26 +124,21 @@ def _hydrate_chat(run: ConversationRun) -> dict[str, Any]:
             )
         )
         service.set_record(ChatRecord(**record.model_dump()))
-        values: dict[str, Any] = {"llm_service": service}
-        if run.graph_key == "chat":
-            scope = _rehydrate_chat_access_scope(session, service)
-            values["access_scope"] = scope
-            values["llm"] = service.llm
-            from apps.chat.agent_config import load_agent_config
-            from apps.chat.tools.registry import build_agent_tools
-
-            agent_config = load_agent_config()
-            values["agent_config"] = agent_config
-            values["bound_tools"] = build_agent_tools(
-                service, access_scope=scope, config=agent_config
-            )
-        return values
+        return {"llm_service": service}
 
 
-def _hydrate_config(run: ConversationRun) -> dict[str, Any]:
-    from apps.config_assistant.nodes import hydrate_config_runtime
-
-    return hydrate_config_runtime(run)
+def _hydrate_run(run: ConversationRun) -> dict[str, Any]:
+    """Rebuild runtime via graph-key hooks. Host never imports product tools."""
+    if run.graph_key == "config":
+        extras = try_hydrate(run.graph_key, run, None)
+        if not extras:
+            raise RuntimeError("config hydrate hook is not registered")
+        return extras
+    values = _rebuild_llm_service(run)
+    extras = try_hydrate(run.graph_key, run, values["llm_service"])
+    if extras:
+        values.update(extras)
+    return values
 
 
 def runtime_context(run_id: str) -> dict[str, Any]:
@@ -198,11 +151,7 @@ def runtime_context(run_id: str) -> dict[str, Any]:
         if run is None:
             raise LookupError(f"Conversation run {run_id} not found")
         detached = ConversationRun(**run.model_dump())
-    hydrated = (
-        _hydrate_config(detached)
-        if detached.graph_key == "config"
-        else _hydrate_chat(detached)
-    )
+    hydrated = _hydrate_run(detached)
     attach_runtime(run_id, **hydrated)
     from apps.conversation.lifecycle_log import log_lifecycle
 

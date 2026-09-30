@@ -276,7 +276,7 @@ def test_clarify_resume_message_is_chinese_and_bound(monkeypatch) -> None:
     from contextlib import contextmanager
     from unittest.mock import MagicMock
 
-    from apps.chat.graphs.nodes.agent_clarify import await_agent_clarification_node
+    from apps.chat.agent.clarify import await_agent_clarification_node
     from apps.chat.task.agent_prompt import build_agent_system_prompt
     from apps.conversation.messages import deserialize_messages
     from langchain_core.messages import HumanMessage, SystemMessage
@@ -288,17 +288,17 @@ def test_clarify_resume_message_is_chinese_and_bound(monkeypatch) -> None:
     pending = SimpleNamespace(interrupt_id="i1", version=1, status="answered")
     dummy_span = MagicMock()
     dummy_span.id = 1
-    monkeypatch.setattr("apps.chat.graphs.nodes.agent_clarify.session_scope", _scope)
+    monkeypatch.setattr("apps.chat.agent.clarify.session_scope", _scope)
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.create_interrupt",
+        "apps.chat.agent.clarify.create_interrupt",
         lambda *_a, **_k: pending,
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.ensure_clarification_span",
+        "apps.chat.agent.clarify.ensure_clarification_span",
         lambda **_k: dummy_span,
     )
     monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_clarify.interrupt",
+        "apps.chat.agent.clarify.interrupt",
         lambda _public: [{"question_id": "caliber", "option_id": "opt_a"}],
     )
     state = {

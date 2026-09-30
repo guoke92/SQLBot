@@ -23,7 +23,7 @@ from apps.conversation.process_timeline import (  # noqa: E402
     project_thought_for_view,
     tool_title_key,
 )
-from apps.chat.graphs.nodes.agent_finalize import infer_chart_for_presentation  # noqa: E402
+from apps.chat.agent.delivery import infer_chart_for_presentation  # noqa: E402
 from apps.chat.tools.execute_sql import execute_sql_sandbox  # noqa: E402
 
 
@@ -260,7 +260,7 @@ def test_chart_inference_rejects_identifier_as_measure() -> None:
 
 
 def test_select_delivery_datasets_skips_probes_untitled_replace() -> None:
-    from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
+    from apps.chat.agent.delivery import select_delivery_datasets
 
     probe = SimpleNamespace(
         dataset_id="p", required=False, status="succeeded", row_count=2
@@ -427,6 +427,7 @@ def test_fold_clarification_flow_merges_tool_and_wait_into_one_card() -> None:
                 "started_at": "2026-09-07T03:00:00",
                 "finished_at": "2026-09-07T03:00:01",
                 "summary_key": "chat.summary.tool_ok",
+                "meta": {"interrupt_required": True},
             },
             {
                 "id": 2,
@@ -472,6 +473,7 @@ def test_fold_clarification_flow_keeps_rounds_separate() -> None:
                 "status": "completed",
                 "tool": {"name": "request_clarification", "call_id": "c1"},
                 "summary_key": "chat.summary.tool_ok",
+                "meta": {"interrupt_required": True},
             },
             {
                 "id": 2,
@@ -491,6 +493,7 @@ def test_fold_clarification_flow_keeps_rounds_separate() -> None:
                 "status": "completed",
                 "tool": {"name": "request_clarification", "call_id": "c2"},
                 "summary_key": "chat.summary.tool_ok",
+                "meta": {"interrupt_required": True},
             },
             {
                 "id": 5,
@@ -636,7 +639,7 @@ def test_caliber_surface_splits_confirmed_from_assumptions() -> None:
 
 
 def test_assumptions_from_slots_are_human_readable() -> None:
-    from apps.chat.graphs.nodes.agent_finalize import _assumptions_from_slots
+    from apps.chat.agent.delivery import _assumptions_from_slots
 
     items = _assumptions_from_slots(
         {

@@ -117,7 +117,8 @@ def record_snapshot_values(
                     rows=preview,
                     llm_service=llm_service,
                     tables=[
-                        str(t) for t in (step.get("tables") or step.get("resources") or [])
+                        str(t)
+                        for t in (step.get("tables") or step.get("resources") or [])
                     ],
                 )
             except Exception as _enum_exc:  # noqa: BLE001

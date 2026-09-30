@@ -289,7 +289,17 @@ class GetDictValuesInput(BaseModel):
 
 
 class PatchSqlInput(BaseModel):
-    base_sql: str = Field(description="The existing valid base SQL to be modified.")
+    sql_ref: str = Field(
+        default="active",
+        description=(
+            'Handle for the SQL to patch: "active" (latest delivered query) '
+            "or a dataset_id. Prefer this over pasting the full statement."
+        ),
+    )
+    base_sql: str = Field(
+        default="",
+        description="Optional full SQL. When empty, sql_ref is resolved.",
+    )
     action: PatchAction = Field(
         description=(
             "Patch kind. add_dimension→payload.fields; add_filter→condition; "
@@ -398,8 +408,16 @@ class CompleteWithoutSqlInput(BaseModel):
 
 
 class CompareResultsInput(BaseModel):
+    sql_ref: str = Field(
+        default="active",
+        description=(
+            'Handle for the original SQL: "active" or a dataset_id. '
+            "Prefer this over pasting the full base statement."
+        ),
+    )
     base_sql: str = Field(
-        description="Original base SQL representing prior caliber or result."
+        default="",
+        description="Optional original SQL. When empty, sql_ref is resolved.",
     )
     new_sql: str = Field(
         description="New SQL representing the challenged or revised caliber."
@@ -473,10 +491,24 @@ def build_agent_tools(
         )
 
     def _patch_sql(
-        base_sql: str, action: str, payload: dict[str, Any]
+        action: str,
+        payload: dict[str, Any],
+        base_sql: str = "",
+        sql_ref: str = "active",
     ) -> dict[str, Any]:
+        from apps.chat.agent.tools.sql_ref import resolve_sql_handle
+        from apps.chat.tools.base import failure_result
+
         dialect = getattr(getattr(llm_service, "datasource", None), "type", None)
-        res = patch_and_compile_sql(base_sql, action, payload, dialect=dialect)
+        resolved = resolve_sql_handle(sql=base_sql, sql_ref=sql_ref)
+        if not resolved:
+            return dict(
+                failure_result(
+                    "sql_ref could not be resolved; pass base_sql or execute SQL first",
+                    retryable=True,
+                )
+            )
+        res = patch_and_compile_sql(resolved, action, payload, dialect=dialect)
         return dict(res)
 
     def _execute_sql(
@@ -498,11 +530,25 @@ def build_agent_tools(
         return dict(res)
 
     def _compare_results(
-        base_sql: str, new_sql: str, hypothesis: str = ""
+        new_sql: str,
+        hypothesis: str = "",
+        base_sql: str = "",
+        sql_ref: str = "active",
     ) -> dict[str, Any]:
+        from apps.chat.agent.tools.sql_ref import resolve_sql_handle
+        from apps.chat.tools.base import failure_result
+
+        resolved = resolve_sql_handle(sql=base_sql, sql_ref=sql_ref)
+        if not resolved:
+            return dict(
+                failure_result(
+                    "sql_ref could not be resolved; pass base_sql or execute SQL first",
+                    retryable=True,
+                )
+            )
         res = compare_query_results(
             llm_service,
-            base_sql,
+            resolved,
             new_sql,
             hypothesis=hypothesis,
             access_scope=access_scope,
@@ -590,8 +636,9 @@ def build_agent_tools(
             description=(
                 "Incrementally patch an existing valid SQL (follow-up caliber edits). "
                 "Call for add_dimension / add_filter / replace_filter / change_limit / "
-                "change_order. Do not use for a brand-new query — write SQL and "
-                "execute_sql_sandbox instead."
+                "change_order. Pass sql_ref='active' (default) or a dataset_id instead "
+                "of repeating the full statement. Do not use for a brand-new query — "
+                "write SQL and execute_sql_sandbox instead."
             ),
             args_schema=PatchSqlInput,
         ),
@@ -614,6 +661,7 @@ def build_agent_tools(
             description=(
                 "Compare result sets of a base SQL and a revised SQL. Call when "
                 "the user challenges numbers or a caliber change must be verified. "
+                "Pass sql_ref='active' (default) or a dataset_id for the original SQL. "
                 "Do not use as the delivery exit — follow with execute_sql_sandbox "
                 "or complete_without_sql."
             ),

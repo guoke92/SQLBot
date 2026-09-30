@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from apps.chat.agent.close import delivery_from_state
 from apps.chat.tools.base import failure_result, success_result
 from apps.conversation.runtime_context import current_worker_identity, peek_runtime
 from apps.conversation.tooling import ToolResult
@@ -17,7 +18,7 @@ def _sql_already_delivered() -> bool:
     if not run_id:
         return False
     snap = peek_runtime(run_id) or {}
-    return bool(snap.get("sql_delivered"))
+    return delivery_from_state({**snap, "run_id": run_id}).has_artifacts
 
 
 def complete_without_sql(content: str) -> ToolResult:

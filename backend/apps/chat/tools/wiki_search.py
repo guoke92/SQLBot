@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from apps.chat.agent.knowledge import load_plane, stage_plane
 from apps.chat.agent_knowledge import (
     SEARCH_WIKI_ROUND_LIMIT,
     WIKI_SCHEMA_GAP_SEARCH_LIMIT,
@@ -14,28 +15,8 @@ from apps.chat.agent_knowledge import (
 )
 from apps.chat.steps.wiki_recall import retrieve_wiki_context
 from apps.chat.tools.base import failure_result, success_result
-from apps.conversation.runtime_context import (
-    attach_runtime,
-    current_worker_identity,
-    peek_runtime,
-)
 from apps.conversation.tooling import ToolResult
 from common.utils.utils import SQLBotLogUtil
-
-
-def _load_plane() -> AgentKnowledgePlane:
-    run_id, _token = current_worker_identity()
-    if not run_id:
-        return AgentKnowledgePlane()
-    snap = peek_runtime(run_id) or {}
-    return AgentKnowledgePlane.from_dump(snap.get("knowledge_plane"))
-
-
-def _save_plane(plane: AgentKnowledgePlane) -> None:
-    run_id, _token = current_worker_identity()
-    if not run_id:
-        return
-    attach_runtime(run_id, knowledge_plane=plane.to_dump())
 
 
 def _filter_payload_tables(payload: dict[str, Any], kept: list[str]) -> dict[str, Any]:
@@ -280,9 +261,8 @@ def _comprehensive_message(
         gap = int(stub.get("schema_gap_searches") or 0)
         extra = (
             f"已连续 {gap} 次没有表/枚举结构，换更具体的业务检索词，或 complete_without_sql。"
-            if gap >= _loop_param(
-                "wiki_schema_gap_search_limit", WIKI_SCHEMA_GAP_SEARCH_LIMIT
-            )
+            if gap
+            >= _loop_param("wiki_schema_gap_search_limit", WIKI_SCHEMA_GAP_SEARCH_LIMIT)
             else "换更具体的检索词再 search_wiki，或 complete_without_sql。"
         )
         return _with_pace(
@@ -425,14 +405,14 @@ def search_wiki_knowledge(
         return failure_result("Query cannot be empty for Wiki search", retryable=True)
 
     try:
-        plane = _load_plane()
+        plane = load_plane()
         human = _human_question(llm_service, plane, clean_query)
         if human and not plane.question:
             plane.question = human
         dropped: dict[str, list[str]] = {"tables": [], "pages": []}
         if drop_keys:
             dropped = plane.exclude_knowledge(drop_keys)
-            _save_plane(plane)
+            stage_plane(plane)
         if not clean_query:
             stub = search_wiki_stub(
                 delta=MergeDelta(unchanged=True, schema_ready=plane.schema_ready),
@@ -467,7 +447,7 @@ def search_wiki_knowledge(
                     "dropped_tables": dropped["tables"],
                     "dropped_pages": dropped["pages"],
                 }
-            _save_plane(plane)
+            stage_plane(plane)
             stub = search_wiki_stub(
                 delta=delta,
                 policy=policy,
@@ -497,7 +477,7 @@ def search_wiki_knowledge(
                 "dropped_tables": dropped["tables"],
                 "dropped_pages": dropped["pages"],
             }
-        _save_plane(plane)
+        stage_plane(plane)
 
         stub = search_wiki_stub(
             delta=delta,

@@ -4,7 +4,8 @@ from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage
 
-from apps.chat.graphs.nodes.unified_agent import route_after_tools_execution
+from apps.chat.agent.loop import route_after_tools_execution
+from apps.chat.agent.tools.runtime import execute_tools_node
 from apps.chat.semantic_planning import ClarificationCard
 from apps.chat.task.agent_prompt import (
     _SYSTEM_PROMPT_TEMPLATE,
@@ -16,7 +17,6 @@ from apps.chat.tools.registry import (
     RequestClarificationInput,
     build_agent_tools,
 )
-from apps.conversation.tooling import execute_tools_node
 
 
 def test_clarification_tool_creates_interrupt_payload():
@@ -102,12 +102,16 @@ def test_execute_tools_preserves_clarification_card_and_routes_to_interrupt(
     }
 
     monkeypatch.setattr(
-        "apps.conversation.tooling.open_process_span",
+        "apps.chat.agent.tools.runtime.open_process_span",
         lambda **_k: None,
     )
     monkeypatch.setattr(
-        "apps.conversation.tooling.attach_process_span",
+        "apps.chat.agent.tools.runtime.attach_process_span",
         lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        "apps.chat.agent.tools.runtime.attach_running_tool_span",
+        lambda **_k: None,
     )
 
     # 执行 execute_tools_node

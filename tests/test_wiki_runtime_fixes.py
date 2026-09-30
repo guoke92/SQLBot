@@ -31,6 +31,17 @@ from apps.chat.steps.wiki_recall import (  # noqa: E402
 from apps.knowledge.wiki.chunker import chunk_markdown  # noqa: E402
 from apps.knowledge.wiki.contract import parse_page  # noqa: E402
 
+_WIKI_EXAMPLES = _ROOT / "docs" / "wiki-knowledge" / "examples"
+
+
+def _load_wiki_examples():
+    pages = sorted(_WIKI_EXAMPLES.glob("*.md")) if _WIKI_EXAMPLES.is_dir() else []
+    if not pages:
+        pytest.skip("docs/wiki-knowledge/examples corpus is not present")
+    from apps.knowledge.wiki.recall import InMemoryWikiStore
+
+    return InMemoryWikiStore.load([path.read_text() for path in pages])
+
 
 # ── SQL 别名回解 + 枚举翻译重挂 ──────────────────────────────────────
 
@@ -405,12 +416,9 @@ def test_recall_budget_replaces_wiki_supplement_knobs() -> None:
 
 def test_recall_fills_trace_stages() -> None:
     """recall trace_out：可见页数→通道→页融合→窗口→图份额全链路中间量。"""
-    from apps.knowledge.wiki.recall import InMemoryWikiStore, recall
+    from apps.knowledge.wiki.recall import recall
 
-    examples = _ROOT / "docs" / "wiki-knowledge" / "examples"
-    store = InMemoryWikiStore.load(
-        [p.read_text() for p in sorted(examples.glob("*.md"))]
-    )
+    store = _load_wiki_examples()
     trace: dict = {}
     passages = recall(
         "提取25年6月之前认证方式是平台录入 建档的企业清单",
@@ -446,12 +454,9 @@ def test_recall_fills_trace_stages() -> None:
 
 def test_recall_trace_physical_mode_no_graph() -> None:
     """physical 模式早退路径同样填 trace（无图扩展）。"""
-    from apps.knowledge.wiki.recall import InMemoryWikiStore, recall
+    from apps.knowledge.wiki.recall import recall
 
-    examples = _ROOT / "docs" / "wiki-knowledge" / "examples"
-    store = InMemoryWikiStore.load(
-        [p.read_text() for p in sorted(examples.glob("*.md"))]
-    )
+    store = _load_wiki_examples()
     trace: dict = {}
     recall(
         "平台录入",
@@ -470,12 +475,8 @@ def test_recall_trace_physical_mode_no_graph() -> None:
 def test_anchor_table_attribution_traces_closure_sources() -> None:
     """闭包表归因：表 ← 命中页 + 契约字段（anchors/field_targets/maps_to）。"""
     from apps.knowledge.wiki.anchors import anchor_table_attribution
-    from apps.knowledge.wiki.recall import InMemoryWikiStore
 
-    examples = _ROOT / "docs" / "wiki-knowledge" / "examples"
-    store = InMemoryWikiStore.load(
-        [p.read_text() for p in sorted(examples.glob("*.md"))]
-    )
+    store = _load_wiki_examples()
     attribution = anchor_table_attribution(store, ["cust_build_type", "平台录入"])
     sources = attribution.get("cust_company_info", [])
     assert sources, "表页应至少被自己的子契约页归因"
@@ -695,7 +696,7 @@ def test_retrieve_wiki_context_keeps_usable_wiki_without_schema_mix(
 
 
 def test_select_delivery_datasets_drops_empty_when_later_has_rows() -> None:
-    from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
+    from apps.chat.agent.delivery import select_delivery_datasets
 
     empty = SimpleNamespace(
         dataset_id="empty", required=True, status="succeeded", row_count=0, rows=[]
@@ -715,7 +716,7 @@ def test_select_delivery_datasets_drops_empty_when_later_has_rows() -> None:
 
 
 def test_select_delivery_datasets_keeps_last_when_all_empty() -> None:
-    from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
+    from apps.chat.agent.delivery import select_delivery_datasets
 
     first = SimpleNamespace(
         dataset_id="a", required=True, status="succeeded", row_count=0
@@ -782,6 +783,9 @@ def test_search_wiki_returns_schema_vector_hits(monkeypatch) -> None:
         },
     )
     llm = SimpleNamespace(ds=SimpleNamespace(id=8))
+    from apps.chat.agent.knowledge import take_working
+
+    take_working()
     out = ws.search_wiki_knowledge(llm, "每月 task 数")
     assert out["ok"] is True
     assert out["data"]["tables"] == ["d_task"]

@@ -12,7 +12,7 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.chat.delivery import delivery_slot_key, select_delivery_datasets
-from apps.chat.graphs.nodes.agent_finalize import (
+from apps.chat.agent.delivery import (
     select_delivery_datasets as reexported,
 )
 

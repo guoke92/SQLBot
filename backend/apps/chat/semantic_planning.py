@@ -16,7 +16,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    TypeAdapter,
     ValidationError,
     model_validator,
 )
@@ -393,78 +392,3 @@ def constrain_clarification_by_rules(
                 options.append(option)
         questions.append(question.model_copy(update={"options": options}))
     return card.model_copy(update={"questions": questions}) if changed else card
-
-
-class QueryDescription(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    description: str = ""
-    sql: str | None = None
-    request: dict[str, Any] | None = None
-
-    @model_validator(mode="after")
-    def validate_payload(self) -> Self:
-        self.description = " ".join(self.description.split()).strip()
-        if bool(self.sql and self.sql.strip()) == bool(self.request):
-            raise ValueError("Each query requires exactly one SQL or REST request")
-        if self.sql is not None:
-            self.sql = self.sql.strip()
-        return self
-
-
-class NeedClarification(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    decision: Literal["clarify"] = "clarify"
-    questions: list[ClarificationQuestion] = Field(
-        min_length=1, max_length=MAX_CLARIFICATION_QUESTIONS
-    )
-    missing_concepts: list[str] = Field(default_factory=list, max_length=8)
-
-    @model_validator(mode="before")
-    @classmethod
-    def coerce_payload(cls, value: Any) -> Any:
-        if not isinstance(value, dict):
-            return value
-        return {
-            "decision": value.get("decision") or "clarify",
-            "questions": unsigned_clarification_questions(
-                coerce_clarification_questions(value)
-            ),
-            "missing_concepts": value.get("missing_concepts") or [],
-        }
-
-    def as_card(self) -> ClarificationCard:
-        return ClarificationCard(questions=self.questions)
-
-
-class Ready(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    decision: Literal["ready"] = "ready"
-    queries: list[QueryDescription] = Field(min_length=1)
-
-
-class QueryUnsupported(BaseModel):
-    """A query-shaped turn that cannot be answered by the selected context."""
-
-    model_config = ConfigDict(extra="ignore")
-    decision: Literal["unsupported"] = "unsupported"
-    message: str
-    reason_code: str = "QUERY_NOT_SUPPORTED"
-    # Concepts the planner claims are missing (e.g. "组织/部门表"). The plan
-    # gate verifies each against the catalog map / value index before the
-    # terminal negative is allowed to stand; empty on a first attempt is a
-    # protocol gap and bounces once.
-    missing_concepts: list[str] = Field(default_factory=list, max_length=8)
-
-    @model_validator(mode="after")
-    def validate_message(self) -> Self:
-        self.message = " ".join(self.message.split()).strip()
-        self.reason_code = self.reason_code.strip().upper() or "QUERY_NOT_SUPPORTED"
-        if not self.message:
-            raise ValueError(
-                "Unsupported query decision requires a user-facing message"
-            )
-        return self
-
-
-PlanningDecision = NeedClarification | Ready | QueryUnsupported
-PLANNING_DECISION_ADAPTER = TypeAdapter(PlanningDecision)

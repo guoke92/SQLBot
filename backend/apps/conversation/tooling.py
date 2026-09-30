@@ -10,13 +10,7 @@ from typing import Any, TypedDict, cast
 import orjson
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
-from apps.chat.agent_knowledge import (
-    KNOWLEDGE_BUDGET_SKIP,
-    KNOWLEDGE_TOOLS,
-    AgentKnowledgePlane,
-)
 from apps.chat.steps.observability import sanitize_audit_value
-from apps.chat.tools.metadata import get_tool_title_key
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.outcome import FailureInfo, FailureKind, classify_failure
 from apps.conversation.process_timeline import (
@@ -27,8 +21,6 @@ from apps.conversation.process_timeline import (
     preview_rows,
 )
 from apps.conversation.runtime_context import (
-    attach_runtime,
-    peek_runtime,
     runtime_value,
     tool_call_scope,
 )
@@ -454,7 +446,7 @@ def render_tool_message(name: str, result: Mapping[str, Any]) -> str:
     """Compact plaintext for the model. Never dump the ToolResult JSON envelope."""
     if not result.get("ok"):
         err = str(result.get("error") or result.get("summary") or "failed").strip()
-        return f"失败：{err}"
+        return f"Failed: {err}"
     data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
     if not isinstance(data, Mapping):
         data = {}
@@ -586,12 +578,6 @@ def _render_plain(value: Any, *, indent: int) -> str:
     return str(value)
 
 
-def _tool_message_skipped(message: ToolMessage) -> bool:
-    payload = tool_result_from_message(message)
-    data = payload.get("data") if isinstance(payload.get("data"), Mapping) else {}
-    return isinstance(data, Mapping) and data.get("skipped") == KNOWLEDGE_BUDGET_SKIP
-
-
 def _truncate_for_log(value: Any, limit: int = _LOG_RESULT_LIMIT) -> Any:
     text = orjson.dumps(value, default=str).decode()
     if len(text) <= limit:
@@ -614,7 +600,7 @@ def _knowledge_tool_close(
 ) -> tuple[str, dict[str, Any]]:
     """Knowledge tools report hit counts; skipped budget is not a failure."""
     data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-    if isinstance(data, Mapping) and data.get("skipped") == KNOWLEDGE_BUDGET_SKIP:
+    if isinstance(data, Mapping) and data.get("skipped") == "knowledge_budget":
         return "chat.summary.tool_skipped", {"tool": name}
     if not result.get("ok"):
         return "chat.summary.tool_failed", {"tool": name}
@@ -696,6 +682,8 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 sink=sink,
             )
         if span is None and record_id:
+            from apps.chat.tools.metadata import get_tool_title_key
+
             span = open_process_span(
                 kind="tool",
                 record_id=record_id,
@@ -844,31 +832,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             elif consecutive_failures >= 2:
                 stop_reason = f"{name} repeated the same failed call"
 
-    run_id = str(state.get("run_id") or "")
-    snap = peek_runtime(run_id) if run_id else None
-    plane = AgentKnowledgePlane.from_dump(
-        (snap or {}).get("knowledge_plane") or state.get("knowledge_plane")
-    )
-    probe_sql_calls = int(
-        (snap or {}).get("probe_sql_calls")
-        if snap and snap.get("probe_sql_calls") is not None
-        else (state.get("probe_sql_calls") or 0)
-    )
-    if run_id:
-        attach_runtime(
-            run_id,
-            knowledge_plane=plane.to_dump(),
-            probe_sql_calls=probe_sql_calls,
-        )
-
     outgoing = [*messages, *tool_messages]
-    knowledge_used = any(
-        getattr(item, "name", "") in KNOWLEDGE_TOOLS
-        and not _tool_message_skipped(item)
-        for item in tool_messages
-    )
-    if knowledge_used:
-        plane.knowledge_rounds = int(plane.knowledge_rounds or 0) + 1
 
     return {
         **state,
@@ -877,6 +841,4 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "last_tool_failure_signature": previous_failure,
         "consecutive_tool_failures": consecutive_failures,
         "tool_stop_reason": stop_reason,
-        "knowledge_plane": plane.to_dump(),
-        "probe_sql_calls": probe_sql_calls,
     }

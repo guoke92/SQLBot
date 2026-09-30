@@ -46,6 +46,7 @@ class ChatTurnState(RunState, total=False):
     last_tool_failure_signature: str
     consecutive_tool_failures: int
     analysis_incomplete: bool
+    turn_delivery: dict[str, Any]
     ai_modal_id: Any
     ai_modal_name: str
     reference_record_ids: list[int]

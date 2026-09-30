@@ -2,12 +2,33 @@
 
 from __future__ import annotations
 
+from apps.chat.agent.context import recap_from_turn_answer
 from apps.chat.memory_slots import (
     MemorySlots,
     answer_has_executable_sql,
     hydrate_memory_slots_from_referenced_turns,
 )
 from apps.chat.turn_contracts import TurnRoute
+
+
+def test_recap_from_turn_answer_reads_sql_and_calibers() -> None:
+    recap = recap_from_turn_answer(
+        {
+            "status": "succeeded",
+            "content": "本月签约 12 单",
+            "datasets": [
+                {"sql": "SELECT 1", "dataset_id": "ds-old"},
+                {"sql": "SELECT id FROM t", "dataset_id": "ds-new"},
+            ],
+            "confirmed_calibers": [{"question": "口径", "label": "签约"}],
+            "assumptions": [{"label": "排除已注销"}],
+            "knowledge_refs": {"page_keys": ["p1"], "tables": ["t"]},
+        }
+    )
+    assert recap["sql"] == "SELECT id FROM t"
+    assert recap["dataset_id"] == "ds-new"
+    assert recap["confirmed_calibers"][0]["label"] == "签约"
+    assert recap["knowledge_refs"]["page_keys"] == ["p1"]
 
 
 def test_answer_has_executable_sql_requires_succeeded_dataset() -> None:

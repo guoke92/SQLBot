@@ -114,7 +114,7 @@ const currentAction = computed(() => {
   })
   if (!running) return t('chat.timeline.thinking')
   if (running.type === 'thought') return t('chat.timeline.thinking')
-  return running.item.title || t('chat.timeline.tool.generic')
+  return running.item.title || t('chat.timeline.thinking')
 })
 
 watch(
@@ -209,6 +209,9 @@ function isExpanded(block: NarrativeBlock): boolean {
 
 function blockTitle(block: NarrativeBlock): string {
   if (block.type === 'thought') {
+    if (block.item.meta?.compact === true || block.item.thought?.source === 'compact') {
+      return block.item.title || t('chat.timeline.thought')
+    }
     if (isStreamingThought(block)) {
       return t('chat.timeline.thinking')
     }
@@ -221,7 +224,7 @@ function blockTitle(block: NarrativeBlock): string {
   if (block.type === 'clarification') {
     return block.item.title || t('chat.timeline.clarification')
   }
-  return block.item.title || block.item.title_key || t('chat.timeline.tool.generic')
+  return block.item.title || t('chat.timeline.thinking')
 }
 
 function blockSummary(block: NarrativeBlock): string {

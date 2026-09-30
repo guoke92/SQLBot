@@ -9,6 +9,8 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from langgraph.types import interrupt
 
+from apps.chat.agent.close import clear_interrupt, delivery_from_state
+from apps.chat.agent.tools.effect import step_signals
 from apps.chat.agent_knowledge import AgentKnowledgePlane
 from apps.chat.caliber_surface import render_caliber_lines
 from apps.conversation.messages import deserialize_messages, serialize_messages
@@ -25,8 +27,10 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
     card_payload: dict[str, Any] = {}
 
     for step in reversed(state.get("tool_steps") or []):
-        if isinstance(step, Mapping):
-            data = step.get("result", {}).get("data") or {}
+        if not isinstance(step, Mapping):
+            continue
+        if step_signals(step).interrupt:
+            data = (step.get("result") or {}).get("data") or {}
             if isinstance(data, Mapping) and data.get("clarification_card"):
                 card_payload = data["clarification_card"]
                 break
@@ -159,14 +163,24 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
     plane.drop_resolved_conflicts(confirmed)
-    messages = plane.apply_to_system_message(messages)
+    # Do not rewrite the system message here. agent_loop re-injects the
+    # prompt (schema_outline + confirmed calibers) on the next model round.
+    steps: list[dict[str, Any]] = []
+    for step in state.get("tool_steps") or []:
+        if not isinstance(step, Mapping):
+            continue
+        item = dict(step)
+        if step_signals(item).interrupt:
+            item["superseded"] = True
+        steps.append(item)
+    delivery = clear_interrupt(delivery_from_state(state))
 
     return {
         **state,
         "messages": serialize_messages(messages),
         "memory_slots": raw_slots,
         "knowledge_plane": plane.to_dump(),
-        "tool_steps": [],  # reset tool steps to avoid re-triggering clarify
-        "tool_rounds": 0,
+        "tool_steps": steps,
+        "turn_delivery": delivery.model_dump(),
         "tool_stop_reason": "",
     }

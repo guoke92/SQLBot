@@ -109,9 +109,9 @@ GRAPH_SPEC_DIR=
 - **No side-effect registration**: Graph modules no longer call
   `register_graph()` at import time. All registration goes through
   `bootstrap_graphs()` reading YAML.
-- **Nodes extracted**: Chat implementations live in `apps.chat.graphs.nodes.*`
-  (`unified_agent`, `agent_finalize`, `agent_clarify`) plus
-  `apps.chat.graphs.turn_init` / `turn_failure`. Config/metadata graphs
+- **Nodes extracted**: Chat implementations live in `apps.chat.agent.*`
+  (`loop`, `delivery`, `clarify`, `tools.runtime`) plus init/fail helpers.
+  Config/metadata graphs
   reuse `apps.conversation.agent`, `apps.conversation.tooling`, and
   `apps.conversation.turn`; `apps.config_assistant.nodes` only prepares
   configuration-specific state.

@@ -13,7 +13,6 @@ from apps.chat.result_quality import build_overall_quality
 from apps.conversation.outcome import (
     RunOutcome,
     failed_outcome,
-    public_error_message,
 )
 from apps.conversation.run_service import finalize_run
 from apps.conversation.session import session_scope
@@ -90,7 +89,7 @@ def persist_query_terminal_failure(
                     failure_retryable=failure_retryable,
                     execution_mode=cast(
                         Literal["verified", "unverified", "agent"],
-                        state.get("execution_mode") or "verified",
+                        state.get("execution_mode") or "agent",
                     ),
                 ),
                 error_summary=error_summary,
@@ -102,48 +101,7 @@ def persist_query_terminal_failure(
 
 
 def fail_node(state: Mapping[str, Any]) -> dict[str, Any]:
-    """Persist the canonical empty answer before emitting terminal failure."""
-    try:
-        from apps.chat.graphs.nodes.agent_finalize import (
-            finalize_agent_turn_node,
-            has_publishable_query_result,
-        )
+    """Delegate to the product-agent delivery fail node (single salvage predicate)."""
+    from apps.chat.agent.delivery import fail_node as _fail
 
-        if has_publishable_query_result(state):
-            salvaged = finalize_agent_turn_node(
-                {
-                    **dict(state),
-                    "error": None,
-                    "public_error": None,
-                    "analysis_incomplete": True,
-                }
-            )
-            if not salvaged.get("error"):
-                return salvaged
-    except Exception as salvage_exc:
-        SQLBotLogUtil.warning(f"query salvage on fail skipped: {salvage_exc}")
-
-    error = str(state.get("error") or "unknown error")
-    public_error = str(state.get("public_error") or public_error_message(error))
-    current_outcome = state.get("outcome")
-    outcome = (
-        cast(RunOutcome, dict(current_outcome))
-        if current_outcome and current_outcome.get("status") != "running"
-        else None
-    )
-    outcome = persist_query_terminal_failure(
-        state,
-        error_summary=error,
-        public_error=public_error,
-        outcome=outcome,
-    )
-    StreamSink.from_state(state).error(public_error)
-    failed = {**dict(state), "error": error, "outcome": outcome}
-    if not failed.get("agent_transcript_saved"):
-        try:
-            from apps.chat.session_transcript import persist_turn_from_state
-
-            failed["agent_transcript_saved"] = persist_turn_from_state(failed)
-        except Exception as exc:
-            SQLBotLogUtil.warning(f"agent_transcript append skipped: {exc}")
-    return failed
+    return _fail(state)

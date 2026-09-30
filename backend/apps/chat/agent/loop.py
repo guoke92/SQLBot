@@ -7,14 +7,15 @@ from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, SystemMessage
 
+from apps.chat.agent.budget import budget_from_state, calls_count_as_execution
+from apps.chat.agent.close import compute_verdict
+from apps.chat.agent.delivery import has_turn_result, incomplete_query_message
+from apps.chat.agent.init import init_agent_turn
+from apps.chat.agent.knowledge import cache_from_state
 from apps.chat.agent_copy import (
     compact_agent_final_text,
     truncated_display_note,
     truncation_from_tool_steps,
-)
-from apps.chat.agent_knowledge import (
-    EXECUTION_ROUND_LIMIT,
-    tool_calls_advance_round,
 )
 from apps.chat.steps.stream import consume_llm
 from apps.chat.tools.metadata import get_tool_title_key
@@ -28,7 +29,7 @@ from apps.conversation.outcome import (
 )
 from apps.conversation.process_timeline import open_process_span
 from apps.conversation.run_service import ConversationRunCancelled
-from apps.conversation.runtime_context import attach_runtime, runtime_value
+from apps.conversation.runtime_context import runtime_value
 from apps.conversation.sink import StreamSink
 from apps.conversation.tooling import (
     attach_tool_calls,
@@ -36,14 +37,8 @@ from apps.conversation.tooling import (
     resolve_message_tool_calls,
     sanitize_messages_for_model,
     tool_calls_from_message,
-    tool_result_from_message,
 )
 from common.utils.utils import SQLBotLogUtil
-
-_INCOMPLETE_NO_DATA_KEY = "i18n_chat.agent.incomplete_no_data"
-_INCOMPLETE_NO_DATA_FALLBACK = (
-    "这次没能查出结果。请换个问法试试，或确认数据源表结构已同步。"
-)
 
 
 def _messages_for_audit(messages: Sequence[Any]) -> list[dict[str, Any]]:
@@ -73,63 +68,10 @@ def _query_requires_data(state: Mapping[str, Any]) -> bool:
     return kind == "query"
 
 
-def _required_sql_payload(data: Mapping[str, Any] | Any) -> bool:
-    if not isinstance(data, Mapping) or not data.get("sql"):
-        return False
-    return data.get("required") is not False
-
-
-def _messages_for_current_turn(
-    state: Mapping[str, Any], messages: Sequence[Any]
-) -> Sequence[Any]:
-    """Slice to this turn only — same window as ``persist_turn_from_state``.
-
-    Continued chats preload prior ``execute_sql_sandbox`` ToolMessages in the
-    transcript. Completeness checks must not treat those as this turn's result.
-    """
-    start = state.get("turn_message_start")
-    if start is None:
-        return messages
-    try:
-        idx = int(start)
-    except (TypeError, ValueError):
-        return messages
-    if idx <= 0:
-        return messages
-    if idx >= len(messages):
-        return []
-    return messages[idx:]
-
-
-def _agent_has_sql_result(state: Mapping[str, Any], messages: Sequence[Any]) -> bool:
-    """True when *this turn* produced a required=true SQL success.
-
-    ``tool_steps`` is already turn-local. Message history may include prior
-    turns via ``agent_transcript``; only messages from ``turn_message_start``
-    count. Probes (``required=false``) never count.
-    """
-    for step in state.get("tool_steps") or []:
-        if not isinstance(step, Mapping) or not step.get("ok"):
-            continue
-        data = (step.get("result") or {}).get("data") or {}
-        if _required_sql_payload(data):
-            return True
-    for message in _messages_for_current_turn(state, messages):
-        if str(getattr(message, "name", "") or "") != "execute_sql_sandbox":
-            continue
-        payload = tool_result_from_message(message)
-        if not payload or payload.get("ok") is False:
-            continue
-        data = payload.get("data") if isinstance(payload.get("data"), Mapping) else {}
-        if _required_sql_payload(data):
-            return True
-    return False
-
-
 def _incomplete_query_state(
     state: Mapping[str, Any], messages: Sequence[Any]
 ) -> dict[str, Any]:
-    text = _incomplete_query_message(state)
+    text = incomplete_query_message(state)
     return {
         **state,
         "messages": serialize_messages(list(messages)),
@@ -141,24 +83,9 @@ def _incomplete_query_state(
     }
 
 
-def _incomplete_query_message(state: Mapping[str, Any]) -> str:
-    try:
-        llm_service = runtime_value(state, "llm_service")
-        trans = getattr(llm_service, "trans", None)
-        if callable(trans):
-            text = str(trans(_INCOMPLETE_NO_DATA_KEY) or "").strip()
-            if text and text != _INCOMPLETE_NO_DATA_KEY:
-                return text
-    except Exception:
-        pass
-    return _INCOMPLETE_NO_DATA_FALLBACK
-
-
 def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Autonomous ReAct loop node: streams thought, calls tools, or finalizes."""
     if state.get("turn_message_start") is None and not state.get("error"):
-        from apps.chat.graphs.turn_init import init_agent_turn
-
         state = init_agent_turn(state)
         if state.get("error"):
             return dict(state)
@@ -166,25 +93,35 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     sink = StreamSink.from_state(state)
     messages = deserialize_messages(list(state.get("messages") or []))
     messages = sanitize_messages_for_model(messages)
+    if messages:
+        from langchain_core.messages import SystemMessage as _SystemMessage
+
+        from apps.chat.agent.prompt import build_agent_system_prompt
+
+        rebuilt = _SystemMessage(
+            content=build_agent_system_prompt(
+                knowledge_plane=state.get("knowledge_plane")
+            )
+        )
+        if isinstance(messages[0], _SystemMessage):
+            messages[0] = rebuilt
+        else:
+            messages = [rebuilt, *messages]
     tools = list(runtime_value(state, "bound_tools") or [])
     rounds = int(state.get("tool_rounds") or 0)
-    round_limit = int(state.get("tool_round_limit") or EXECUTION_ROUND_LIMIT)
+    budget = budget_from_state(state)
+    round_limit = budget.execution_limit
     record_id = state.get("record_id")
     run_id = str(state.get("run_id") or "") or None
     llm = runtime_value(state, "llm")
-    stop_reason = str(state.get("tool_stop_reason") or "")
-    if run_id:
-        attach_runtime(
-            str(run_id),
-            knowledge_plane=dict(state.get("knowledge_plane") or {}),
-            probe_sql_calls=int(state.get("probe_sql_calls") or 0),
-        )
+    stop_reason = budget.stop_reason
+    cache_from_state(state)
 
     finalizing = bool(stop_reason) or rounds >= round_limit
     if (
         finalizing
         and _query_requires_data(state)
-        and not _agent_has_sql_result(state, messages)
+        and not has_turn_result(state, messages)
     ):
         return _incomplete_query_state(state, messages)
 
@@ -277,7 +214,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         recovered_calls = bool(calls) and not native_calls
         if finalizing:
             if recovered_calls or looks_like_tool_markup(call.content):
-                text = text.strip() or _incomplete_query_message(state)
+                text = text.strip() or incomplete_query_message(state)
             calls = []
         elif recovered_calls and response is not None:
             response = attach_tool_calls(response, calls, text)
@@ -314,7 +251,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         SQLBotLogUtil.error(f"agent loop error: {exc}")
         if thought_span is not None:
             thought_span.close(status="failed", summary_key="chat.audit.step_failed")
-        if _agent_has_sql_result(state, messages):
+        if has_turn_result(state, messages):
             return _salvage_after_summary_failure(state, messages)
         return {
             **state,
@@ -323,7 +260,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         }
 
     if response is None:
-        if _agent_has_sql_result(state, messages):
+        if has_turn_result(state, messages):
             return _salvage_after_summary_failure(state, messages)
         return {
             **state,
@@ -354,7 +291,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             if tool_span is not None and call_id:
                 open_tool_spans[call_id] = tool_span.id
-        advanced_rounds = rounds + 1 if tool_calls_advance_round(calls) else rounds
+        advanced_rounds = rounds + 1 if calls_count_as_execution(calls) else rounds
         return {
             **state,
             "messages": serialize_messages(updated_messages),
@@ -367,9 +304,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     ):
         return _incomplete_query_state(state, updated_messages)
 
-    if _query_requires_data(state) and not _agent_has_sql_result(
-        state, updated_messages
-    ):
+    if _query_requires_data(state) and not has_turn_result(state, updated_messages):
         return _incomplete_query_state(state, updated_messages)
 
     truncated, limit = truncation_from_tool_steps(state.get("tool_steps"))
@@ -432,30 +367,16 @@ def _salvage_after_summary_failure(
 def route_after_agent_loop(
     state: Mapping[str, Any],
 ) -> Literal["execute_tools", "finalize_turn", "fail"]:
-    messages = deserialize_messages(list(state.get("messages") or []))
-    if state.get("error"):
-        if _agent_has_sql_result(state, messages) or state.get("analysis_incomplete"):
-            return "finalize_turn"
-        return "fail"
-    if messages:
-        last = messages[-1]
-        if isinstance(last, AIMessage) and getattr(last, "tool_calls", None):
-            return "execute_tools"
-    return "finalize_turn"
+    action = compute_verdict(state, phase="after_loop").action
+    if action in {"execute_tools", "finalize_turn", "fail"}:
+        return action  # type: ignore[return-value]
+    return "fail"
 
 
 def route_after_tools_execution(
     state: Mapping[str, Any],
 ) -> Literal["agent_loop", "await_clarification", "finalize_turn", "fail"]:
-    if state.get("error"):
-        return "fail"
-    from apps.chat.tools.complete_answer import has_terminal_text_answer
-
-    for step in state.get("tool_steps") or []:
-        if isinstance(step, Mapping):
-            data = step.get("result", {}).get("data") or {}
-            if isinstance(data, Mapping) and data.get("interrupt_required"):
-                return "await_clarification"
-    if has_terminal_text_answer(state.get("tool_steps")):
-        return "finalize_turn"
-    return "agent_loop"
+    action = compute_verdict(state, phase="after_tools").action
+    if action in {"agent_loop", "await_clarification", "finalize_turn", "fail"}:
+        return action  # type: ignore[return-value]
+    return "fail"

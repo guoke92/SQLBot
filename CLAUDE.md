@@ -132,7 +132,7 @@ Out of scope for backend work, but worth knowing: the chat API streams chunks th
 
 - FastAPI app + middleware wiring: `backend/main.py`
 - API surface: `backend/apps/api.py`
-- The hot path: `backend/graphs/current/chat.yaml`, `backend/apps/chat/api/chat.py`, `backend/apps/chat/graphs/nodes/unified_agent.py`, `backend/apps/chat/task/llm.py` (`LLMService` factory)
+- The hot path: `backend/graphs/current/chat.yaml`, `backend/apps/chat/api/chat.py`, `backend/apps/chat/agent/loop.py`, `backend/apps/chat/task/llm.py` (`LLMService` factory)
 - LLM + embedding factories: `backend/apps/ai_model/model_factory.py`, `backend/apps/ai_model/embedding.py`
 - Auth: `backend/apps/system/middleware/auth.py`, `backend/common/core/security.py`
 - Permission decorator: `backend/apps/system/schemas/permission.py`
