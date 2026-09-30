@@ -11,6 +11,7 @@ from apps.chat.agent.close import (
     terminal_text,
     workspace_from_state,
 )
+from apps.chat.agent.mode import resolve_agent_mode
 from apps.chat.agent_copy import (
     compact_agent_final_text,
     truncated_display_note,
@@ -69,19 +70,12 @@ def _safe_delivery_chart(**kwargs: Any) -> dict[str, Any] | None:
 # has_turn_result lives on the close-plane; re-exported for callers / tests.
 
 
-def incomplete_query_message(state: Mapping[str, Any]) -> str:
-    key = "i18n_chat.agent.incomplete_no_data"
-    fallback = "这次没能查出结果。请换个问法试试，或确认数据源表结构已同步。"
-    try:
-        service = _llm_service(state)
-        trans = getattr(service, "trans", None)
-        if callable(trans):
-            text = str(trans(key) or "").strip()
-            if text and text != key:
-                return text
-    except Exception:
-        pass
-    return fallback
+def incomplete_turn_message(state: Mapping[str, Any]) -> str:
+    return resolve_agent_mode(state).incomplete_message(state)
+
+
+# Historical alias — loop no longer uses the query-specific name.
+incomplete_query_message = incomplete_turn_message
 
 
 def try_publish_query_salvage(
@@ -96,7 +90,7 @@ def try_publish_query_salvage(
         "public_error": None,
     }
     if not isinstance(payload.get("turn_route"), Mapping):
-        payload["turn_route"] = {"task_kind": "query"}
+        payload["turn_route"] = {}
     try:
         out = finalize_agent_turn_node(payload)
     except Exception as exc:
@@ -221,6 +215,7 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         truncated=truncated,
         limit=trunc_limit,
         truncation_note=truncated_display_note(trunc_limit, trans=trans),
+        keep_tables=resolve_agent_mode(state).compact_keep_tables(),
     )
 
     raw_slots = dict(state.get("memory_slots") or {})
@@ -244,6 +239,10 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         fallback_tables=list(spine.tables) if spine is not None else (),
         dialect=str(dialect) if dialect else None,
     )
+    route = (
+        state.get("turn_route") if isinstance(state.get("turn_route"), Mapping) else {}
+    )
+    snapshot_kind = str(route.get("task_kind") or resolve_agent_mode(state).task_kind)
     snapshot_vals = record_snapshot_values(
         all_steps,
         analysis_text=final_text,
@@ -254,6 +253,7 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         confirmed_calibers=surface["confirmed_calibers"],
         assumptions=surface["assumptions"],
         knowledge_refs=knowledge_refs,
+        kind=snapshot_kind,
     )
     answer = snapshot_vals.get("answer") or {}
 
@@ -348,7 +348,7 @@ def _publish_failure(state: Mapping[str, Any]) -> dict[str, Any]:
         public_error = str(state.get("public_error") or public_error_message(error))
         kind = "internal"
     else:
-        error = incomplete_query_message(state)
+        error = incomplete_turn_message(state)
         public_error = error
         kind = "empty_response"
     current_outcome = state.get("outcome")

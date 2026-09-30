@@ -74,6 +74,7 @@
     },
     "agent": {
       "incomplete_no_data": "这次没能查出结果。请换个问法试试，或确认数据源表结构已同步。",
+      "incomplete_no_analysis": "这次没能完成分析。请换个问法试试，或确认数据源表结构已同步。",
       "display_truncated": "仅展示前 {limit} 条。"
     }
   },
@@ -232,6 +233,8 @@
         "execute_sql_sandbox": "执行查询",
         "patch_and_compile_sql": "增量修改",
         "compare_results": "数据对比",
+        "profile_sql_result": "结果剖析",
+        "aggregate_sql_result": "结果聚合",
         "search_wiki": "查阅知识",
         "get_table_schema": "展开表结构",
         "get_table_relations": "查询表关联",

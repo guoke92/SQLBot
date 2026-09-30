@@ -90,8 +90,29 @@ def _slot(used: int, maximum: int) -> BudgetSlot:
     return BudgetSlot(used=max(0, int(used)), max=max(0, int(maximum)))
 
 
-def empty_budget(*, config: Any = None) -> LoopBudget:
-    return _limits(LoopBudget(), config=config)
+def _apply_overrides(
+    budget: LoopBudget, overrides: Mapping[str, int] | None
+) -> LoopBudget:
+    if not overrides:
+        return budget
+    mapping = {
+        "execution_round_limit": budget.exec_rounds,
+        "probe_sql_limit": budget.probe_calls,
+        "search_wiki_round_limit": budget.knowledge_rounds,
+        "tool_call_limit": budget.tool_calls,
+        "clarify_limit": budget.clarify_count,
+        "context_token_limit": budget.context_tokens,
+    }
+    for key, slot in mapping.items():
+        if key in overrides:
+            slot.max = max(0, int(overrides[key]))
+    return budget
+
+
+def empty_budget(
+    *, config: Any = None, overrides: Mapping[str, int] | None = None
+) -> LoopBudget:
+    return _apply_overrides(_limits(LoopBudget(), config=config), overrides)
 
 
 def _limits(budget: LoopBudget, *, config: Any = None) -> LoopBudget:
@@ -122,6 +143,8 @@ def _limits(budget: LoopBudget, *, config: Any = None) -> LoopBudget:
 
 
 def budget_from_state(state: Mapping[str, Any], *, config: Any = None) -> LoopBudget:
+    raw_overrides = state.get("loop_param_overrides")
+    overrides = raw_overrides if isinstance(raw_overrides, Mapping) else None
     raw = state.get("loop_budget")
     if isinstance(raw, Mapping):
         try:
@@ -129,7 +152,7 @@ def budget_from_state(state: Mapping[str, Any], *, config: Any = None) -> LoopBu
             budget = _limits(budget, config=config)
             if state.get("tool_stop_reason") and not budget.stop_reason:
                 budget.stop_reason = str(state.get("tool_stop_reason") or "")
-            return budget
+            return _apply_overrides(budget, overrides)
         except Exception:
             pass
     plane = (
@@ -150,7 +173,7 @@ def budget_from_state(state: Mapping[str, Any], *, config: Any = None) -> LoopBu
         ),
         stop_reason=str(state.get("tool_stop_reason") or ""),
     )
-    return _limits(budget, config=config)
+    return _apply_overrides(_limits(budget, config=config), overrides)
 
 
 def calls_count_as_execution(calls: Sequence[Mapping[str, Any]]) -> bool:

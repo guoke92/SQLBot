@@ -19,6 +19,14 @@ AGENT_TOOLS_METADATA: dict[str, dict[str, str]] = {
         "title_key": "chat.timeline.tool.compare_results",
         "icon": "compare",
     },
+    "profile_sql_result": {
+        "title_key": "chat.timeline.tool.profile_sql_result",
+        "icon": "compare",
+    },
+    "aggregate_sql_result": {
+        "title_key": "chat.timeline.tool.aggregate_sql_result",
+        "icon": "sql",
+    },
     "get_table_schema": {
         "title_key": "chat.timeline.tool.get_table_schema",
         "icon": "schema",

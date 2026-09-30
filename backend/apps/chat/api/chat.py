@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, select
 from starlette.responses import JSONResponse
 
+from apps.chat.agent.mode import route_task_kind
 from apps.chat.answer_payload import (
     build_failed_answer_payload,
     normalize_answer_payload,
@@ -39,6 +40,7 @@ from apps.chat.models.chat_model import (
     CreateChat,
     QuickCommand,
     RenameChat,
+    SetAgentMode,
     SimpleChat,
 )
 from apps.chat.result_data import (
@@ -53,6 +55,11 @@ from apps.chat.result_data import (
 from apps.chat.task.llm import LLMService
 from apps.conversation.events import emit
 from apps.conversation.models import ConversationRun
+from apps.conversation.process_timeline import (
+    load_dataset_rows,
+    localize_process_event,
+    project_process_timeline,
+)
 from apps.conversation.run_service import (
     CorrectionRequest,
     CreateRunRequest,
@@ -64,11 +71,6 @@ from apps.conversation.run_service import (
     get_owned_run,
     run_events_after,
     run_snapshot,
-)
-from apps.conversation.process_timeline import (
-    load_dataset_rows,
-    localize_process_event,
-    project_process_timeline,
 )
 from apps.conversation.runtime import submit_graph
 from apps.conversation.runtime_context import attach_runtime
@@ -151,6 +153,11 @@ async def _launch_run(
             service.record.reference_record_ids = request.reference_record_ids
             if request.reference_record_ids:
                 service.record.relation = "continue"
+            kind = route_task_kind(request.route_hint)
+            service.record.turn_kind = kind
+            if kind in {"query", "analysis"}:
+                chat.agent_mode = "analyze" if kind == "analysis" else "query"
+                session.add(chat)
         run = create_run(
             session,
             record=service.record,
@@ -176,19 +183,24 @@ async def _launch_run(
             if regenerate_record is not None
             else request.route_hint
         )
+        mapped_kind = route_task_kind(
+            regenerate_record.turn_kind
+            if regenerate_record is not None
+            else route_hint
+        )
         turn_route = None
         if regenerate_record is not None:
             turn_route = {
-                "task_kind": regenerate_record.turn_kind or "query",
+                "task_kind": mapped_kind,
                 "relation": regenerate_record.relation or "independent",
                 "reference_record_ids": explicit_refs,
                 "source": "hint",
                 "confidence": 1.0,
             }
-        elif explicit_refs:
+        else:
             turn_route = {
-                "task_kind": route_hint or "query",
-                "relation": "continue",
+                "task_kind": mapped_kind,
+                "relation": "continue" if explicit_refs else "independent",
                 "reference_record_ids": explicit_refs,
                 "source": "hint",
                 "confidence": 1.0,
@@ -629,6 +641,31 @@ async def chat_record_feedback(
         )
 
     return await asyncio.to_thread(inner)
+
+
+@router.patch(
+    "/{chat_id}/agent_mode",
+    summary="Persist the session Query/Analyze toggle",
+)
+@require_permissions(
+    permission=SqlbotPermission(type="chat", keyExpression="chat_id")
+)
+async def set_chat_agent_mode(
+    session: SessionDep,
+    current_user: CurrentUser,
+    chat_id: int,
+    body: SetAgentMode,
+):
+    chat = session.get(Chat, chat_id)
+    if chat is None or int(chat.create_by) != _user_id(current_user):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    mode = str(body.agent_mode or "query").strip().lower()
+    if mode not in {"query", "analyze"}:
+        raise HTTPException(status_code=400, detail="Unsupported agent_mode")
+    chat.agent_mode = mode
+    session.add(chat)
+    session.commit()
+    return {"agent_mode": chat.agent_mode}
 
 
 @router.post("/rename", response_model=str, summary=f"{PLACEHOLDER_PREFIX}rename_chat")
@@ -1092,12 +1129,13 @@ async def analysis_or_predict(
             raise Exception(f"Chat record with id {chat_record_id} not found")
 
         answer = base_record.answer if isinstance(base_record.answer, dict) else {}
-        if not (answer.get("datasets") or answer.get("source_datasets")):
+        task_kind = "analysis" if action_type == "analysis" else "prediction"
+        if task_kind == "prediction" and not (
+            answer.get("datasets") or answer.get("source_datasets")
+        ):
             raise Exception(
                 f"Chat record with id {chat_record_id} has no usable result dataset"
             )
-
-        task_kind = "analysis" if action_type == "analysis" else "prediction"
         request_question = ChatQuestion(
             chat_id=base_record.chat_id,
             question=(
@@ -1115,6 +1153,11 @@ async def analysis_or_predict(
         record.turn_kind = task_kind
         record.relation = "continue"
         record.reference_record_ids = [int(base_record.id)]
+        if task_kind == "analysis":
+            chat_row = session.get(Chat, base_record.chat_id)
+            if chat_row is not None:
+                chat_row.agent_mode = "analyze"
+                session.add(chat_row)
         session.add(record)
         session.flush()
         run = create_run(

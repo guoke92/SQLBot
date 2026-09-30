@@ -19,11 +19,13 @@ from apps.chat.agent.knowledge import (
     publish_plane,
     take_working,
 )
+from apps.chat.agent.mode import resolve_agent_mode
 from apps.chat.agent.tools.render import render_tool_message
 from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_config.defaults import DEFAULT_PARALLEL_SAFE
 from apps.chat.agent_knowledge import KNOWLEDGE_TOOLS
 from apps.chat.steps.observability import sanitize_audit_value
+from apps.chat.tools.analyze_result import ANALYZE_SQL_TOOLS
 from apps.chat.tools.contract import (
     Signals,
     ToolOutcome,
@@ -66,6 +68,7 @@ def _invoke_one(
     skip_knowledge: bool = False,
     skip_probe: bool = False,
     skip_clarify: bool = False,
+    defer_clarify: str = "",
 ) -> dict[str, Any]:
     name = str(call.get("name") or "")
     args = call.get("args") or {}
@@ -74,6 +77,12 @@ def _invoke_one(
         return skipped_outcome(
             "knowledge budget exhausted",
             reason="knowledge_budget",
+            name=name,
+        )
+    if skip_probe and name in ANALYZE_SQL_TOOLS:
+        return skipped_outcome(
+            "probe budget exhausted; write the report from evidence already gathered",
+            reason="probe_budget",
             name=name,
         )
     if skip_probe and name == "execute_sql_sandbox":
@@ -88,6 +97,12 @@ def _invoke_one(
         return skipped_outcome(
             "clarification budget exhausted",
             reason="clarify_budget",
+            name=name,
+        )
+    if defer_clarify and name == "request_clarification":
+        return skipped_outcome(
+            defer_clarify,
+            reason="explore_first",
             name=name,
         )
     tool = tools.get(name)
@@ -112,6 +127,7 @@ def _dispatch_results(
     skip_knowledge: bool = False,
     skip_probe: bool = False,
     skip_clarify: bool = False,
+    defer_clarify: str = "",
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if not calls:
         return [], []
@@ -122,6 +138,7 @@ def _dispatch_results(
         "skip_knowledge": skip_knowledge,
         "skip_probe": skip_probe,
         "skip_clarify": skip_clarify,
+        "defer_clarify": defer_clarify,
     }
     if exclusive or len(calls) == 1:
         results = [_invoke_one(tools, call, **kwargs) for call in calls]
@@ -302,6 +319,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         skip_knowledge=budget.knowledge_exhausted,
         skip_probe=budget.probe_exhausted,
         skip_clarify=budget.clarify_exhausted,
+        defer_clarify=resolve_agent_mode(state).defer_clarification(state),
     )
 
     ds = None

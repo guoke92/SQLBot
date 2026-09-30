@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal, Self
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, model_validator
 
 from apps.chat.chart_presentation import LEGAL_CHART_TYPES
+from apps.chat.tools.analyze_result import (
+    aggregate_sql_result,
+    profile_sql_result,
+)
 from apps.chat.tools.catalog_tools import (
     get_dict_values,
     get_table_relations,
@@ -419,6 +423,60 @@ class CompareResultsInput(BaseModel):
     )
 
 
+class ProfileSqlResultInput(BaseModel):
+    sql_ref: str = Field(
+        default="active",
+        description='Executed workspace revision to profile: "active" or rN.',
+    )
+    columns: list[str] = Field(
+        default_factory=list,
+        description="Columns to profile (max 6). Empty uses fields already on the revision.",
+    )
+    breakdown: str = Field(
+        default="",
+        description="Optional column for a top-k value breakdown on the full result.",
+    )
+    topk: int = Field(
+        default=8,
+        ge=1,
+        le=20,
+        description="Top-k size for breakdown. Ignored when breakdown is empty.",
+    )
+
+
+class AggregateMetricSchema(BaseModel):
+    fn: Literal["count", "sum", "avg", "min", "max"] = Field(
+        default="count",
+        description="Aggregation: count (optionally of a column), sum, avg, min, max.",
+    )
+    column: str = Field(
+        default="",
+        description="Column for sum/avg/min/max, or COUNT(column). Empty COUNT(*) is allowed.",
+    )
+    alias: str = Field(default="", description="Optional result alias.")
+
+
+class AggregateSqlResultInput(BaseModel):
+    sql_ref: str = Field(
+        default="active",
+        description='Executed workspace revision to aggregate: "active" or rN.',
+    )
+    dimensions: list[str] = Field(
+        default_factory=list,
+        description="GROUP BY columns from the revision (max 3).",
+    )
+    metrics: list[AggregateMetricSchema] = Field(
+        default_factory=list,
+        description="Metrics to compute. Empty defaults to COUNT(*).",
+    )
+    limit: int = Field(
+        default=20,
+        ge=1,
+        le=50,
+        description="Max groups returned to the model. Does not dump the full result.",
+    )
+
+
 def _workspace():
     from apps.chat.agent.workspace import SqlWorkspace
     from apps.conversation.runtime_context import current_worker_identity, peek_runtime
@@ -459,7 +517,10 @@ def _apply_config(tools: list[StructuredTool], config: Any) -> list[StructuredTo
 
 
 def build_agent_tools(
-    llm_service: Any, access_scope: Any = None, config: Any = None
+    llm_service: Any,
+    access_scope: Any = None,
+    config: Any = None,
+    names: Sequence[str] | None = None,
 ) -> list[StructuredTool]:
     """Construct bound LangChain tools scoped to current LLMService and access permissions."""
 
@@ -598,6 +659,44 @@ def build_agent_tools(
         res = request_clarification(raw_list, catalog=catalog)
         return dict(res)
 
+    def _profile_sql_result(
+        sql_ref: str = "active",
+        columns: list[str] | None = None,
+        breakdown: str = "",
+        topk: int = 8,
+    ) -> dict[str, Any]:
+        return profile_sql_result(
+            llm_service,
+            _workspace(),
+            access_scope=access_scope,
+            sql_ref=sql_ref,
+            columns=columns or [],
+            breakdown=breakdown,
+            topk=topk,
+        )
+
+    def _aggregate_sql_result(
+        sql_ref: str = "active",
+        dimensions: list[str] | None = None,
+        metrics: list[Any] | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        raw_metrics: list[dict[str, Any]] = []
+        for item in metrics or []:
+            if hasattr(item, "model_dump"):
+                raw_metrics.append(item.model_dump(mode="python"))
+            elif isinstance(item, dict):
+                raw_metrics.append(item)
+        return aggregate_sql_result(
+            llm_service,
+            _workspace(),
+            access_scope=access_scope,
+            sql_ref=sql_ref,
+            dimensions=dimensions or [],
+            metrics=raw_metrics,
+            limit=limit,
+        )
+
     tools: list[StructuredTool] = [
         StructuredTool.from_function(
             func=_get_table_schema,
@@ -709,6 +808,33 @@ def build_agent_tools(
             ),
             args_schema=RequestClarificationInput,
         ),
+        StructuredTool.from_function(
+            func=_profile_sql_result,
+            name="profile_sql_result",
+            description=(
+                "Profile an already-executed sql_ref in the warehouse: full-set "
+                "row_count, non-null, min/max. Optional breakdown=column returns "
+                "top-k value counts. Does not load result rows into context and "
+                "does not mount a result card. Use this instead of guessing from "
+                "preview rows. Prefer this over request_clarification when the "
+                "question is empirically resolvable (populated? which values? "
+                "which dim explains a swing)."
+            ),
+            args_schema=ProfileSqlResultInput,
+        ),
+        StructuredTool.from_function(
+            func=_aggregate_sql_result,
+            name="aggregate_sql_result",
+            description=(
+                "GROUP BY an already-executed sql_ref in the warehouse and return "
+                "at most 20 compact groups (count/sum/avg/min/max). Use for "
+                "composition, ranking, and trend slices without dumping the full "
+                "result into context. Not a delivery card."
+            ),
+            args_schema=AggregateSqlResultInput,
+        ),
     ]
-
+    if names is not None:
+        allowed = {str(item) for item in names}
+        tools = [tool for tool in tools if str(tool.name) in allowed]
     return _apply_config(tools, config)

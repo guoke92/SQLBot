@@ -432,6 +432,12 @@
                 @loading-over="loadingOver"
               ></quick-question>
             </div>
+            <AgentModeToggle
+              v-if="!isConfigChat"
+              :model-value="agentMode"
+              :disabled="isTyping"
+              @update:model-value="onAgentModeChange"
+            />
             <ReasoningEffortPicker :disabled="isTyping" :chat-id="currentChatId" />
           </div>
           <el-input
@@ -496,7 +502,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat'
 import ChatRow from './ChatRow.vue'
 import MultiStepAnswer from './answer/MultiStepAnswer.vue'
@@ -528,6 +534,7 @@ import { isMobile } from '@/utils/utils'
 import router from '@/router'
 import QuickQuestion from '@/views/chat/QuickQuestion.vue'
 import ReasoningEffortPicker from '@/views/chat/ReasoningEffortPicker.vue'
+import AgentModeToggle from '@/views/chat/AgentModeToggle.vue'
 import { useChatConfigStore } from '@/stores/chatConfig.ts'
 import { useChatScroll } from '@/hooks/useChatScroll'
 import { APP_NAME } from '@/constants/branding'
@@ -588,6 +595,25 @@ const appearanceStore = useAppearanceStoreWithOut()
 const currentChatId = ref<number | undefined>()
 const currentChat = ref<ChatInfo>(new ChatInfo())
 const isTyping = ref<boolean>(false)
+const agentMode = ref<'query' | 'analyze'>('query')
+
+watch(
+  () => currentChat.value.agent_mode,
+  (mode) => {
+    agentMode.value = mode === 'analyze' ? 'analyze' : 'query'
+  }
+)
+
+async function onAgentModeChange(mode: 'query' | 'analyze') {
+  agentMode.value = mode
+  currentChat.value.agent_mode = mode
+  if (!currentChatId.value || isConfigChat.value) return
+  try {
+    await chatApi.setAgentMode(currentChatId.value, mode)
+  } catch {
+    // request interceptor already toasts HTTP errors
+  }
+}
 
 const loginBg = computed(() => {
   return appearanceStore.getLogin
@@ -841,6 +867,7 @@ const sendMessage = async ($event: any = {}) => {
   currentRecord.create_time = new Date()
   currentRecord.chat_id = currentChatId.value
   currentRecord.question = inputMessage.value
+  currentRecord.turn_kind = agentMode.value === 'analyze' ? 'analysis' : 'query'
   currentRecord.sql_answer = ''
   currentRecord.sql = ''
   currentRecord.chart_answer = ''
@@ -977,6 +1004,7 @@ function askAgain(message: ChatMessage) {
 }
 
 async function clickAnalysis(id?: number) {
+  await onAgentModeChange('analyze')
   return startReferencedTurn('analysis', id)
 }
 

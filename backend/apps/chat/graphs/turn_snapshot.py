@@ -26,6 +26,7 @@ def record_snapshot_values(
     assumptions: list[dict[str, Any]] | None = None,
     confirmed_calibers: list[dict[str, Any]] | None = None,
     knowledge_refs: dict[str, Any] | None = None,
+    kind: str = "query",
 ) -> dict[str, Any]:
     """Build the ChatRecord projection committed by ``finalize_run``."""
     if outcome is None:
@@ -168,11 +169,12 @@ def record_snapshot_values(
             "message": str(parsed_error.get("message") or "Query failed"),
             "retryable": failure_retryable,
         }
+    answer_kind = "analysis" if kind == "analysis" else "query"
     return {
         "terminal": finish,
         "error": error,
         "answer": {
-            "kind": "query",
+            "kind": answer_kind,
             "status": answer_status,
             "content": analysis_text,
             "execution_mode": execution_mode,

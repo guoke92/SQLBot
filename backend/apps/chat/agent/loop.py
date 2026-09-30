@@ -10,9 +10,9 @@ from langchain_core.messages import AIMessage, SystemMessage
 from apps.chat.agent.budget import budget_from_state
 from apps.chat.agent.close import close_kind, compute_verdict, has_turn_result
 from apps.chat.agent.context_spec import build_context_spec
-from apps.chat.agent.delivery import incomplete_query_message
 from apps.chat.agent.init import init_agent_turn
 from apps.chat.agent.knowledge import cache_from_state
+from apps.chat.agent.mode import resolve_agent_mode
 from apps.chat.agent.tokens import count_message_tokens, count_tokens
 from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_copy import (
@@ -64,10 +64,10 @@ def _messages_for_audit(messages: Sequence[Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def _incomplete_query_state(
+def _incomplete_turn_state(
     state: Mapping[str, Any], messages: Sequence[Any]
 ) -> dict[str, Any]:
-    text = incomplete_query_message(state)
+    text = resolve_agent_mode(state).incomplete_message(state)
     return {
         **state,
         "messages": serialize_messages(list(messages)),
@@ -85,6 +85,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         state = init_agent_turn(state)
         if state.get("error"):
             return dict(state)
+    state = {**dict(state), "loop_continue": False}
 
     sink = StreamSink.from_state(state)
     messages = deserialize_messages(list(state.get("messages") or []))
@@ -124,6 +125,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     )
 
     finalizing = budget.exhausted or bool(stop_reason)
+    mode = resolve_agent_mode(state)
 
     model_messages = messages
     if spec.turn_brief:
@@ -135,13 +137,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         reason = stop_reason or budget.render_brief()
         model_messages = [
             *model_messages,
-            SystemMessage(
-                content=(
-                    f"工具调用已关闭（{reason}）。不要再请求任何工具。"
-                    "按 §6 停手终答：有本轮交付卡则只写口径旁白；"
-                    "否则直接写结论，不要再提出补检索、目录 SQL 或猜测字段。"
-                )
-            ),
+            SystemMessage(content=mode.finalizing_instruction(str(reason))),
         ]
 
     thought_span = None
@@ -219,7 +215,9 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         recovered_calls = bool(calls) and not native_calls
         if finalizing:
             if recovered_calls or looks_like_tool_markup(call.content):
-                text = text.strip() or incomplete_query_message(state)
+                text = text.strip() or resolve_agent_mode(state).incomplete_message(
+                    state
+                )
             calls = []
         elif recovered_calls and response is not None:
             response = attach_tool_calls(response, calls, text)
@@ -306,14 +304,28 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     if looks_like_tool_markup(text) or (
         recovered_calls and not str(text or "").strip()
     ):
-        return _incomplete_query_state(state, updated_messages)
+        return _incomplete_turn_state(state, updated_messages)
+
+    if not finalizing:
+        nudge = mode.evidence_nudge(state)
+        if nudge:
+            return {
+                **state,
+                "messages": serialize_messages(
+                    [*updated_messages, SystemMessage(content=nudge)]
+                ),
+                "analyze_evidence_nudged": True,
+                "loop_continue": True,
+                "open_tool_spans": {},
+                "loop_budget": budget.model_dump(mode="json"),
+            }
 
     kind = close_kind(
         {**state, "final_text": text},
         has_cards=has_turn_result(state),
     )
     if kind == "empty":
-        return _incomplete_query_state(state, updated_messages)
+        return _incomplete_turn_state(state, updated_messages)
 
     truncated, limit = SqlWorkspace.from_state(state).truncation()
     trans = None
@@ -326,6 +338,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         truncated=truncated,
         limit=limit,
         truncation_note=truncated_display_note(limit, trans=trans),
+        keep_tables=mode.compact_keep_tables(),
     )
 
     answer_span = open_process_span(
@@ -375,9 +388,9 @@ def _salvage_after_summary_failure(
 
 def route_after_agent_loop(
     state: Mapping[str, Any],
-) -> Literal["execute_tools", "finalize_turn", "fail"]:
+) -> Literal["execute_tools", "agent_loop", "finalize_turn", "fail"]:
     action = compute_verdict(state, phase="after_loop").action
-    if action in {"execute_tools", "finalize_turn", "fail"}:
+    if action in {"execute_tools", "agent_loop", "finalize_turn", "fail"}:
         return action  # type: ignore[return-value]
     return "fail"
 

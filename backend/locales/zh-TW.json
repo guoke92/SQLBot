@@ -74,6 +74,7 @@
     },
     "agent": {
       "incomplete_no_data": "這次沒能查出結果。請換個問法試試，或確認資料源表結構已同步。",
+      "incomplete_no_analysis": "這次沒能完成分析。請換個問法試試，或確認資料源表結構已同步。",
       "display_truncated": "僅展示前 {limit} 條。"
     }
   },
@@ -228,6 +229,8 @@
         "execute_sql_sandbox": "執行查詢",
         "patch_and_compile_sql": "增量修改",
         "compare_results": "資料對比",
+        "profile_sql_result": "結果剖析",
+        "aggregate_sql_result": "結果聚合",
         "search_wiki": "查閱知識",
         "get_table_schema": "展開表結構",
         "get_table_relations": "查詢表關聯",

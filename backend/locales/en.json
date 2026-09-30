@@ -74,6 +74,7 @@
     },
     "agent": {
       "incomplete_no_data": "This query could not be completed. Try rephrasing, or confirm the datasource tables are synced.",
+      "incomplete_no_analysis": "This analysis could not be completed. Try rephrasing, or confirm the datasource tables are synced.",
       "display_truncated": "Showing the first {limit} rows."
     }
   },
@@ -228,6 +229,8 @@
         "execute_sql_sandbox": "Run query",
         "patch_and_compile_sql": "Patch SQL",
         "compare_results": "Compare results",
+        "profile_sql_result": "Profile result",
+        "aggregate_sql_result": "Aggregate result",
         "search_wiki": "Search knowledge",
         "get_table_schema": "Expand table schema",
         "get_table_relations": "Inspect table joins",

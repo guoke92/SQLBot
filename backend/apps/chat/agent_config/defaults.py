@@ -20,7 +20,7 @@ from apps.chat.agent_knowledge import (
 # Tool names as registered by ``apps.chat.tools.registry.build_agent_tools``.
 # Guarded by ``tests/test_agent_config_loader.py`` so a new tool cannot be added
 # without showing up on the management page.
-DEFAULT_TOOL_NAMES: tuple[str, ...] = (
+QUERY_TOOL_NAMES: tuple[str, ...] = (
     "get_table_schema",
     "get_table_relations",
     "search_knowledge",
@@ -31,6 +31,11 @@ DEFAULT_TOOL_NAMES: tuple[str, ...] = (
     "compare_results",
     "request_clarification",
 )
+ANALYZE_TOOL_NAMES: tuple[str, ...] = (
+    "profile_sql_result",
+    "aggregate_sql_result",
+)
+DEFAULT_TOOL_NAMES: tuple[str, ...] = QUERY_TOOL_NAMES + ANALYZE_TOOL_NAMES
 
 # Disabling any of these would leave the agent unable to fetch or pause a turn.
 REQUIRED_TOOL_NAMES: frozenset[str] = frozenset(

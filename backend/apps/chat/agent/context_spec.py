@@ -33,6 +33,7 @@ class ContextSpec(BaseModel):
     working_set: str = ""
     sql_workspace: str = ""
     turn_brief: str = ""
+    evidence: str = ""
 
     def system_body(self) -> str:
         parts: list[str] = []
@@ -48,6 +49,8 @@ class ContextSpec(BaseModel):
             parts.append(
                 "<sql_workspace>\n" + self.sql_workspace + "\n</sql_workspace>"
             )
+        if self.evidence:
+            parts.append("<evidence>\n" + self.evidence + "\n</evidence>")
         return "\n\n".join(parts)
 
     def token_counts(self) -> dict[str, int]:
@@ -58,6 +61,7 @@ class ContextSpec(BaseModel):
             "working_set": count_tokens(self.working_set),
             "sql_workspace": count_tokens(self.sql_workspace),
             "turn_brief": count_tokens(self.turn_brief),
+            "evidence": count_tokens(self.evidence),
         }
 
 
@@ -209,6 +213,7 @@ def render_turn_brief(
     question: str,
     budget: LoopBudget | None = None,
     workspace: SqlWorkspace | None = None,
+    evidence: str = "",
 ) -> str:
     lines = [str(question or "").strip()] if str(question or "").strip() else []
     if workspace is not None and workspace.current:
@@ -217,6 +222,60 @@ def render_turn_brief(
             lines.append(f"已交付: {workspace.delivered}")
     if budget is not None:
         lines.append(budget.render_brief())
+    if evidence:
+        lines.append("本轮已有剖析/聚合证据，写报告时引用 <evidence>，不要再用 preview。")
+    return "\n".join(lines)
+
+
+def render_turn_evidence(state: Mapping[str, Any]) -> str:
+    """Compact warehouse stats from this-turn analyze tools. Not row dumps."""
+    from apps.chat.tools.analyze_result import ANALYZE_SQL_TOOLS
+    from apps.chat.tools.contract import outcome_payload
+
+    lines: list[str] = []
+    for step in state.get("tool_steps") or []:
+        if not isinstance(step, Mapping) or not step.get("ok"):
+            continue
+        name = str(step.get("name") or step.get("tool") or "")
+        if name not in ANALYZE_SQL_TOOLS and name != "compare_results":
+            continue
+        payload = outcome_payload(step.get("outcome") or step.get("result") or {})
+        if name == "profile_sql_result":
+            bits = [f"profile {payload.get('sql_ref')} rows={payload.get('row_count')}"]
+            for column in list(payload.get("columns") or [])[:6]:
+                if isinstance(column, Mapping):
+                    bits.append(
+                        f"{column.get('name')} nn={column.get('non_null')} "
+                        f"min={column.get('min')} max={column.get('max')}"
+                    )
+            breakdown = payload.get("breakdown")
+            if isinstance(breakdown, Mapping):
+                top = list(breakdown.get("top") or [])[:5]
+                bits.append(
+                    "breakdown "
+                    + str(breakdown.get("column"))
+                    + "="
+                    + ",".join(
+                        f"{item.get('value')}:{item.get('n')}"
+                        for item in top
+                        if isinstance(item, Mapping)
+                    )
+                )
+            lines.append("; ".join(str(item) for item in bits if item))
+        elif name == "aggregate_sql_result":
+            rows = list(payload.get("rows") or [])[:8]
+            lines.append(
+                f"aggregate {payload.get('sql_ref')} "
+                f"dims={payload.get('dimensions')} groups={len(rows)}"
+            )
+            for row in rows:
+                if isinstance(row, Mapping):
+                    lines.append(
+                        "  "
+                        + ", ".join(f"{key}={row[key]}" for key in list(row)[:6])
+                    )
+        elif name == "compare_results":
+            lines.append(str(step.get("summary") or payload.get("summary") or "compare ok"))
     return "\n".join(lines)
 
 
@@ -228,7 +287,7 @@ def build_context_spec(
     question: str = "",
     config: Any = None,
 ) -> ContextSpec:
-    from apps.chat.agent.prompt import render_system_prompt_template
+    from apps.chat.agent.mode import resolve_agent_mode
     from apps.chat.agent_knowledge import AgentKnowledgePlane
 
     plane = (
@@ -249,16 +308,21 @@ def build_context_spec(
     workspace = SqlWorkspace.from_state(state)
     budget = budget_from_state(state, config=config)
     outline = str(getattr(plane, "schema_outline", "") or "").strip()
+    evidence = ""
+    if resolve_agent_mode(state).id == "analyze":
+        evidence = render_turn_evidence(state)
     return ContextSpec(
-        rules=render_system_prompt_template(config=config),
+        rules=resolve_agent_mode(state).compose_rules(config=config),
         catalog_outline=outline,
         recap=render_recap(state.get("referenced_turns") or []),
         working_set=render_working_set(knowledge_plane=plane, memory_slots=slots),
         sql_workspace=workspace.render_index(),
+        evidence=evidence,
         turn_brief=render_turn_brief(
             question=question or str(state.get("question") or ""),
             budget=budget,
             workspace=workspace,
+            evidence=evidence,
         ),
     )
 

@@ -74,6 +74,7 @@
     },
     "agent": {
       "incomplete_no_data": "조회를 완료하지 못했습니다. 질문을 바꿔 보거나, 데이터 소스 테이블이 동기화되었는지 확인해 주세요.",
+      "incomplete_no_analysis": "분석을 완료하지 못했습니다. 질문을 바꿔 보거나, 데이터 소스 테이블이 동기화되었는지 확인해 주세요.",
       "display_truncated": "처음 {limit}건만 표시합니다."
     }
   },
@@ -228,6 +229,8 @@
         "execute_sql_sandbox": "쿼리 실행",
         "patch_and_compile_sql": "SQL 수정",
         "compare_results": "결과 비교",
+        "profile_sql_result": "결과 프로파일",
+        "aggregate_sql_result": "결과 집계",
         "search_wiki": "지식 검색",
         "get_table_schema": "테이블 스키마 펼치기",
         "get_table_relations": "테이블 조인 조회",

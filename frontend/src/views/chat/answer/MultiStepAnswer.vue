@@ -169,6 +169,18 @@ const assumptions = ref<Array<Record<string, any>>>([])
 let hydratedTerminalRecordId: number | undefined
 let liveAttemptEpoch = 0
 
+const isAnalysisReport = computed(() => {
+  const record = props.message?.record
+  const kind = record?.turn_kind || record?.turn_answer?.kind
+  if (kind === 'analysis') return true
+  if (kind === 'query' || kind === 'prediction' || kind === 'unsupported') return false
+  return props.currentChat?.agent_mode === 'analyze'
+})
+
+const analysisSectionLabel = computed(() =>
+  isAnalysisReport.value ? t('chat.analysis_report') : t('chat.summary')
+)
+
 function formatAssumption(item: Record<string, any>): string {
   const question = String(item.question || '').trim()
   const answer = String(item.meaning || item.label || item.value || '').trim()
@@ -682,6 +694,28 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
       </div>
 
       <div
+        v-if="isAnalysisReport && (analysisText || assumptions.length)"
+        class="multi-step-analysis analysis-report-lead"
+      >
+        <div v-if="analysisText">
+          <div class="analysis-label">{{ analysisSectionLabel }}</div>
+          <MdComponent :message="analysisText" />
+        </div>
+        <div v-if="assumptions.length" :class="{ 'assumption-block': !!analysisText }">
+          <div class="analysis-label">{{ t('chat.timeline.assumptions') }}</div>
+          <ul class="assumption-list">
+            <li v-for="(item, idx) in assumptions" :key="idx">
+              {{ formatAssumption(item) }}
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div v-if="isAnalysisReport && steps.length" class="analysis-exhibits-label">
+        {{ t('chat.analysis_exhibits') }}
+      </div>
+
+      <div
         v-for="step in steps"
         :key="`step-${step.recordId ?? 'x'}-${step.index}`"
         :class="isMultiStep ? 'step-card' : 'single-step-block'"
@@ -757,7 +791,7 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
       </div>
     </div>
 
-    <div v-if="assumptions.length" class="multi-step-analysis">
+    <div v-if="!isAnalysisReport && assumptions.length" class="multi-step-analysis">
       <div class="analysis-label">{{ t('chat.timeline.assumptions') }}</div>
       <ul class="assumption-list">
         <li v-for="(item, idx) in assumptions" :key="idx">
@@ -766,8 +800,8 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
       </ul>
     </div>
 
-    <div v-if="analysisText" class="multi-step-analysis">
-      <div class="analysis-label">{{ t('chat.summary') }}</div>
+    <div v-if="!isAnalysisReport && analysisText" class="multi-step-analysis">
+      <div class="analysis-label">{{ analysisSectionLabel }}</div>
       <MdComponent :message="analysisText" />
     </div>
 
@@ -902,6 +936,21 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
   border: 1px solid rgba(222, 224, 227, 1);
   border-radius: 12px;
   background: rgba(248, 249, 250, 1);
+}
+
+.analysis-report-lead {
+  margin-top: 0;
+}
+
+.assumption-block {
+  margin-top: 12px;
+}
+
+.analysis-exhibits-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  color: rgba(31, 35, 41, 1);
 }
 
 .analysis-label {

@@ -96,10 +96,10 @@ def _db_disabled() -> bool:
 
 
 def _code_default() -> AgentRuntimeConfig:
-    from apps.chat.task.agent_prompt import _SYSTEM_PROMPT_TEMPLATE
+    from apps.chat.task.agent_prompt import _SHARED_PROMPT_TEMPLATE
 
     return AgentRuntimeConfig(
-        prompt_template=_SYSTEM_PROMPT_TEMPLATE,
+        prompt_template=_SHARED_PROMPT_TEMPLATE,
         prompt_version="code",
         tools={name: dict(cfg) for name, cfg in default_tools().items()},
         loop_params=dict(LOOP_PARAM_DEFAULTS),

@@ -23,7 +23,7 @@ from apps.chat.agent_config.service import (
     validate_snapshot,
 )
 from apps.chat.agent_knowledge import EXECUTION_ROUND_LIMIT
-from apps.chat.task.agent_prompt import _SYSTEM_PROMPT_TEMPLATE
+from apps.chat.task.agent_prompt import _SHARED_PROMPT_TEMPLATE, _SYSTEM_PROMPT_TEMPLATE
 
 
 @pytest.fixture(autouse=True)
@@ -54,7 +54,7 @@ def _published(monkeypatch: pytest.MonkeyPatch, row: Any) -> None:
 def test_no_published_row_equals_code_defaults() -> None:
     config = loader.load_agent_config()
     assert config.prompt_version == "code"
-    assert config.prompt_template == _SYSTEM_PROMPT_TEMPLATE
+    assert config.prompt_template == _SHARED_PROMPT_TEMPLATE
     assert config.param("execution_round_limit", -1) == EXECUTION_ROUND_LIMIT
     assert config.loop_params == LOOP_PARAM_DEFAULTS
     assert set(config.tools) == set(DEFAULT_TOOL_NAMES)
@@ -130,14 +130,14 @@ def test_db_failure_degrades_to_code_defaults(
     monkeypatch.setattr(loader, "read_published", _boom)
     config = loader.load_agent_config()
     assert config.prompt_version == "code"
-    assert config.prompt_template == _SYSTEM_PROMPT_TEMPLATE
+    assert config.prompt_template == _SHARED_PROMPT_TEMPLATE
 
 
 def test_corrupt_row_degrades_to_code_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _published(monkeypatch, _row(prompt_body="   "))
-    assert loader.load_agent_config().prompt_template == _SYSTEM_PROMPT_TEMPLATE
+    assert loader.load_agent_config().prompt_template == _SHARED_PROMPT_TEMPLATE
 
 
 def test_conversation_reads_do_not_poll_the_database(
@@ -275,7 +275,7 @@ def _snapshot(**overrides: Any) -> AgentConfigSnapshot:
 
 def test_default_snapshot_is_valid() -> None:
     cleaned = validate_snapshot(_snapshot())
-    assert cleaned.prompt_body == _SYSTEM_PROMPT_TEMPLATE
+    assert cleaned.prompt_body == _SHARED_PROMPT_TEMPLATE
     assert set(cleaned.loop_params) == set(LOOP_PARAM_DEFAULTS)
 
 
@@ -285,11 +285,11 @@ def test_default_snapshot_is_valid() -> None:
         ({"prompt_body": "   "}, "agent_config.err_prompt_empty"),
         ({"prompt_body": "too short"}, "agent_config.err_prompt_length"),
         (
-            {"prompt_body": _SYSTEM_PROMPT_TEMPLATE.replace("{execution_limit}", "5")},
+            {"prompt_body": _SHARED_PROMPT_TEMPLATE.replace("{execution_limit}", "5")},
             "agent_config.err_prompt_placeholder_missing",
         ),
         (
-            {"prompt_body": "extra {rogue_placeholder}\n" + _SYSTEM_PROMPT_TEMPLATE},
+            {"prompt_body": "extra {rogue_placeholder}\n" + _SHARED_PROMPT_TEMPLATE},
             "agent_config.err_prompt_placeholder_invalid",
         ),
         ({"loop_params": {"nope": 3}}, "agent_config.err_param_unknown"),
@@ -319,19 +319,19 @@ def test_invalid_snapshots_are_rejected(overrides: dict[str, Any], key: str) -> 
 
 def test_escaped_braces_in_the_prompt_are_allowed() -> None:
     """The shipped prompt contains ``{{option_id, ...}}`` literals — must pass."""
-    assert "{{option_id" in _SYSTEM_PROMPT_TEMPLATE
+    assert "{{option_id" in _SHARED_PROMPT_TEMPLATE
     validate_snapshot(_snapshot())
 
 
 def test_fully_escaped_execution_limit_is_rejected() -> None:
-    body = _SYSTEM_PROMPT_TEMPLATE.replace("{execution_limit}", "{{execution_limit}}")
+    body = _SHARED_PROMPT_TEMPLATE.replace("{execution_limit}", "{{execution_limit}}")
     with pytest.raises(ConfigValidationError) as excinfo:
         validate_snapshot(_snapshot(prompt_body=body))
     assert excinfo.value.key == "agent_config.err_prompt_placeholder_missing"
 
 
 def test_dropped_required_section_is_rejected() -> None:
-    body = _SYSTEM_PROMPT_TEMPLATE.replace("## 6. 最终回答", "## 六 最终回答")
+    body = _SHARED_PROMPT_TEMPLATE.replace("## 3. 澄清卡规范", "## 三 澄清卡规范")
     with pytest.raises(ConfigValidationError) as excinfo:
         validate_snapshot(_snapshot(prompt_body=body))
     assert excinfo.value.key == "agent_config.err_prompt_section_missing"
@@ -369,7 +369,7 @@ def test_meta_exposes_every_tool_and_param() -> None:
     assert set(meta["required_tool_names"]) <= set(meta["tool_names"])
     bounds = meta["tool_round_budget"]
     assert bounds["min"] == 0 and bounds["max"] == 20
-    assert meta["prompt"]["placeholder"] in _SYSTEM_PROMPT_TEMPLATE
+    assert meta["prompt"]["placeholder"] in _SHARED_PROMPT_TEMPLATE
 
 
 def test_frontend_i18n_covers_tools_and_params() -> None:

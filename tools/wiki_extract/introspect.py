@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from tools.wiki_extract.connect import MysqlTarget
+from tools.wiki_extract.value_sketch import summarize_value_counts
 
 _PII_COLUMNS = re.compile(
     r"password|passwd|(^|_)pwd($|_)|secret|token|private_key|id_card|"
@@ -238,7 +239,11 @@ def _profile_table(
                     (max_distinct,),
                 )
                 values = {str(row["v"]): int(row["c"]) for row in cur.fetchall()}
-            stats[cname] = {"distinct": n_distinct, "values": values}
+            stats[cname] = {
+                "distinct": n_distinct,
+                "values": values,
+                **summarize_value_counts(values, basis="profile"),
+            }
         except Exception:
             continue
     return stats
@@ -288,7 +293,11 @@ def _profile_instance(
                     if row.get("v") is not None and str(row.get("v") or "").strip()
                 ]
             if top_values:
-                stats[cname] = {"top_values": top_values}
+                counts = {item["value"]: item["count"] for item in top_values}
+                stats[cname] = {
+                    "top_values": top_values,
+                    **summarize_value_counts(counts, basis="top_values"),
+                }
         except Exception:
             continue
     return stats

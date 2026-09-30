@@ -4,6 +4,7 @@ state: apps.chat.graphs.turn_state.ChatTurnState
 description: >
   Unified Autonomous Data Agent runtime.
   agent_loop (init once) <-> execute_tools -> finalize_turn;
+  Analyze may re-enter agent_loop once for evidence nudge;
   clarifications pause durably at await_clarification; errors route to fail.
 
 nodes:
@@ -21,6 +22,7 @@ edges:
     router: apps.chat.agent.loop.route_after_agent_loop
     paths:
       execute_tools: execute_tools
+      agent_loop: agent_loop
       finalize_turn: finalize_turn
       fail: fail
 

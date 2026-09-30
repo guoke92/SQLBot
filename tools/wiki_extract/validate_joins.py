@@ -559,9 +559,11 @@ def _fill_pair_metrics(
 
 
 def _usable_predicate(alias: str, column: str) -> str:
-    """Lightweight non-null / non-blank filter (avoid TRIM/LOWER on every row)."""
+    """Lightweight non-null / non-blank / placeholder filter."""
+    from tools.wiki_extract.value_sketch import sql_sentinel_exclusions
+
     col = sql_ident(column)
-    return (
+    base = (
         f"{alias}.{col} IS NOT NULL "
         f"AND CAST({alias}.{col} AS CHAR) <> '' "
         f"AND CAST({alias}.{col} AS CHAR) <> 'null' "
@@ -569,6 +571,7 @@ def _usable_predicate(alias: str, column: str) -> str:
         f"AND CAST({alias}.{col} AS CHAR) <> 'NULL' "
         f"AND CAST({alias}.{col} AS CHAR) <> 'NONE'"
     )
+    return f"{base} AND {sql_sentinel_exclusions(alias, col)}"
 
 
 def _column_exists(conn: Any, schema: str, table: str, column: str) -> bool:

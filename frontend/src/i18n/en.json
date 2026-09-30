@@ -333,6 +333,11 @@
     "reasoning_effort_low_hint": "Faster, better for simple questions",
     "reasoning_effort_mid_hint": "Balanced speed and depth",
     "reasoning_effort_high_hint": "Deeper thinking for complex analysis",
+    "agent_mode": "Mode",
+    "agent_mode_query": "Query",
+    "agent_mode_analyze": "Analyze",
+    "agent_mode_query_hint": "Fetch data and deliver result cards",
+    "agent_mode_analyze_hint": "Investigate with knowledge and data, then write a report",
     "run_stage_queued": "Waiting for a worker",
     "run_stage_redispatch": "Redispatching",
     "run_stage_prepare": "Preparing data",
@@ -988,6 +993,8 @@
         "execute_sql_sandbox": "Run query",
         "patch_and_compile_sql": "Patch SQL",
         "compare_results": "Compare results",
+        "profile_sql_result": "Profile result",
+        "aggregate_sql_result": "Aggregate result",
         "search_wiki": "Search knowledge",
         "get_table_schema": "Expand table schema",
         "get_table_relations": "Inspect table joins",
@@ -1086,6 +1093,8 @@
     "show_request": "View Request",
     "collapse_sql": "Hide Query",
     "summary": "Summary",
+    "analysis_report": "Analysis report",
+    "analysis_exhibits": "Supporting charts",
     "quality_score": "Requirement completion",
     "quality_points": "pts",
     "quality_dimensions": "Scoring dimensions and reasons",
@@ -1719,7 +1728,10 @@
       "execution_round_limit": "Execution / patch tool round limit",
       "probe_sql_limit": "Probe SQL round limit",
       "search_wiki_round_limit": "Knowledge search round limit",
-      "wiki_schema_gap_search_limit": "Schema-gap top-up search limit"
+      "wiki_schema_gap_search_limit": "Schema-gap top-up search limit",
+      "tool_call_limit": "Total tool-call limit",
+      "clarify_limit": "Clarification round limit",
+      "context_token_limit": "Context token limit"
     },
     "tools": {
       "get_table_schema": "Expand table schema",
@@ -1730,6 +1742,8 @@
       "patch_and_compile_sql": "Patch SQL incrementally",
       "execute_sql_sandbox": "Execute SQL",
       "compare_results": "Compare result sets",
+      "profile_sql_result": "Profile result set",
+      "aggregate_sql_result": "Aggregate result set",
       "request_clarification": "Ask for clarification"
     }
   }

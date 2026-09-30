@@ -8,7 +8,6 @@ from typing import Any, Literal, cast
 
 from apps.chat.task.llm import LLMService
 from apps.conversation.outcome import (
-    RunOutcome,
     failed_outcome,
     format_error_message,
     public_error_message,
@@ -49,6 +48,10 @@ class ChatTurnState(RunState, total=False):
     ai_modal_name: str
     reference_record_ids: list[int]
     route_hint: str
+    agent_mode: str
+    loop_param_overrides: dict[str, Any]
+    analyze_evidence_nudged: bool
+    loop_continue: bool
     execution_mode: Literal["verified", "unverified", "agent"]
 
 

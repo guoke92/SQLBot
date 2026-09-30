@@ -27,6 +27,8 @@ def render_tool_message(name: str, result: Mapping[str, Any]) -> str:
         return _render_sql_sandbox(summary, data)
     if name == "compare_results":
         return _render_compare_results(summary, data)
+    if name in {"profile_sql_result", "aggregate_sql_result"}:
+        return _render_analyze_result(name, summary, data)
     if name == "patch_and_compile_sql":
         sql = str(data.get("sql") or "").strip()
         rev = str(
@@ -82,6 +84,41 @@ def _render_compare_results(summary: str, data: Mapping[str, Any]) -> str:
             if names:
                 bits.append("fields=" + ",".join(names[:8]))
         lines.append(" · ".join(bits))
+    return "\n".join(lines).strip()
+
+
+def _render_analyze_result(
+    name: str, summary: str, data: Mapping[str, Any]
+) -> str:
+    lines = [summary] if summary else [name]
+    ref = str(data.get("sql_ref") or "").strip()
+    if ref:
+        lines.append(f"sql_ref: {ref}")
+    columns = data.get("columns")
+    if isinstance(columns, Sequence) and not isinstance(columns, str | bytes):
+        for column in columns[:8]:
+            if not isinstance(column, Mapping):
+                continue
+            bits = [str(column.get("name") or "")]
+            if column.get("non_null") is not None:
+                bits.append(f"non_null={column.get('non_null')}")
+            if column.get("min") is not None:
+                bits.append(f"min={column.get('min')}")
+            if column.get("max") is not None:
+                bits.append(f"max={column.get('max')}")
+            lines.append(" ".join(str(item) for item in bits if item))
+    breakdown = data.get("breakdown")
+    if isinstance(breakdown, Mapping):
+        lines.append(f"breakdown {breakdown.get('column')}:")
+        for entry in list(breakdown.get("top") or [])[:8]:
+            if isinstance(entry, Mapping):
+                lines.append(f"  {entry.get('value')}: {entry.get('n')}")
+    rows = data.get("rows")
+    if isinstance(rows, Sequence) and not isinstance(rows, str | bytes) and rows:
+        preview = _format_preview_rows(rows, limit=12)
+        if preview:
+            lines.append("groups:")
+            lines.append(preview)
     return "\n".join(lines).strip()
 
 

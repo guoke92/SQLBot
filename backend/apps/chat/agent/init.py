@@ -13,6 +13,7 @@ from apps.chat.agent.context_spec import (
     context_fingerprint,
     recap_from_turn_answer,
 )
+from apps.chat.agent.mode import resolve_agent_mode, route_task_kind
 from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_config import load_agent_config
 from apps.chat.agent_knowledge import EXECUTION_ROUND_LIMIT, AgentKnowledgePlane
@@ -84,12 +85,22 @@ def hydrate_runtime(_run: ConversationRun, service: Any) -> dict[str, Any]:
     with session_scope() as session:
         scope = rehydrate_access_scope(session, service)
     agent_config = load_agent_config()
+    record = getattr(service, "record", None)
+    try:
+        record = service.get_record() or record
+    except Exception:
+        pass
     return {
         "access_scope": scope,
         "llm": service.llm,
         "agent_config": agent_config,
         "bound_tools": build_agent_tools(
-            service, access_scope=scope, config=agent_config
+            service,
+            access_scope=scope,
+            config=agent_config,
+            names=resolve_agent_mode(
+                {"route_hint": str(getattr(record, "turn_kind", "") or "")}
+            ).tool_names(),
         ),
     }
 
@@ -427,18 +438,14 @@ def ensure_agent_turn_route(
     existing = (
         state.get("turn_route") if isinstance(state.get("turn_route"), dict) else {}
     )
-    kind = str(
-        existing.get("task_kind") or state.get("route_hint") or task_kind or "query"
+    kind = route_task_kind(
+        str(existing.get("task_kind") or state.get("route_hint") or task_kind or "")
     )
-    if kind not in {"query", "analysis", "prediction", "unsupported"}:
-        kind = "query"
-    if kind == "analysis" and not refs:
-        kind = "query"
     relation: Literal["independent", "continue", "revise"] = (
         "continue" if refs else "independent"
     )
     return TurnRoute(
-        task_kind=kind,  # type: ignore[arg-type]
+        task_kind=kind,
         relation=relation,
         reference_record_ids=refs,
         source="deterministic",
@@ -472,6 +479,9 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         turn_route.get("reference_record_ids") or []
     )
     base_state["turn_route"] = turn_route
+    mode = resolve_agent_mode(base_state)
+    base_state["agent_mode"] = mode.id
+    base_state["loop_param_overrides"] = dict(mode.loop_param_overrides())
 
     if base_state["reference_record_ids"]:
         ctx_state = assemble_turn_context(base_state)
@@ -485,6 +495,9 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
                         else None
                     )
                     if record is not None:
+                        record.turn_kind = str(
+                            turn_route.get("task_kind") or record.turn_kind
+                        )
                         record.relation = str(turn_route.get("relation") or "continue")
                         record.reference_record_ids = list(
                             base_state["reference_record_ids"]
@@ -564,7 +577,12 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         SQLBotLogUtil.warning("schema outline render failed: %s", exc)
 
     agent_config = load_agent_config()
-    tools = build_agent_tools(service, access_scope=access_scope, config=agent_config)
+    tools = build_agent_tools(
+        service,
+        access_scope=access_scope,
+        config=agent_config,
+        names=mode.tool_names(),
+    )
     attach_runtime(
         run_id,
         llm=service.llm,
@@ -631,7 +649,37 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         except Exception as exc:
             SQLBotLogUtil.warning(f"compact span skipped: {exc}")
 
-    loop_budget = empty_budget(config=agent_config)
+    loop_budget = empty_budget(
+        config=agent_config, overrides=mode.loop_param_overrides()
+    )
+    if chat_id is not None:
+        try:
+            from apps.chat.models.chat_model import Chat
+
+            with session_scope() as session:
+                chat = session.get(Chat, int(chat_id))
+                if chat is not None and getattr(chat, "agent_mode", None) != mode.id:
+                    chat.agent_mode = mode.id
+                    session.add(chat)
+                    session.commit()
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                f"Failed to persist agent_mode on chat {chat_id}: {exc}"
+            )
+    if record_id is not None:
+        try:
+            with session_scope() as session:
+                record = session.get(ChatRecord, int(record_id))
+                if record is not None:
+                    record.turn_kind = str(
+                        turn_route.get("task_kind") or record.turn_kind
+                    )
+                    session.add(record)
+                    session.commit()
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                f"Failed to persist turn_kind on record {record_id}: {exc}"
+            )
     return {
         **base_state,
         "messages": serialize_messages(initial_messages),
@@ -646,6 +694,8 @@ def init_agent_turn(state: Mapping[str, Any]) -> dict[str, Any]:
         "knowledge_plane": plane.to_dump(),
         "memory_slots": memory_slots.model_dump(),
         "outcome": running_outcome(),
+        "agent_mode": mode.id,
+        "loop_param_overrides": dict(mode.loop_param_overrides()),
     }
 
 

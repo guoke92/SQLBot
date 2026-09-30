@@ -46,7 +46,7 @@ _RENDER_SENTINEL = 917_353
 
 #: Tripwire against saving a truncated prompt. Defined here so relaxing the
 #: French/English rewrite of the system prompt is a one-line change.
-REQUIRED_PROMPT_MARKERS: tuple[str, ...] = ("## 用户可见文案", "## 1.", "## 6.")
+REQUIRED_PROMPT_MARKERS: tuple[str, ...] = ("## 用户可见文案", "## 1.", "## 3.")
 
 _SPECS_BY_KEY = {spec.key: spec for spec in LOOP_PARAM_SPECS}
 
@@ -62,10 +62,10 @@ class ConfigValidationError(ValueError):
 
 def default_snapshot() -> AgentConfigSnapshot:
     """What a fresh install runs — used to seed the editor on first open."""
-    from apps.chat.task.agent_prompt import _SYSTEM_PROMPT_TEMPLATE
+    from apps.chat.task.agent_prompt import _SHARED_PROMPT_TEMPLATE
 
     return AgentConfigSnapshot(
-        prompt_body=_SYSTEM_PROMPT_TEMPLATE,
+        prompt_body=_SHARED_PROMPT_TEMPLATE,
         tools={name: dict(cfg) for name, cfg in default_tools().items()},
         loop_params={spec.key: spec.default for spec in LOOP_PARAM_SPECS},
         change_note=None,

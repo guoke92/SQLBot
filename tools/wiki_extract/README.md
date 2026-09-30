@@ -176,6 +176,37 @@ backend/venv/bin/python -m tools.wiki_extract refine-collide \
 backend/venv/bin/python -m tools.wiki_extract sync-wiki-related --wiki docs/wiki/v3
 ```
 
+## 历史 SQL 特征（统一入口，来源未接）
+
+`tools.wiki_extract.sql_corpus.SqlFeatureCorpus` 从 SQL 文本抽出等值 JOIN、多列 JOIN 组、变换 JOIN、命名公式。不写 wiki fence。三个来源共用一个存储，后续接入时只传 `SqlRecord`：
+
+| 来源 | 方法 | 场景 |
+|---|---|---|
+| `init_existing` | `replace_source` | 已有 SQL 初始化，整源替换 |
+| `manual_example` | `upsert` / `remove` | 人工 SQL 示例，增量 |
+| `user_accepted` | `upsert` / `remove` | 用户认可的 SQL，增量 |
+
+`aggregated()` 按谓词合并，`support` 为命中的记录数。`proposed_edges()` 把等值 JOIN、变换 JOIN、多列 JOIN、命名公式收成 `trust: proposed` 的候选，仍不写 wiki fence。`save` / `load` 持久化记录并在加载时重算特征。
+
+## 值域草图（形态 / 哨兵 / MinHash）
+
+`tools.wiki_extract.value_sketch` 在提取阶段定位值域重合，不单独判定 `fk_like`：
+
+- 形态：长度众数、数字占比、公共前缀。长度差 1 且前缀能解释时给出 `transform_hint`。
+- 哨兵：电话占位、重复数字、`N/A`、`无`、`未知`。草图和 live 校验都会丢掉它们。单独的数字 `0` 保留，避免把标志位和真实 id 清掉。
+- MinHash：近似 Jaccard，用来找出高重合列，并在一侧注释充实、另一侧注释空或只有「编码」时提出注释借用（`trust: proposed`）。
+- 同名、`id`/`*_id`、以及指向对方表 `id`/`code` 的 `ref_*`，即使 Jaccard 很低也保留，避免稀疏外键被草图漏掉。
+
+画像（`introspect`）会把 shape / sentinels / minhash 写进 `column_stats`。已有画像也可以离线重算：
+
+```bash
+backend/venv/bin/python -m tools.wiki_extract value-sketch \
+  --from-raw docs/wiki/v3/_raw \
+  --out docs/wiki/v3/_raw/value_sketch.yaml
+```
+
+`field_gloss.mechanical_gloss` 只给没有有效注释的列写一句 proposed 说明。`apply_llm_glosses` 接受注入的 `chat(system, user)`，失败时留下机械句，模块自己不连模型。
+
 ## JOIN 启发式重提（旧，易漏）
 
 同名/hub/ref 提名（会被笛卡尔结果取代）：

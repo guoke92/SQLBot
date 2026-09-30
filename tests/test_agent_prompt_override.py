@@ -4,9 +4,11 @@ from typing import Any
 
 import pytest
 
+from apps.chat.agent.mode import QueryMode
 from apps.chat.agent_config import loader
 from apps.chat.agent_config.defaults import LOOP_PARAM_DEFAULTS, default_tools
 from apps.chat.task.agent_prompt import (
+    _SHARED_PROMPT_TEMPLATE,
     _SYSTEM_PROMPT_TEMPLATE,
     build_agent_system_prompt,
     render_system_prompt_template,
@@ -38,7 +40,10 @@ def _config(prompt: str = "OVERRIDE {execution_limit}", limit: int = 3) -> Any:
 
 def test_no_override_is_byte_identical_to_the_code_template() -> None:
     """The regression gate: without a published row nothing may change."""
-    assert render_system_prompt_template() == _SYSTEM_PROMPT_TEMPLATE.format(
+    assert render_system_prompt_template() == _SHARED_PROMPT_TEMPLATE.format(
+        execution_limit=5
+    )
+    assert QueryMode().compose_rules() == _SYSTEM_PROMPT_TEMPLATE.format(
         execution_limit=5
     )
 

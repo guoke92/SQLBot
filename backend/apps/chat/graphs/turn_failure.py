@@ -71,6 +71,10 @@ def persist_query_terminal_failure(
     terminal_outcome = outcome or failed_outcome(error_summary)
     if "quality" not in terminal_outcome:
         terminal_outcome["quality"] = build_overall_quality([])
+    route = (
+        state.get("turn_route") if isinstance(state.get("turn_route"), Mapping) else {}
+    )
+    snapshot_kind = str(route.get("task_kind") or "query")
     try:
         with session_scope() as session:
             finalize_run(
@@ -91,6 +95,7 @@ def persist_query_terminal_failure(
                         Literal["verified", "unverified", "agent"],
                         state.get("execution_mode") or "agent",
                     ),
+                    kind=snapshot_kind,
                 ),
                 error_summary=error_summary,
                 error_visibility="public" if public_error is not None else "sanitize",

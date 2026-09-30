@@ -20,8 +20,6 @@ class TurnRoute(BaseModel):
     def validate_route(self) -> TurnRoute:
         if self.task_kind == "unsupported" and self.reference_record_ids:
             raise ValueError("Unsupported turns cannot reference result records")
-        if self.task_kind == "analysis" and self.relation == "independent":
-            raise ValueError("Analysis requires referenced result datasets")
         if self.relation != "independent" and not self.reference_record_ids:
             raise ValueError("Continuation and revision routes require references")
         if len(self.reference_record_ids) != len(set(self.reference_record_ids)):
@@ -86,8 +84,11 @@ class QueryTurnAnswer(AnswerBase):
 
 class AnalysisTurnAnswer(AnswerBase):
     kind: Literal["analysis"] = "analysis"
+    execution_mode: Literal["verified", "unverified", "agent"] = "agent"
+    datasets: tuple[AnswerDataset, ...] = ()
     dataset_ids: tuple[str, ...] = ()
     source_datasets: tuple[AnswerDataset, ...] = ()
+    intent_summary: str = ""
 
 
 class PredictionTurnAnswer(AnswerBase):

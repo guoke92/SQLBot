@@ -69,6 +69,17 @@ def test_continue_turn_route_shape() -> None:
     assert route.model_dump(mode="json")["reference_record_ids"] == [551]
 
 
+def test_independent_analysis_turn_route_is_allowed() -> None:
+    route = TurnRoute(
+        task_kind="analysis",
+        relation="independent",
+        source="hint",
+        confidence=1.0,
+    )
+    assert route.relation == "independent"
+    assert route.reference_record_ids == ()
+
+
 def test_hydrate_memory_slots_from_prior_turn() -> None:
     slots = MemorySlots()
     hydrate_memory_slots_from_referenced_turns(

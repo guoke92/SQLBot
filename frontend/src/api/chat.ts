@@ -470,6 +470,7 @@ export class Chat {
   ds_type?: string
   recommended_question?: string | undefined
   recommended_generate?: boolean | undefined
+  agent_mode?: 'query' | 'analyze'
 
   constructor()
   constructor(
@@ -550,6 +551,7 @@ export class ChatInfo extends Chat {
         this.ds_type = param1.ds_type
         this.recommended_question = recommended_question
         this.recommended_generate = recommended_generate
+        this.agent_mode = param1.agent_mode === 'analyze' ? 'analyze' : 'query'
       } else {
         this.id = param1
         this.create_time = getDate(create_time)
@@ -568,6 +570,8 @@ export class ChatInfo extends Chat {
     this.records = records
   }
 }
+
+export type AgentModeId = 'query' | 'analyze'
 
 const toChatRecord = (data?: any): ChatRecord | undefined => {
   if (!data) {
@@ -817,7 +821,7 @@ export const chatApi = {
     if (!data) {
       return undefined
     }
-    return new ChatInfo(
+    const info = new ChatInfo(
       data.id,
       data.create_time,
       data.create_by,
@@ -832,6 +836,8 @@ export const chatApi = {
       data.recommended_question,
       data.recommended_generate
     )
+    info.agent_mode = data.agent_mode === 'analyze' ? 'analyze' : 'query'
+    return info
   },
   toChatInfoList: (list: any[] = []): ChatInfo[] => {
     const infos: Array<ChatInfo> = []
@@ -947,6 +953,8 @@ export const chatApi = {
   checkLLMModel: () => request.get('/system/aimodel/default', { requestOptions: { silent: true } }),
   llmCapabilities: () =>
     request.get('/chat/llm_capabilities', { requestOptions: { silent: true } }),
+  setAgentMode: (chatId: number, agent_mode: 'query' | 'analyze') =>
+    request.patch(`/chat/${chatId}/agent_mode`, { agent_mode }),
   export2Excel: (record_id: number | undefined, chat_id: any) =>
     request.get(`/chat/record/${record_id}/excel/export/${chat_id}`, {
       responseType: 'blob',

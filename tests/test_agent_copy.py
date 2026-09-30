@@ -58,6 +58,27 @@ def test_compact_agent_final_text_is_idempotent() -> None:
     assert twice == once
 
 
+def test_compact_keeps_analyze_evidence_tables() -> None:
+    report = """### 核心发现
+开通率 12.4%。
+
+### 证据
+
+| 渠道 | 开通率 |
+| --- | --- |
+| A | 18% |
+| B | 9% |
+"""
+    kept = compact_agent_final_text(report, keep_tables=True)
+    assert "### 核心发现" in kept
+    assert "| 渠道 | 开通率 |" in kept
+    assert "12.4%" in kept
+    stripped = compact_agent_final_text(report, keep_tables=False)
+    assert "|" not in stripped
+    assert "12.4%" in stripped
+    assert "### 核心发现" in stripped
+
+
 def test_truncated_display_note_fallback() -> None:
     assert truncated_display_note(1000) == "仅展示前 1000 条。"
     assert truncated_display_note(None) == ""

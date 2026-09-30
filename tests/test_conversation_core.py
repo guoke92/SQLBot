@@ -536,6 +536,7 @@ class TestGraphLoader:
         ]
         assert loop_edges
         assert loop_edges[0].paths.get("execute_tools") == "execute_tools"
+        assert loop_edges[0].paths.get("agent_loop") == "agent_loop"
         assert loop_edges[0].paths.get("finalize_turn") == "finalize_turn"
         assert loop_edges[0].paths.get("fail") == "fail"
         tool_edges = [

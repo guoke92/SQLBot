@@ -310,7 +310,58 @@ def main(argv: list[str] | None = None) -> int:
         help="max candidates to live-validate (0 = all)",
     )
 
+    sketch_p = sub.add_parser(
+        "value-sketch",
+        help="MinHash + shape overlap from a saved profile (no live DB)",
+    )
+    sketch_p.add_argument(
+        "--from-raw",
+        required=True,
+        help="directory with catalog.yaml and profile.yaml",
+    )
+    sketch_p.add_argument("--out", required=True, help="report yaml path")
+    sketch_p.add_argument("--min-resemblance", type=float, default=0.2)
+
     args = parser.parse_args(argv)
+    if args.cmd == "value-sketch":
+        from tools.wiki_extract.field_gloss import mechanical_gloss
+        from tools.wiki_extract.value_sketch import locate_overlaps, sketches_from_profile
+
+        raw = Path(args.from_raw)
+        catalog = _read_yaml(raw / "catalog.yaml")
+        profile = _read_yaml(raw / "profile.yaml") if (raw / "profile.yaml").is_file() else {}
+        instance = (
+            _read_yaml(raw / "profile_instance.yaml")
+            if (raw / "profile_instance.yaml").is_file()
+            else {}
+        )
+        sketches = sketches_from_profile(catalog, profile, instance)
+        located = locate_overlaps(sketches, min_resemblance=args.min_resemblance)
+        glosses = []
+        for sketch in sketches:
+            gloss = mechanical_gloss(sketch)
+            if gloss is not None:
+                glosses.append(gloss)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            yaml.safe_dump(
+                {
+                    "fields": len(sketches),
+                    "pairs": located["pairs"],
+                    "imputations": located["imputations"],
+                    "glosses": glosses,
+                },
+                allow_unicode=True,
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        print(
+            f"value-sketch: fields={len(sketches)} "
+            f"pairs={len(located['pairs'])} glosses={len(glosses)} -> {out}"
+        )
+        return 0
     if args.cmd == "collide-joins":
         from tools.wiki_extract.collide_joins import run_collide
 

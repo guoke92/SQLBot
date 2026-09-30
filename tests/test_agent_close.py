@@ -73,6 +73,9 @@ def test_close_kind_four_outcomes() -> None:
     assert (
         close_kind({"turn_route": {"task_kind": "query"}}, has_cards=False) == "empty"
     )
+    assert (
+        close_kind({"turn_route": {"task_kind": "analysis"}}, has_cards=False) == "empty"
+    )
     assert close_kind({"error": "boom"}, has_cards=False) == "error"
 
 
@@ -137,6 +140,36 @@ def test_compute_verdict_after_loop_salvage_and_tool_calls() -> None:
             exec_rounds=BudgetSlot(used=5, max=5),
             knowledge_rounds=BudgetSlot(used=0, max=4),
             probe_calls=BudgetSlot(used=0, max=2),
+            tool_calls=BudgetSlot(used=0, max=24),
+            clarify_count=BudgetSlot(used=0, max=2),
+            context_tokens=BudgetSlot(used=0, max=48000),
+        ).model_dump(mode="json"),
+    }
+    assert compute_verdict(exhausted, phase="after_loop").action == "finalize_turn"
+
+
+def test_compute_verdict_loop_continue_reenters_agent_loop() -> None:
+    from langchain_core.messages import AIMessage
+
+    from apps.chat.agent.loop import route_after_agent_loop
+
+    state = {
+        "loop_continue": True,
+        "messages": [AIMessage(content="draft report")],
+    }
+    verdict = compute_verdict(state, phase="after_loop")
+    assert verdict.action == "agent_loop"
+    assert verdict.reason == "evidence_nudge"
+    assert route_after_agent_loop(state) == "agent_loop"
+
+    from apps.chat.agent.budget import BudgetSlot, LoopBudget
+
+    exhausted = {
+        **state,
+        "loop_budget": LoopBudget(
+            exec_rounds=BudgetSlot(used=8, max=8),
+            knowledge_rounds=BudgetSlot(used=0, max=4),
+            probe_calls=BudgetSlot(used=0, max=8),
             tool_calls=BudgetSlot(used=0, max=24),
             clarify_count=BudgetSlot(used=0, max=2),
             context_tokens=BudgetSlot(used=0, max=48000),

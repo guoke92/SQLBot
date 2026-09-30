@@ -333,6 +333,11 @@
     "reasoning_effort_low_hint": "更快，适合简单问题",
     "reasoning_effort_mid_hint": "平衡速度与思考深度",
     "reasoning_effort_high_hint": "更深思考，适合复杂分析",
+    "agent_mode": "模式",
+    "agent_mode_query": "查询",
+    "agent_mode_analyze": "分析",
+    "agent_mode_query_hint": "查数并交付结果卡",
+    "agent_mode_analyze_hint": "知识取证，输出分析报告",
     "run_stage_queued": "等待调度",
     "run_stage_redispatch": "正在重新调度",
     "run_stage_prepare": "正在准备数据",
@@ -988,6 +993,8 @@
         "execute_sql_sandbox": "执行查询",
         "patch_and_compile_sql": "增量修改",
         "compare_results": "数据对比",
+        "profile_sql_result": "结果剖析",
+        "aggregate_sql_result": "结果聚合",
         "search_wiki": "查阅知识",
         "get_table_schema": "展开表结构",
         "get_table_relations": "查询表关联",
@@ -1086,6 +1093,8 @@
     "show_request": "查看请求",
     "collapse_sql": "收起查询",
     "summary": "综合分析",
+    "analysis_report": "分析报告",
+    "analysis_exhibits": "支撑图表",
     "quality_score": "需求完成度",
     "quality_points": "分",
     "quality_dimensions": "评分指标与原因",
@@ -1719,7 +1728,10 @@
       "execution_round_limit": "执行/修补轮次上限",
       "probe_sql_limit": "探查 SQL 轮次上限",
       "search_wiki_round_limit": "知识库检索轮次上限",
-      "wiki_schema_gap_search_limit": "口径缺口补检索上限"
+      "wiki_schema_gap_search_limit": "口径缺口补检索上限",
+      "tool_call_limit": "工具调用总次数上限",
+      "clarify_limit": "澄清次数上限",
+      "context_token_limit": "上下文 token 上限"
     },
     "tools": {
       "get_table_schema": "展开表结构",
@@ -1730,6 +1742,8 @@
       "patch_and_compile_sql": "增量修补 SQL",
       "execute_sql_sandbox": "执行 SQL",
       "compare_results": "对比结果集",
+      "profile_sql_result": "剖析结果集",
+      "aggregate_sql_result": "聚合结果集",
       "request_clarification": "发起澄清"
     }
   }

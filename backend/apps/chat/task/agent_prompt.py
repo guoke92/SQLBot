@@ -1,6 +1,7 @@
 """Re-export the product-agent system prompt."""
 
 from apps.chat.agent.prompt import (
+    _SHARED_PROMPT_TEMPLATE,
     _SLOT_SECTIONS,
     _SYSTEM_PROMPT_TEMPLATE,
     build_agent_system_prompt,
@@ -8,6 +9,7 @@ from apps.chat.agent.prompt import (
 )
 
 __all__ = [
+    "_SHARED_PROMPT_TEMPLATE",
     "_SLOT_SECTIONS",
     "_SYSTEM_PROMPT_TEMPLATE",
     "build_agent_system_prompt",

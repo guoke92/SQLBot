@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 _MD_TABLE_RE = re.compile(
-    r"(?ms)^[ \t]*\|[^\n]+\|\s*\n[ \t]*\|[-:| ]+\|[ \t]*\n(?:[ \t]*\|[^\n]+\|\s*\n)*"
+    r"(?ms)^[ \t]*\|[^\n]+\|\s*\n[ \t]*\|[-:| ]+\|[ \t]*\n(?:[ \t]*\|[^\n]+\|\s*\n)*(?:[ \t]*\|[^\n]+\|[ \t]*)?"
 )
 _OPENER_RE = re.compile(
     r"^(?:查询已完成[，,。.\s]*|企业清单已生成[。.\s]*|"
@@ -48,10 +48,16 @@ def compact_agent_final_text(
     truncated: bool = False,
     limit: int | None = None,
     truncation_note: str = "",
+    keep_tables: bool = False,
 ) -> str:
-    """Drop openers, sample tables, and verbose truncation talk."""
+    """Drop openers, sample tables, and verbose truncation talk.
+
+    Query narration strips markdown tables (cards already show rows). Analyze
+    reports keep tables — they are the evidence section.
+    """
     body = str(text or "").strip()
-    body = _MD_TABLE_RE.sub("", body)
+    if not keep_tables:
+        body = _MD_TABLE_RE.sub("", body)
     body = _SAMPLE_HEAD_RE.sub("", body)
     body = _TIP_BLOCKQUOTE_RE.sub("", body)
     body = _NUMBERED_ASIDE_RE.sub("", body)

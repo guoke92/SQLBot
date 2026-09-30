@@ -93,12 +93,7 @@ def close_kind(state: Mapping[str, Any], *, has_cards: bool) -> CloseKind:
     text = str(state.get("final_text") or "").strip() or terminal_text(state)
     if text:
         return "text"
-    route = (
-        state.get("turn_route") if isinstance(state.get("turn_route"), Mapping) else {}
-    )
-    if str(route.get("task_kind") or "query") == "query":
-        return "empty"
-    return "error"
+    return "empty"
 
 
 def compute_verdict(state: Mapping[str, Any], *, phase: VerdictPhase) -> Verdict:
@@ -123,6 +118,8 @@ def compute_verdict(state: Mapping[str, Any], *, phase: VerdictPhase) -> Verdict
                     phase=phase,
                 )
             return Verdict(action="execute_tools", reason="tool_calls", phase=phase)
+        if state.get("loop_continue") and not budget.exhausted:
+            return Verdict(action="agent_loop", reason="evidence_nudge", phase=phase)
         return Verdict(action="finalize_turn", reason="model_stop", phase=phase)
     if state.get("error"):
         return Verdict(action="fail", reason="tool_error", phase=phase)
