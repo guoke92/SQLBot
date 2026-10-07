@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import threading
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from sqlmodel import Session, select
@@ -21,6 +21,7 @@ from apps.chat.agent_config.defaults import (
     LOOP_PARAM_DEFAULTS,
     LOOP_PARAM_SPECS,
     REQUIRED_TOOL_NAMES,
+    SQL_RULE_DEFAULTS,
     default_tools,
 )
 from apps.chat.agent_config.models import (
@@ -42,6 +43,7 @@ class AgentRuntimeConfig:
     prompt_version: str
     tools: Mapping[str, Mapping[str, Any]]
     loop_params: Mapping[str, int]
+    sql_rules: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
 
     def param(self, key: str, default: int) -> int:
         value = self.loop_params.get(key)
@@ -71,6 +73,17 @@ class AgentRuntimeConfig:
         if isinstance(override, str) and override.strip():
             return override
         return inline
+
+    def rule_enabled(self, kind: str) -> bool:
+        """Missing kinds keep the code default. A stored bool overrides it."""
+        default = SQL_RULE_DEFAULTS.get(kind, {}).get("enabled", False)
+        rule = self.sql_rules.get(kind)
+        if not isinstance(rule, Mapping):
+            return bool(default)
+        enabled = rule.get("enabled")
+        if isinstance(enabled, bool):
+            return enabled
+        return bool(default)
 
     def tool_round_budget(self, name: str) -> int | None:
         tool = self.tools.get(name)
@@ -103,6 +116,7 @@ def _code_default() -> AgentRuntimeConfig:
         prompt_version="code",
         tools={name: dict(cfg) for name, cfg in default_tools().items()},
         loop_params=dict(LOOP_PARAM_DEFAULTS),
+        sql_rules=merge_sql_rules(None),
     )
 
 
@@ -144,6 +158,18 @@ def merge_loop_params(raw: Mapping[str, Any] | None) -> dict[str, int]:
     return merged
 
 
+def merge_sql_rules(raw: Mapping[str, Any] | None) -> dict[str, dict[str, bool]]:
+    """Overlay stored rule toggles on the code defaults, kind by kind."""
+    merged = {kind: dict(cfg) for kind, cfg in SQL_RULE_DEFAULTS.items()}
+    for kind, payload in (raw or {}).items():
+        if kind not in merged or not isinstance(payload, Mapping):
+            continue
+        enabled = payload.get("enabled")
+        if isinstance(enabled, bool):
+            merged[kind]["enabled"] = enabled
+    return merged
+
+
 def config_from_row(row: AgentConfigVersion) -> AgentRuntimeConfig:
     """Runtime snapshot for a published row. Does not touch the cache."""
     return _from_row(row)
@@ -160,6 +186,9 @@ def _from_row(row: AgentConfigVersion) -> AgentRuntimeConfig:
         tools=merge_tools(row.tools if isinstance(row.tools, Mapping) else None),
         loop_params=merge_loop_params(
             row.loop_params if isinstance(row.loop_params, Mapping) else None
+        ),
+        sql_rules=merge_sql_rules(
+            row.sql_rules if isinstance(getattr(row, "sql_rules", None), Mapping) else None
         ),
     )
 

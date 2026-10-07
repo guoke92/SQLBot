@@ -8,10 +8,15 @@ export interface AgentToolOverride {
   round_budget: number | null
 }
 
+export interface SqlRuleOverride {
+  enabled: boolean
+}
+
 export interface AgentConfigSnapshot {
   prompt_body: string
   tools: Record<string, AgentToolOverride>
   loop_params: Record<string, number>
+  sql_rules: Record<string, SqlRuleOverride>
   change_note: string | null
 }
 
@@ -44,6 +49,12 @@ export interface LoopParamMeta {
   label_key: string
 }
 
+export interface SqlRuleMeta {
+  key: string
+  default_enabled: boolean
+  label_key: string
+}
+
 export interface AgentConfigMeta {
   prompt: {
     min_chars: number
@@ -57,6 +68,7 @@ export interface AgentConfigMeta {
   params: LoopParamMeta[]
   tool_names: string[]
   required_tool_names: string[]
+  sql_rules: SqlRuleMeta[]
 }
 
 export const agentConfigApi = {

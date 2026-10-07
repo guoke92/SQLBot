@@ -36,6 +36,12 @@ class ContextSpec(BaseModel):
     evidence: str = ""
 
     def system_body(self) -> str:
+        return "\n\n".join(
+            part for part in (self.stable_prefix(), self.turn_delta()) if part
+        )
+
+    def stable_prefix(self) -> str:
+        """Rules, outline, and recap. Unchanged for the rest of the turn."""
         parts: list[str] = []
         if self.rules:
             parts.append(self.rules)
@@ -43,6 +49,11 @@ class ContextSpec(BaseModel):
             parts.append(self.catalog_outline)
         if self.recap:
             parts.append("<recap>\n" + self.recap + "\n</recap>")
+        return "\n\n".join(parts)
+
+    def turn_delta(self) -> str:
+        """Working set, SQL index, and evidence. Appended after the transcript."""
+        parts: list[str] = []
         if self.working_set:
             parts.append("<working_set>\n" + self.working_set + "\n</working_set>")
         if self.sql_workspace:
@@ -511,15 +522,21 @@ def build_continued_messages(
         question=question,
         config=config,
     )
-    system = SystemMessage(content=spec.system_body())
+    system = SystemMessage(content=spec.stable_prefix())
     human = HumanMessage(content=question)
+    accounted = [system, human]
+    delta = spec.turn_delta()
+    if delta:
+        accounted.append(SystemMessage(content=delta))
+    if spec.turn_brief:
+        accounted.append(SystemMessage(content=spec.turn_brief))
     budget = int(token_budget if token_budget is not None else _token_budget())
     keep = int(keep_turns if keep_turns is not None else _keep_turns())
     folded, folds = fold_history(
         list(history),
         token_budget=budget,
         keep_turns=keep,
-        extra_tokens=estimate_tokens([system, human]),
+        extra_tokens=estimate_tokens(accounted),
         stored_folds=stored_folds,
     )
     messages = [system, *folded, human]

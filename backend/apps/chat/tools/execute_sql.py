@@ -104,11 +104,9 @@ def execute_sql_sandbox(
 ) -> dict[str, Any]:
     """Safely execute SQL with permission rewrites and token-safe output.
 
-    Schema readiness belongs to planning (``get_table_schema`` / wiki recall).
-    Once the model has produced concrete SQL, this sandbox executes it under
-    access-scope validation — it does not re-check the in-memory knowledge
-    plane. Catalog probes and enum-discovery SQL remain blocked separately.
-    JOIN edges from wiki relations are advisory only.
+    Configurable SQL rules run first (catalog probes, enum discovery, closed
+    code literals). Access-scope validation still applies. JOIN edges from
+    wiki relations stay advisory and are not a rule kind.
     """
     clean_sql = (sql or "").strip().rstrip(";")
     if not clean_sql:
@@ -130,18 +128,11 @@ def execute_sql_sandbox(
         if not resolved_chart:
             resolved_chart = "table"
 
-    if is_catalog_probe_sql(clean_sql):
-        return failure_outcome(
-            "Catalog probes are not allowed (information_schema / pg_catalog / "
-            "SHOW COLUMNS / DESCRIBE). Table structure must come from Wiki or "
-            "the schema context already in the prompt.",
-            retryable=False,
-            name=EXECUTE_SQL_TOOL_NAME,
-        )
+    from apps.chat.sql_rules import enforce_sql_rules
 
-    enum_block = _reject_enum_discovery(clean_sql, llm_service)
-    if enum_block is not None:
-        return enum_block
+    blocked = enforce_sql_rules(clean_sql, llm_service)
+    if blocked is not None:
+        return blocked
 
     try:
         proto = getattr(llm_service, "protocol", None)

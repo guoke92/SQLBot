@@ -82,6 +82,10 @@ class AgentConfigVersion(SQLModel, table=True):
         default_factory=dict,
         sa_column=Column(JSONB, nullable=False, server_default=text("'{}'::jsonb")),
     )
+    sql_rules: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    )
     change_note: str | None = Field(
         default=None, sa_column=Column(String(255), nullable=True)
     )
@@ -97,6 +101,14 @@ class AgentConfigVersion(SQLModel, table=True):
     published_time: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
     )
+
+
+class SqlRuleOverride(BaseModel):
+    """Per-rule toggle. Unknown kinds are rejected on save."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
 
 
 class ToolOverride(BaseModel):
@@ -116,6 +128,7 @@ class AgentConfigSnapshot(BaseModel):
     prompt_body: str
     tools: dict[str, ToolOverride] = PydanticField(default_factory=dict)
     loop_params: dict[str, int] = PydanticField(default_factory=dict)
+    sql_rules: dict[str, SqlRuleOverride] = PydanticField(default_factory=dict)
     change_note: str | None = None
 
 

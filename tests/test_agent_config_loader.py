@@ -14,6 +14,7 @@ from apps.chat.agent_config.defaults import (
     DEFAULT_TOOL_NAMES,
     LOOP_PARAM_DEFAULTS,
     LOOP_PARAM_SPECS,
+    SQL_RULE_SPECS,
     default_tools,
 )
 from apps.chat.agent_config.models import AgentConfigSaveRequest, AgentConfigSnapshot
@@ -370,6 +371,9 @@ def test_meta_exposes_every_tool_and_param() -> None:
     bounds = meta["tool_round_budget"]
     assert bounds["min"] == 0 and bounds["max"] == 20
     assert meta["prompt"]["placeholder"] in _SHARED_PROMPT_TEMPLATE
+    assert [rule["key"] for rule in meta["sql_rules"]] == [
+        spec.kind for spec in SQL_RULE_SPECS
+    ]
 
 
 def test_frontend_i18n_covers_tools_and_params() -> None:
@@ -383,6 +387,10 @@ def test_frontend_i18n_covers_tools_and_params() -> None:
         for spec in LOOP_PARAM_SPECS:
             assert spec.label_key in namespace["params"], (
                 f"{name}: agent_config.params.{spec.label_key}"
+            )
+        for spec in SQL_RULE_SPECS:
+            assert spec.label_key in namespace["sql_rules"], (
+                f"{name}: agent_config.sql_rules.{spec.label_key}"
             )
         # Keys the page looks up dynamically must exist too.
         for status in ("draft", "published", "archived"):

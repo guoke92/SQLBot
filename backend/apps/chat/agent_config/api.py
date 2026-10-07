@@ -10,6 +10,7 @@ from apps.chat.agent_config.defaults import (
     DEFAULT_TOOL_NAMES,
     LOOP_PARAM_SPECS,
     REQUIRED_TOOL_NAMES,
+    SQL_RULE_SPECS,
 )
 from apps.chat.agent_config.models import (
     AgentConfigDetail,
@@ -79,6 +80,14 @@ def build_meta() -> dict[str, Any]:
         ],
         "tool_names": list(DEFAULT_TOOL_NAMES),
         "required_tool_names": sorted(REQUIRED_TOOL_NAMES),
+        "sql_rules": [
+            {
+                "key": spec.kind,
+                "default_enabled": spec.enabled,
+                "label_key": f"agent_config.sql_rules.{spec.label_key}",
+            }
+            for spec in SQL_RULE_SPECS
+        ],
     }
 
 

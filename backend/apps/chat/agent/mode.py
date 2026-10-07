@@ -19,7 +19,7 @@ from apps.chat.agent.prompt import (
 from apps.chat.agent_config.defaults import DEFAULT_TOOL_NAMES, QUERY_TOOL_NAMES
 
 AgentModeId = Literal["query", "analyze"]
-RouteTaskKind = Literal["query", "analysis", "prediction", "unsupported"]
+RouteTaskKind = Literal["query", "analysis", "unsupported"]
 
 
 class AgentMode(Protocol):
@@ -48,8 +48,6 @@ def route_task_kind(hint: str | None) -> RouteTaskKind:
     raw = str(hint or "").strip().lower()
     if raw in {"analysis", "analyze"}:
         return "analysis"
-    if raw == "prediction":
-        return "prediction"
     if raw == "unsupported":
         return "unsupported"
     return "query"

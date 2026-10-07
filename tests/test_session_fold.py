@@ -124,6 +124,7 @@ def test_continue_keeps_prior_schema_tool_message() -> None:
     )
     assert isinstance(messages[0], SystemMessage)
     assert "<schema_outline>" in str(messages[0].content)
+    assert "<working_set>" not in str(messages[0].content)
     assert "<change_baseline>" not in str(messages[0].content)
     assert "<memory_slots>" not in str(messages[0].content)
     names = [getattr(item, "name", "") for item in messages]

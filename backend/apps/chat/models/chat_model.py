@@ -73,8 +73,6 @@ class ChatFinishStep(Enum):
 
 class QuickCommand(Enum):
     REGENERATE = '/regenerate'
-    ANALYSIS = '/analysis'
-    PREDICT_DATA = '/predict'
 
 
 #     TODO choose table / check connection / generate description

@@ -164,7 +164,7 @@ class CreateRunRequest(BaseModel):
     question: str = Field(min_length=1)
     datasource_id: int | None = None
     regenerate_record_id: int | None = None
-    route_hint: Literal["query", "analysis", "prediction", "unsupported"] | None = None
+    route_hint: Literal["query", "analysis", "unsupported"] | None = None
     reference_record_ids: list[int] = Field(default_factory=list, max_length=3)
     finish_step: int | None = None
     return_img: bool = True

@@ -38,7 +38,7 @@ def test_route_task_kind_maps_hints() -> None:
     assert route_task_kind(None) == "query"
     assert route_task_kind("analyze") == "analysis"
     assert route_task_kind("analysis") == "analysis"
-    assert route_task_kind("prediction") == "prediction"
+    assert route_task_kind("prediction") == "query"
     assert route_task_kind("nope") == "query"
 
 

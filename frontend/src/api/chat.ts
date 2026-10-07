@@ -111,7 +111,7 @@ export interface CreateRunRequest {
   question: string
   datasource_id?: number
   regenerate_record_id?: number
-  route_hint?: 'query' | 'analysis' | 'prediction' | 'unsupported'
+  route_hint?: 'query' | 'analysis' | 'unsupported'
   reference_record_ids?: number[]
   finish_step?: number
   return_img?: boolean
@@ -933,12 +933,6 @@ export const chatApi = {
   },
   deleteChat: (id: number | undefined, brief: any): Promise<string> => {
     return request.delete(`/chat/${id}`, { data: { id: id, brief: brief } })
-  },
-  analysis: (record_id: number | undefined, controller?: AbortController) => {
-    return request.fetchStream(`/chat/record/${record_id}/analysis`, {}, controller)
-  },
-  predict: (record_id: number | undefined, controller?: AbortController) => {
-    return request.fetchStream(`/chat/record/${record_id}/predict`, {}, controller)
   },
   recommendQuestions: (
     record_id: number | undefined,

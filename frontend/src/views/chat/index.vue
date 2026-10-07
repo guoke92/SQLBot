@@ -280,43 +280,6 @@
                                 </el-icon>
                               </el-button>
                             </el-tooltip>
-                            <template v-if="message.record?.chart">
-                              <div class="divider"></div>
-                              <div>
-                                <el-button
-                                  class="tool-btn"
-                                  text
-                                  :disabled="isTyping"
-                                  @click="clickAnalysis(message.record?.id)"
-                                >
-                                  <span class="tool-btn-inner">
-                                    <el-icon size="18">
-                                      <icon_screen_outlined />
-                                    </el-icon>
-                                    <span class="btn-text">
-                                      {{ t('chat.data_analysis') }}
-                                    </span>
-                                  </span>
-                                </el-button>
-                              </div>
-                              <div>
-                                <el-button
-                                  class="tool-btn"
-                                  text
-                                  :disabled="isTyping"
-                                  @click="clickPredict(message.record?.id)"
-                                >
-                                  <span class="tool-btn-inner">
-                                    <el-icon size="18">
-                                      <icon_start_outlined />
-                                    </el-icon>
-                                    <span class="btn-text">
-                                      {{ t('chat.data_predict') }}
-                                    </span>
-                                  </span>
-                                </el-button>
-                              </div>
-                            </template>
                             <div class="divider"></div>
                             <el-tooltip
                               effect="dark"
@@ -515,15 +478,12 @@ import ErrorInfo from './ErrorInfo.vue'
 import ChatToolBar from './ChatToolBar.vue'
 import { dsTypeWithImg } from '@/views/ds/js/ds-type'
 import { useI18n } from 'vue-i18n'
-import { find } from 'lodash-es'
 import custom_small from '@/assets/svg/logo-custom_small.svg'
 import LOGO_fold from '@/assets/LOGO-fold.svg'
 import icon_new_chat_outlined from '@/assets/svg/icon_new_chat_outlined.svg'
 import icon_sidebar_outlined from '@/assets/svg/icon_sidebar_outlined.svg'
 import icon_sidebar_outlined_nofill from '@/assets/embedded/icon_sidebar_outlined_nofill.svg'
 import icon_replace_outlined from '@/assets/svg/icon_replace_outlined.svg'
-import icon_screen_outlined from '@/assets/svg/icon_screen_outlined.svg'
-import icon_start_outlined from '@/assets/svg/icon_start_outlined.svg'
 import logo_fold from '@/assets/svg/logo-custom_small.svg'
 import icon_send_filled from '@/assets/svg/icon_send_filled.svg'
 import { useAssistantStore } from '@/stores/assistant'
@@ -1003,11 +963,6 @@ function askAgain(message: ChatMessage) {
   target?.regenerate?.()
 }
 
-async function clickAnalysis(id?: number) {
-  await onAgentModeChange('analyze')
-  return startReferencedTurn('analysis', id)
-}
-
 function getRecordUsage(recordId: any) {
   console.debug('getRecordUsage id: ', recordId)
   nextTick(() => {
@@ -1028,48 +983,6 @@ function getRecordUsage(recordId: any) {
       .catch((e) => {
         console.error(e)
       })
-  })
-}
-
-async function clickPredict(id?: number) {
-  return startReferencedTurn('prediction', id)
-}
-
-async function startReferencedTurn(kind: 'analysis' | 'prediction', id?: number) {
-  const baseRecord = find(currentChat.value.records, (value) => id === value.id)
-  if (baseRecord == undefined || !id) return
-
-  loading.value = true
-  isTyping.value = true
-  forceScrollToBottom()
-
-  const currentRecord = new ChatRecord()
-  currentRecord.create_time = new Date()
-  currentRecord.chat_id = baseRecord.chat_id
-  currentRecord.question =
-    kind === 'analysis' ? '请分析上一条查询结果' : '请基于上一条查询结果进行预测'
-  currentRecord.turn_kind = kind
-  currentRecord.relation = 'continue'
-  currentRecord.reference_record_ids = [id]
-
-  currentChat.value.records.push(currentRecord)
-
-  nextTick(async () => {
-    forceScrollToBottom()
-    const index = currentChat.value.records.length - 1
-    if (chartAnswerRef.value) {
-      if (chartAnswerRef.value instanceof Array) {
-        for (let i = 0; i < chartAnswerRef.value.length; i++) {
-          const _index = chartAnswerRef.value[i].index()
-          if (index === _index) {
-            await chartAnswerRef.value[i].sendMessage()
-            break
-          }
-        }
-      } else {
-        await chartAnswerRef.value.sendMessage()
-      }
-    }
   })
 }
 

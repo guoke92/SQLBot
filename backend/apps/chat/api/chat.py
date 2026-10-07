@@ -859,12 +859,6 @@ async def question_answer_inner(
             request_question.question
         )
         if command:
-            # todo 对话界面下，暂不支持分析和预测，需要改造前端
-            if in_chat and (
-                command == QuickCommand.ANALYSIS or command == QuickCommand.PREDICT_DATA
-            ):
-                raise Exception(f"Command: {command.value} temporary not supported")
-
             if record_id is not None:
                 source_record = session.get(ChatRecord, record_id)
                 if source_record is None:
@@ -922,30 +916,7 @@ async def question_answer_inner(
                     finish_step,
                     return_img=return_img,
                 )
-
-            elif command == QuickCommand.ANALYSIS:
-                return await analysis_or_predict(
-                    session,
-                    current_user,
-                    rec_id,
-                    "analysis",
-                    current_assistant,
-                    in_chat,
-                    stream,
-                )
-
-            elif command == QuickCommand.PREDICT_DATA:
-                return await analysis_or_predict(
-                    session,
-                    current_user,
-                    rec_id,
-                    "predict",
-                    current_assistant,
-                    in_chat,
-                    stream,
-                )
-            else:
-                raise Exception(f"Unknown command: {command.value}")
+            raise Exception(f"Unknown command: {command.value}")
         else:
             return await stream_sql(
                 session,
@@ -1092,136 +1063,6 @@ async def stream_sql(
             status_code=status_code,
         )
 
-
-@router.post(
-    "/record/{chat_record_id}/{action_type}",
-    summary=f"{PLACEHOLDER_PREFIX}analysis_or_predict",
-)
-async def analysis_or_predict_question(
-    session: SessionDep,
-    current_user: CurrentUser,
-    current_assistant: CurrentAssistant,
-    chat_record_id: int,
-    action_type: str = Path(
-        ..., description=f"{PLACEHOLDER_PREFIX}analysis_or_predict_action_type"
-    ),
-):
-    return await analysis_or_predict(
-        session, current_user, chat_record_id, action_type, current_assistant
-    )
-
-
-async def analysis_or_predict(
-    session: SessionDep,
-    current_user: CurrentUser,
-    chat_record_id: int,
-    action_type: str,
-    current_assistant: CurrentAssistant,
-    in_chat: bool = True,
-    stream: bool = True,
-):
-    sink_mode = resolve_sink(in_chat=in_chat, stream=stream)
-    try:
-        if action_type != "analysis" and action_type != "predict":
-            raise Exception(f"Type {action_type} Not Found")
-        base_record = session.get(ChatRecord, chat_record_id)
-        if not base_record or int(base_record.create_by) != _user_id(current_user):
-            raise Exception(f"Chat record with id {chat_record_id} not found")
-
-        answer = base_record.answer if isinstance(base_record.answer, dict) else {}
-        task_kind = "analysis" if action_type == "analysis" else "prediction"
-        if task_kind == "prediction" and not (
-            answer.get("datasets") or answer.get("source_datasets")
-        ):
-            raise Exception(
-                f"Chat record with id {chat_record_id} has no usable result dataset"
-            )
-        request_question = ChatQuestion(
-            chat_id=base_record.chat_id,
-            question=(
-                "请分析上一条查询结果"
-                if task_kind == "analysis"
-                else "请基于上一条查询结果进行预测"
-            ),
-        )
-
-        llm_service = await LLMService.create(
-            session, current_user, request_question, current_assistant
-        )
-        llm_service.init_record(session=session, commit=False)
-        record = llm_service.record
-        record.turn_kind = task_kind
-        record.relation = "continue"
-        record.reference_record_ids = [int(base_record.id)]
-        if task_kind == "analysis":
-            chat_row = session.get(Chat, base_record.chat_id)
-            if chat_row is not None:
-                chat_row.agent_mode = "analyze"
-                session.add(chat_row)
-        session.add(record)
-        session.flush()
-        run = create_run(
-            session,
-            record=record,
-            graph_key="chat",
-            user_id=_user_id(current_user),
-            oid=int(getattr(current_user, "oid", None) or 1),
-            assistant_id=(
-                int(current_assistant.id)
-                if current_assistant is not None
-                and getattr(current_assistant, "id", None) is not None
-                else None
-            ),
-        )
-        llm_service.set_record(record)
-        attach_runtime(run.run_id, llm_service=llm_service)
-        # Compatibility endpoint only adapts the old button shape into the
-        # one durable chat graph. It does not create an analysis/predict graph.
-        runner = submit_graph(
-            "chat",
-            {
-                "run_id": run.run_id,
-                "record_id": record.id,
-                "sink": sink_mode,
-                "graph_key": "chat",
-                "mode": "follow_up",
-                "chat_id": base_record.chat_id,
-                "route_hint": task_kind,
-                "reference_record_ids": [int(base_record.id)],
-            },
-        )
-    except Exception as e:
-        traceback.print_exc()
-        if stream:
-
-            def _err(_e: Exception):
-                yield from sink_error_chunks(
-                    {"sink": sink_mode, "in_chat": in_chat, "stream": stream},
-                    str(_e),
-                )
-
-            return StreamingResponse(_err(e), media_type="text/event-stream")
-        else:
-            return JSONResponse(
-                content={"message": str(e)},
-                status_code=500,
-            )
-    if stream:
-        return StreamingResponse(runner.await_result(), media_type="text/event-stream")
-    else:
-        res = runner.await_result()
-        raw_data = {}
-        for chunk in res:
-            if chunk:
-                raw_data = chunk
-        status_code = 200
-        if not raw_data.get("success"):
-            status_code = 500
-
-        return JSONResponse(
-            content=raw_data,
-            status_code=status_code,
-        )
 
 
 @router.get(

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 /**
- * Agent configuration console: system prompt + built-in tools + loop bounds.
+ * Agent configuration console: system prompt, tools, pre-execute rules, loop bounds.
  *
  * Draft / publish / rollback are one atomic unit — the three blocks are always
  * edited and released together, matching the backend's single versioned row.
@@ -29,6 +29,13 @@ interface ParamRow {
   value: number
 }
 
+interface RuleRow {
+  key: string
+  label_key: string
+  defaultEnabled: boolean
+  enabled: boolean
+}
+
 const { t } = useI18n()
 
 const loading = ref(false)
@@ -44,6 +51,7 @@ const promptBody = ref('')
 const changeNote = ref('')
 const toolRows = ref<ToolRow[]>([])
 const paramRows = ref<ParamRow[]>([])
+const ruleRows = ref<RuleRow[]>([])
 
 /** Server state the editor was seeded from — used for dirty detection + discard. */
 const baseline = ref('')
@@ -72,6 +80,7 @@ const currentSnapshot = (): AgentConfigSnapshot => ({
     ])
   ),
   loop_params: Object.fromEntries(paramRows.value.map((row) => [row.key, row.value])),
+  sql_rules: Object.fromEntries(ruleRows.value.map((row) => [row.key, { enabled: row.enabled }])),
   change_note: changeNote.value.trim() || null,
 })
 
@@ -153,6 +162,12 @@ const applyDetail = (payload: AgentConfigDetail) => {
     minimum: item.minimum,
     maximum: item.maximum,
     value: payload.snapshot.loop_params?.[item.key] ?? item.default,
+  }))
+  ruleRows.value = (spec?.sql_rules ?? []).map((item) => ({
+    key: item.key,
+    label_key: item.label_key,
+    defaultEnabled: item.default_enabled,
+    enabled: payload.snapshot.sql_rules?.[item.key]?.enabled ?? item.default_enabled,
   }))
   baseline.value = fingerprint(currentSnapshot())
 }
@@ -407,6 +422,31 @@ onMounted(load)
                 </template>
               </el-table-column>
             </el-table>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('agent_config.tabs.sql_rules')" name="sql_rules">
+          <div class="ac-pane">
+            <div class="ac-pane-hint">{{ t('agent_config.sql_rules_hint') }}</div>
+            <div class="ac-params">
+              <div v-for="row in ruleRows" :key="row.key" class="ac-param">
+                <div class="ac-param-label">
+                  {{ t(row.label_key) }}
+                  <code class="ac-param-key">{{ row.key }}</code>
+                </div>
+                <div class="ac-param-value">
+                  <el-switch v-model="row.enabled" />
+                  <el-button
+                    link
+                    size="small"
+                    :disabled="row.enabled === row.defaultEnabled"
+                    @click="row.enabled = row.defaultEnabled"
+                  >
+                    {{ t('agent_config.params_reset') }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
           </div>
         </el-tab-pane>
 

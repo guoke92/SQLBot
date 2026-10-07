@@ -15,10 +15,12 @@ from sqlmodel import Session, func, select
 from apps.chat.agent_config.defaults import (
     LOOP_PARAM_SPECS,
     REQUIRED_TOOL_NAMES,
+    SQL_RULE_SPECS,
     default_tools,
 )
 from apps.chat.agent_config.loader import (
     merge_loop_params,
+    merge_sql_rules,
     merge_tools,
 )
 from apps.chat.agent_config.models import (
@@ -29,6 +31,7 @@ from apps.chat.agent_config.models import (
     AgentConfigStatus,
     AgentConfigVersion,
     AgentConfigVersionRead,
+    SqlRuleOverride,
     ToolOverride,
 )
 from common.utils.utils import SQLBotLogUtil
@@ -49,6 +52,7 @@ _RENDER_SENTINEL = 917_353
 REQUIRED_PROMPT_MARKERS: tuple[str, ...] = ("## 用户可见文案", "## 1.", "## 3.")
 
 _SPECS_BY_KEY = {spec.key: spec for spec in LOOP_PARAM_SPECS}
+_RULES_BY_KIND = {spec.kind: spec for spec in SQL_RULE_SPECS}
 
 
 class ConfigValidationError(ValueError):
@@ -68,6 +72,9 @@ def default_snapshot() -> AgentConfigSnapshot:
         prompt_body=_SHARED_PROMPT_TEMPLATE,
         tools={name: dict(cfg) for name, cfg in default_tools().items()},
         loop_params={spec.key: spec.default for spec in LOOP_PARAM_SPECS},
+        sql_rules={
+            spec.kind: SqlRuleOverride(enabled=spec.enabled) for spec in SQL_RULE_SPECS
+        },
         change_note=None,
     )
 
@@ -143,6 +150,16 @@ def validate_snapshot(payload: AgentConfigSnapshot) -> AgentConfigSnapshot:
             )
         loop_params[key] = int(value)
 
+    cleaned_rules: dict[str, SqlRuleOverride] = {}
+    for kind, override in (payload.sql_rules or {}).items():
+        if kind not in _RULES_BY_KIND:
+            raise ConfigValidationError(
+                "agent_config.err_rule_unknown", detail=str(kind)
+            )
+        cleaned_rules[kind] = SqlRuleOverride(enabled=bool(override.enabled))
+    for spec in SQL_RULE_SPECS:
+        cleaned_rules.setdefault(spec.kind, SqlRuleOverride(enabled=spec.enabled))
+
     note = payload.change_note
     if note is not None and len(str(note)) > MAX_CHANGE_NOTE_CHARS:
         raise ConfigValidationError("agent_config.err_note_length")
@@ -151,6 +168,7 @@ def validate_snapshot(payload: AgentConfigSnapshot) -> AgentConfigSnapshot:
         prompt_body=body,
         tools=cleaned_tools,
         loop_params=loop_params,
+        sql_rules=cleaned_rules,
         change_note=str(note) if note else None,
     )
 
@@ -200,6 +218,9 @@ def _snapshot_from_row(row: AgentConfigVersion) -> AgentConfigSnapshot:
     params = merge_loop_params(
         row.loop_params if isinstance(row.loop_params, Mapping) else None
     )
+    rules = merge_sql_rules(
+        row.sql_rules if isinstance(getattr(row, "sql_rules", None), Mapping) else None
+    )
     return AgentConfigSnapshot(
         prompt_body=str(row.prompt_body or ""),
         tools={
@@ -212,6 +233,10 @@ def _snapshot_from_row(row: AgentConfigVersion) -> AgentConfigSnapshot:
             for name, cfg in tools.items()
         },
         loop_params=params,
+        sql_rules={
+            kind: SqlRuleOverride(enabled=bool(cfg.get("enabled", True)))
+            for kind, cfg in rules.items()
+        },
         change_note=row.change_note,
     )
 
@@ -248,6 +273,9 @@ def save_draft(
     stored_tools = {
         name: override.model_dump() for name, override in cleaned.tools.items()
     }
+    stored_rules = {
+        kind: override.model_dump() for kind, override in cleaned.sql_rules.items()
+    }
     now = datetime.now()
     draft = get_draft(session)
     if draft is None:
@@ -258,6 +286,7 @@ def save_draft(
             prompt_body=cleaned.prompt_body,
             tools=stored_tools,
             loop_params=dict(cleaned.loop_params),
+            sql_rules=stored_rules,
             change_note=cleaned.change_note,
             create_by=user_id,
             create_time=now,
@@ -266,6 +295,7 @@ def save_draft(
         draft.prompt_body = cleaned.prompt_body
         draft.tools = stored_tools
         draft.loop_params = dict(cleaned.loop_params)
+        draft.sql_rules = stored_rules
         draft.change_note = cleaned.change_note
         draft.create_by = user_id
     session.add(draft)
@@ -313,6 +343,7 @@ def rollback_to(
         prompt_body=str(row.prompt_body or ""),
         tools=dict(row.tools or {}),
         loop_params=dict(row.loop_params or {}),
+        sql_rules=dict(getattr(row, "sql_rules", None) or {}),
         change_note=f"rollback -> v{row.version_no}"[:MAX_CHANGE_NOTE_CHARS],
         create_by=user_id,
         create_time=now,

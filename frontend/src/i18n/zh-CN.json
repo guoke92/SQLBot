@@ -1664,10 +1664,11 @@
   },
   "agent_config": {
     "title": "智能体配置",
-    "hint": "统一维护系统提示词、内置工具与循环边界。修改先存草稿，发布后对新的问数会话生效。",
+    "hint": "统一维护系统提示词、内置工具、执行前规则与循环边界。修改先存草稿，发布后对新的问数会话生效。",
     "tabs": {
       "prompt": "系统提示词",
       "tools": "内置工具",
+      "sql_rules": "执行前规则",
       "params": "循环参数",
       "versions": "版本历史"
     },
@@ -1711,6 +1712,7 @@
     "tool_round_budget": "轮次预算",
     "tool_round_budget_inherit": "跟随循环参数",
     "tool_required": "必需",
+    "sql_rules_hint": "这些规则在 execute_sql_sandbox 访问数据库之前执行。它们检查语句形态和已展开字段的封闭码表，不写入具体业务过滤条件。",
     "params_hint": "这些边界在每轮 Agent 循环里生效；修改后需发布才会对新的问数会话生效。",
     "params_default": "默认 {value}",
     "params_reset": "恢复默认",
@@ -1732,6 +1734,11 @@
       "tool_call_limit": "工具调用总次数上限",
       "clarify_limit": "澄清次数上限",
       "context_token_limit": "上下文 token 上限"
+    },
+    "sql_rules": {
+      "catalog_probe": "拦截目录探查（information_schema / SHOW / DESCRIBE）",
+      "enum_discovery": "已有码表的字段禁止用 SQL 摸取值",
+      "closed_literal": "封闭码表列的筛选字面量必须是物理码"
     },
     "tools": {
       "get_table_schema": "展开表结构",

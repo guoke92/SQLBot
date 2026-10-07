@@ -13,7 +13,7 @@ from apps.chat.agent.context_spec import build_context_spec
 from apps.chat.agent.init import init_agent_turn
 from apps.chat.agent.knowledge import cache_from_state
 from apps.chat.agent.mode import resolve_agent_mode
-from apps.chat.agent.tokens import count_message_tokens, count_tokens
+from apps.chat.agent.tokens import count_message_tokens
 from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_copy import (
     compact_agent_final_text,
@@ -90,22 +90,6 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     sink = StreamSink.from_state(state)
     messages = deserialize_messages(list(state.get("messages") or []))
     messages = sanitize_messages_for_model(messages)
-    if messages:
-        from langchain_core.messages import SystemMessage as _SystemMessage
-
-        from apps.chat.agent.prompt import build_agent_system_prompt
-
-        rebuilt = _SystemMessage(
-            content=build_agent_system_prompt(
-                knowledge_plane=state.get("knowledge_plane"),
-                memory_slots=state.get("memory_slots"),
-                state=state,
-            )
-        )
-        if isinstance(messages[0], _SystemMessage):
-            messages[0] = rebuilt
-        else:
-            messages = [rebuilt, *messages]
     tools = list(runtime_value(state, "bound_tools") or [])
     budget = budget_from_state(state)
     record_id = state.get("record_id")
@@ -120,25 +104,29 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         memory_slots=state.get("memory_slots"),
         question=str(getattr(messages[-1], "content", "") or "") if messages else "",
     )
-    budget.context_tokens.used = count_message_tokens(messages) + count_tokens(
-        spec.turn_brief
-    )
+    prefix = spec.stable_prefix()
+    if prefix:
+        if messages and isinstance(messages[0], SystemMessage):
+            if str(messages[0].content) != prefix:
+                messages = [SystemMessage(content=prefix), *messages[1:]]
+        else:
+            messages = [SystemMessage(content=prefix), *messages]
 
     finalizing = budget.exhausted or bool(stop_reason)
     mode = resolve_agent_mode(state)
 
-    model_messages = messages
+    model_messages = list(messages)
+    delta = spec.turn_delta()
+    if delta:
+        model_messages.append(SystemMessage(content=delta))
     if spec.turn_brief:
-        model_messages = [
-            *model_messages,
-            SystemMessage(content=spec.turn_brief),
-        ]
+        model_messages.append(SystemMessage(content=spec.turn_brief))
     if finalizing:
         reason = stop_reason or budget.render_brief()
-        model_messages = [
-            *model_messages,
-            SystemMessage(content=mode.finalizing_instruction(str(reason))),
-        ]
+        model_messages.append(
+            SystemMessage(content=mode.finalizing_instruction(str(reason)))
+        )
+    budget.context_tokens.used = count_message_tokens(model_messages)
 
     thought_span = None
     response: AIMessage | None = None

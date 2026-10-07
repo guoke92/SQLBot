@@ -1664,10 +1664,11 @@
   },
   "agent_config": {
     "title": "Agent configuration",
-    "hint": "Maintain the system prompt, built-in tools and loop bounds in one place. Edits go to a draft first; publishing takes effect on new Q&A sessions.",
+    "hint": "Maintain the system prompt, built-in tools, pre-execute rules and loop bounds in one place. Edits go to a draft first; publishing takes effect on new Q&A sessions.",
     "tabs": {
       "prompt": "System prompt",
       "tools": "Built-in tools",
+      "sql_rules": "Pre-execute rules",
       "params": "Loop bounds",
       "versions": "Version history"
     },
@@ -1711,6 +1712,7 @@
     "tool_round_budget": "Round budget",
     "tool_round_budget_inherit": "Follow loop bounds",
     "tool_required": "Required",
+    "sql_rules_hint": "These rules run before execute_sql_sandbox reaches the warehouse. They check statement shape and closed code sets on opened fields. They do not encode business filters.",
     "params_hint": "These bounds apply to every agent loop; publish for them to take effect on new Q&A sessions.",
     "params_default": "Default {value}",
     "params_reset": "Reset to default",
@@ -1732,6 +1734,11 @@
       "tool_call_limit": "Total tool-call limit",
       "clarify_limit": "Clarification round limit",
       "context_token_limit": "Context token limit"
+    },
+    "sql_rules": {
+      "catalog_probe": "Block catalog probes (information_schema / SHOW / DESCRIBE)",
+      "enum_discovery": "Block SQL used to discover values of fields that already have a code set",
+      "closed_literal": "Filters on closed-code columns must use physical codes"
     },
     "tools": {
       "get_table_schema": "Expand table schema",

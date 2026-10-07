@@ -89,6 +89,25 @@ LOOP_PARAM_DEFAULTS: dict[str, int] = {
 }
 
 
+class SqlRuleSpec(NamedTuple):
+    kind: str
+    enabled: bool
+    #: i18n key suffix, resolved as ``agent_config.sql_rules.<label_key>``
+    label_key: str
+
+
+# Mechanisms checked before execute_sql_sandbox. Order is evaluation order.
+SQL_RULE_SPECS: tuple[SqlRuleSpec, ...] = (
+    SqlRuleSpec("catalog_probe", True, "catalog_probe"),
+    SqlRuleSpec("enum_discovery", True, "enum_discovery"),
+    SqlRuleSpec("closed_literal", True, "closed_literal"),
+)
+
+SQL_RULE_DEFAULTS: dict[str, dict[str, bool]] = {
+    spec.kind: {"enabled": spec.enabled} for spec in SQL_RULE_SPECS
+}
+
+
 def default_tools() -> dict[str, dict[str, Any]]:
     """Neutral tool snapshot: everything enabled, nothing overridden.
 
