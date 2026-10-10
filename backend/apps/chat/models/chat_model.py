@@ -106,7 +106,7 @@ class Chat(SQLModel, table=True):
     create_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=True))
     create_by: int = Field(sa_column=Column(BigInteger, nullable=True))
     brief: str = Field(max_length=64, nullable=True)
-    chat_type: str = Field(max_length=20, default="chat")  # chat | config
+    chat_type: str = Field(max_length=20, default="chat")  # chat | config | wiki
     datasource: int = Field(sa_column=Column(BigInteger, nullable=True))
     engine_type: str = Field(max_length=64)
     origin: int | None = Field(
@@ -238,7 +238,7 @@ class CreateChat(BaseModel):
     question: str = None
     datasource: int = None
     origin: int | None = 0  # 0是页面上，mcp是1，小助手是2
-    chat_type: str = "chat"  # chat | config
+    chat_type: str = "chat"  # chat | config | wiki
 
 
 class RenameChat(BaseModel):

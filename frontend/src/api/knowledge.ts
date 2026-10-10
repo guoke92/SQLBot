@@ -131,4 +131,49 @@ export const knowledgeApi = {
     request.get(
       `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}`
     ) as Promise<WikiPageDetail>,
+  openMaintainChat: (corpusKey: string, data: { belong?: string; page_key?: string }) =>
+    request.post(`/wiki/corpora/${encodeURIComponent(corpusKey)}/maintain/chats`, data) as Promise<{
+      chat_id: number
+      corpus_key: string
+    }>,
+  pasteSource: (
+    corpusKey: string,
+    data: { title?: string; body: string; belong?: string; page_key?: string }
+  ) =>
+    request.post(
+      `/wiki/corpora/${encodeURIComponent(corpusKey)}/maintain/sources`,
+      data
+    ) as Promise<{
+      chat_id: number
+      corpus_key: string
+      source_id: number
+    }>,
+  sediment: (recordId: number) =>
+    request.post('/wiki/maintain/sediment', { record_id: recordId }) as Promise<{
+      chat_id: number
+      corpus_key: string
+      source_id: number
+      feedback?: string | null
+      comment?: string | null
+    }>,
+  proposals: (runId: string) =>
+    request.get(`/wiki/maintain/runs/${encodeURIComponent(runId)}/proposals`) as Promise<
+      WikiProposal[]
+    >,
+  promotePage: (corpusKey: string, belong: string, pageKey: string) =>
+    request.post(
+      `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}/promote`
+    ),
+}
+
+export interface WikiProposal {
+  id: number
+  op: string
+  claim_path: string
+  payload: Record<string, unknown>
+  origin: string
+  status: string
+  belong: string
+  page_key: string
+  diff?: string
 }

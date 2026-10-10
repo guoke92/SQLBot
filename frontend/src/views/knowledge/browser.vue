@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus-secondary'
 import {
@@ -9,8 +10,13 @@ import {
   type WikiPageSummary,
 } from '@/api/knowledge'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
+import MaintainDrawer from '@/views/knowledge/maintain-drawer.vue'
 
 const { t } = useI18n()
+const route = useRoute()
+const maintainOpen = ref(false)
+const maintainChatId = ref<number | null>(null)
+const maintainStarter = ref('')
 
 const loading = ref(false)
 const detailLoading = ref(false)
@@ -278,7 +284,36 @@ watch(selected, (page) => {
 
 onMounted(async () => {
   await loadCorpora()
+  const corpus = String(route.query.corpus || '')
+  if (corpus && corpora.value.some((item) => item.corpus_key === corpus)) {
+    corpusKey.value = corpus
+  }
+  const maintain = Number(route.query.maintain || 0)
+  if (maintain) {
+    maintainChatId.value = maintain
+    maintainStarter.value = sessionStorage.getItem('wiki-maintain-starter') || ''
+    sessionStorage.removeItem('wiki-maintain-starter')
+    maintainOpen.value = true
+  }
 })
+
+function openMaintain() {
+  maintainChatId.value = null
+  maintainStarter.value = ''
+  maintainOpen.value = true
+}
+
+async function promoteCurrent() {
+  if (!detail.value || !corpusKey.value) return
+  await knowledgeApi.promotePage(corpusKey.value, detail.value.belong, detail.value.page_key)
+  await loadDetail(selected.value)
+  await loadPages()
+}
+
+function onMaintainApplied() {
+  void loadDetail(selected.value)
+  void loadPages()
+}
 </script>
 
 <template>
@@ -300,6 +335,9 @@ onMounted(async () => {
         <h2 class="wiki-title">{{ t('knowledge.wiki_browser') }}</h2>
         <p class="wiki-subtitle">{{ t('knowledge.wiki_browser_hint') }}</p>
       </div>
+      <el-button class="wiki-maintain-btn" :disabled="!corpusKey" @click="openMaintain">
+        {{ t('knowledge.wiki_maintain') }}
+      </el-button>
     </div>
 
     <div v-if="!corpora.length" class="wiki-empty">{{ t('knowledge.wiki_empty') }}</div>
@@ -423,6 +461,13 @@ onMounted(async () => {
                     detail.recall ? t('knowledge.wiki_recall_on') : t('knowledge.wiki_recall_off')
                   }}
                 </el-tag>
+                <el-button
+                  v-if="detail.status !== 'published'"
+                  size="small"
+                  @click="promoteCurrent"
+                >
+                  {{ t('knowledge.wiki_promote') }}
+                </el-button>
               </div>
             </header>
             <p v-if="detail.parse_error" class="wiki-parse-error">
@@ -552,6 +597,14 @@ onMounted(async () => {
         </div>
       </section>
     </div>
+    <MaintainDrawer
+      v-model:visible="maintainOpen"
+      :corpus-key="corpusKey"
+      :page="selected"
+      :chat-id="maintainChatId"
+      :starter="maintainStarter"
+      @applied="onMaintainApplied"
+    />
   </main>
 </template>
 
@@ -607,6 +660,10 @@ onMounted(async () => {
 .wiki-corpus {
   flex: none;
   width: 220px;
+}
+
+.wiki-maintain-btn {
+  margin-left: auto;
 }
 
 .wiki-split {

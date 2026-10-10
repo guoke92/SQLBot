@@ -1,0 +1,1 @@
+"""Wiki maintenance graph nodes."""

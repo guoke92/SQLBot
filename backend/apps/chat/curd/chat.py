@@ -2,7 +2,7 @@ import datetime
 from typing import Any, Dict, List, Optional
 
 import orjson
-from sqlalchemy import and_, desc, func, select, update
+from sqlalchemy import and_, desc, func, or_, select, update
 
 from apps.chat.answer_payload import (
     get_answer_step_data,
@@ -153,7 +153,13 @@ def list_chats(session: SessionDep, current_user: CurrentUser) -> List[Chat]:
     oid = current_user.oid if current_user.oid is not None else 1
     chart_list = (
         session.query(Chat)
-        .filter(and_(Chat.create_by == current_user.id, Chat.oid == oid))
+        .filter(
+            and_(
+                Chat.create_by == current_user.id,
+                Chat.oid == oid,
+                or_(Chat.chat_type.is_(None), Chat.chat_type != "wiki"),
+            )
+        )
         .order_by(Chat.create_time.desc())
         .all()
     )
@@ -1204,11 +1210,10 @@ def create_chat(
     current_assistant: CurrentAssistant = None,
 ) -> ChatInfo:
     chat_type = (create_chat_obj.chat_type or "chat").strip() or "chat"
-    if chat_type not in ("chat", "config"):
+    if chat_type not in ("chat", "config", "wiki"):
         raise Exception(f"Unsupported chat_type: {chat_type}")
-    # Config assistant is metadata-only; never require NLQ datasource.
-    # Resolve before the DS-None check so curd is the single truth source.
-    if chat_type == "config":
+    # Config assistant and wiki maintenance are metadata-only.
+    if chat_type == "config" or chat_type == "wiki":
         require_datasource = False
 
     if not create_chat_obj.datasource and require_datasource:
@@ -1218,6 +1223,8 @@ def create_chat(
         # Config chats default to a recognizable brief (not a bare timestamp).
         if chat_type == "config":
             create_chat_obj.question = "Config Assistant"
+        elif chat_type == "wiki":
+            create_chat_obj.question = "Wiki"
         else:
             create_chat_obj.question = datetime.datetime.now().strftime(
                 "%Y-%m-%d %H:%M:%S"

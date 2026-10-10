@@ -327,6 +327,29 @@
                                 </el-icon>
                               </el-button>
                             </el-tooltip>
+                            <el-tooltip
+                              v-if="!isConfigChat"
+                              effect="dark"
+                              :offset="8"
+                              :content="t('knowledge.wiki_sediment')"
+                              placement="top"
+                            >
+                              <el-button
+                                class="tool-btn"
+                                text
+                                :disabled="isTyping"
+                                @click="sedimentToWiki(message)"
+                              >
+                                <el-icon size="18">
+                                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                      d="M192 160h640v96H192V160zm0 160h640v544H192V320zm96 96v352h448V416H288z"
+                                      fill="currentColor"
+                                    />
+                                  </svg>
+                                </el-icon>
+                              </el-button>
+                            </el-tooltip>
                           </div>
                         </ChatToolBar>
                       </template>
@@ -467,6 +490,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat'
+import { knowledgeApi } from '@/api/knowledge'
 import ChatRow from './ChatRow.vue'
 import MultiStepAnswer from './answer/MultiStepAnswer.vue'
 import ConfigAnswer from './answer/ConfigAnswer.vue'
@@ -905,6 +929,26 @@ async function persistFeedback(
   message.record.feedback = saved?.feedback ?? feedback
   message.record.feedback_comment = saved?.comment ?? (feedback === 'down' ? comment : null) ?? null
   ElMessage.success(t('qa.feedback_submitted'))
+}
+
+async function sedimentToWiki(message: ChatMessage) {
+  if (!message.record?.id || isTyping.value) return
+  try {
+    const result = await knowledgeApi.sediment(message.record.id)
+    const opened = result?.data ?? result
+    const question = t('knowledge.wiki_sediment_question', {
+      source: opened.source_id,
+      feedback: opened.feedback || '-',
+      comment: opened.comment || '-',
+    })
+    sessionStorage.setItem('wiki-maintain-starter', question)
+    await router.push({
+      path: '/set/wiki',
+      query: { corpus: opened.corpus_key, maintain: String(opened.chat_id) },
+    })
+  } catch {
+    // request interceptor already toasts HTTP errors
+  }
 }
 
 async function submitFeedback(message: ChatMessage, feedback: 'up' | 'down') {

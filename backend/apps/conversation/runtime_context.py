@@ -129,7 +129,7 @@ def _rebuild_llm_service(run: ConversationRun) -> dict[str, Any]:
 
 def _hydrate_run(run: ConversationRun) -> dict[str, Any]:
     """Rebuild runtime via graph-key hooks. Host never imports product tools."""
-    if run.graph_key == "config":
+    if run.graph_key in {"config", "wiki_maintain"}:
         extras = try_hydrate(run.graph_key, run, None)
         if not extras:
             raise RuntimeError("config hydrate hook is not registered")

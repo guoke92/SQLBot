@@ -11,13 +11,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import func
 from sqlmodel import Session, delete, select
 
 from apps.knowledge.db_models import (
     WikiChunkEmbedding,
     WikiCorpus,
-    WikiPageRevision,
     WikiPageRow,
 )
 from apps.knowledge.wiki.contract import (
@@ -25,6 +23,11 @@ from apps.knowledge.wiki.contract import (
     PageContractError,
     WikiPage,
     parse_page,
+)
+from apps.knowledge.wiki.writer import (
+    WikiWriteError,
+    mark_absent_page,
+    upsert_import_page,
 )
 from common.utils.utils import SQLBotLogUtil
 
@@ -140,22 +143,6 @@ def parse_directory(pages_dir: Path) -> ParsedCorpus:
     return ParsedCorpus(pages=parsed, failed=failed)
 
 
-def _page_status(page: WikiPage) -> str:
-    return page.status if page.status in {"draft", "published", "retired"} else "draft"
-
-
-def _next_revision_no(session: Session, page_id: int) -> int:
-    current = session.exec(
-        select(func.max(WikiPageRevision.revision_no)).where(
-            WikiPageRevision.page_id == page_id
-        )
-    ).one()
-    try:
-        return int(current or 0) + 1
-    except (TypeError, ValueError):
-        return 1
-
-
 def import_corpus(
     session: Session,
     *,
@@ -251,6 +238,8 @@ def import_parsed_pages(
         ident = (str(row.belong or ""), row.page_key)
         if ident in incoming:
             continue
+        if mark_absent_page(session, row, now=now) == "kept":
+            continue
         session.exec(
             delete(WikiChunkEmbedding).where(
                 WikiChunkEmbedding.corpus_id == corpus.id,
@@ -260,64 +249,31 @@ def import_parsed_pages(
         )
         session.delete(row)
 
-    published = 0
-    draft = 0
-    for _path, page, body, sha in parsed.pages:
-        status = _page_status(page)
-        if status == "published":
-            published += 1
-        elif status == "draft":
-            draft += 1
+    failed = list(parsed.failed)
+    for path, page, body, _sha in parsed.pages:
         ident = (page.belong, page.page_key)
         row = by_ident.get(ident)
-        if row is None:
-            row = WikiPageRow(
+        try:
+            upsert_import_page(
+                session,
                 corpus_id=int(corpus.id),
-                belong=page.belong[:64],
-                page_key=page.page_key[:255],
-                page_type=page.type,
-                title=(page.title or page.page_key)[:255],
-                status=status,
-                databases=list(page.databases),
-                aliases=list(page.aliases),
-                anchors=list(page.anchors),
-                body_md=body,
-                content_sha=sha,
-                page_disabled=False,
-                create_time=now,
-                update_time=now,
+                row=row,
+                file_body=body,
+                file_page=page,
+                now=now,
             )
-            session.add(row)
-            session.flush()
-            revision_no = 1
-        else:
-            changed = row.content_sha != sha
-            row.page_type = page.type
-            row.title = (page.title or page.page_key)[:255]
-            row.status = status
-            row.databases = list(page.databases)
-            row.aliases = list(page.aliases)
-            row.anchors = list(page.anchors)
-            row.body_md = body
-            row.content_sha = sha
-            row.update_time = now
-            session.add(row)
-            revision_no = _next_revision_no(session, int(row.id)) if changed else 0
-        if revision_no:
-            session.add(
-                WikiPageRevision(
-                    page_id=int(row.id),
-                    corpus_id=int(corpus.id),
-                    revision_no=revision_no,
-                    status=status,
-                    body_md=body,
-                    content_sha=sha,
-                    source="import",
-                    create_time=now,
-                )
-            )
+        except WikiWriteError as exc:
+            failed.append(FailedPage(path=path, error=str(exc)))
 
-    corpus.page_count = len(parsed.pages)
+    stored = list(
+        session.exec(
+            select(WikiPageRow).where(WikiPageRow.corpus_id == corpus.id)
+        ).all()
+    )
+    published = sum(1 for item in stored if item.status == "published")
+    draft = sum(1 for item in stored if item.status == "draft")
+
+    corpus.page_count = len(stored)
     corpus.published_count = published
     corpus.draft_count = draft
     corpus.generation = int(corpus.generation or 0) + 1
@@ -334,7 +290,7 @@ def import_parsed_pages(
         corpus.page_count,
         published,
         draft,
-        len(parsed.failed),
+        len(failed),
         corpus.generation,
     )
 
@@ -350,10 +306,8 @@ def import_parsed_pages(
         total=len(parsed.pages),
         published=published,
         draft=draft,
-        failed=len(parsed.failed),
-        failed_files=[
-            {"path": item.path, "error": item.error} for item in parsed.failed
-        ],
+        failed=len(failed),
+        failed_files=[{"path": item.path, "error": item.error} for item in failed],
         status=str(corpus.status),
         replaced=replaced,
     )

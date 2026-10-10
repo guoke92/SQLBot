@@ -105,8 +105,9 @@ async def _launch_run(
         chat.datasource = request.datasource_id
         session.add(chat)
         session.commit()
-    graph_key = "config" if (chat.chat_type or "chat").strip() == "config" else "chat"
-    if graph_key == "config":
+    chat_type = (chat.chat_type or "chat").strip()
+    if chat_type == "config":
+        graph_key = "config"
         from apps.config_assistant.nodes import initialize_config_state
 
         state = await initialize_config_state(
@@ -120,7 +121,23 @@ async def _launch_run(
         run = session.get(ConversationRun, str(state["run_id"]))
         if run is None:
             raise RuntimeError("Config run was not created")
+    elif chat_type == "wiki":
+        graph_key = "wiki_maintain"
+        from apps.knowledge.wiki.maintain.nodes import initialize_wiki_state
+
+        state = await initialize_wiki_state(
+            session,
+            user=current_user,
+            chat_id=request.chat_id,
+            question=request.question,
+            base_state={"sink": "sse", "in_chat": True, "stream": True},
+            reasoning_effort=request.reasoning_effort,
+        )
+        run = session.get(ConversationRun, str(state["run_id"]))
+        if run is None:
+            raise RuntimeError("Wiki run was not created")
     else:
+        graph_key = "chat"
         regenerate_record = (
             session.get(ChatRecord, request.regenerate_record_id)
             if request.regenerate_record_id is not None
@@ -725,7 +742,7 @@ async def start_chat_session(
 ):
     try:
         # config chats need no datasource; NLQ still requires one via create_chat.
-        require_ds = (create_chat_obj.chat_type or "chat") != "config"
+        require_ds = (create_chat_obj.chat_type or "chat") not in ("config", "wiki")
         return create_chat(
             session, current_user, create_chat_obj, require_datasource=require_ds
         )
@@ -969,6 +986,21 @@ async def stream_sql(
 
             graph_key = "config"
             state = await initialize_config_state(
+                session,
+                user=current_user,
+                chat_id=int(request_question.chat_id),
+                question=request_question.question or "",
+                base_state={
+                    "sink": sink_mode,
+                    "in_chat": in_chat,
+                    "stream": stream,
+                },
+            )
+        elif chat_type == "wiki":
+            from apps.knowledge.wiki.maintain.nodes import initialize_wiki_state
+
+            graph_key = "wiki_maintain"
+            state = await initialize_wiki_state(
                 session,
                 user=current_user,
                 chat_id=int(request_question.chat_id),

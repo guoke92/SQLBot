@@ -468,8 +468,8 @@ class TestCreateChatConfigContract:
         # Locate create_chat body and ensure chat_type/config gate precedes DS raise.
         start = text.index("def create_chat(")
         body = text[start : start + 1800]
-        idx_type = body.index('chat_type not in ("chat", "config")')
-        idx_config = body.index('chat_type == "config"')
+        idx_type = body.index('chat_type not in ("chat", "config", "wiki")')
+        idx_config = body.index('chat_type == "config" or chat_type == "wiki"')
         idx_ds = body.index('raise Exception("Datasource cannot be None")')
         assert idx_type < idx_config < idx_ds, (
             "config must force require_datasource=False before DS None check"

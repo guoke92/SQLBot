@@ -336,3 +336,135 @@ async def delete_wiki_binding(
     if not ok:
         raise HTTPException(status_code=404, detail="binding not found")
     return {"deleted": True}
+
+
+class MaintainChatBody(BaseModel):
+    corpus_key: str = Field(min_length=1, max_length=64)
+    belong: str = ""
+    page_key: str = ""
+
+
+class PasteSourceBody(BaseModel):
+    title: str = Field(default="", max_length=255)
+    body: str = Field(min_length=1)
+    belong: str = ""
+    page_key: str = ""
+
+
+class SedimentBody(BaseModel):
+    record_id: int
+
+
+def _write_http_error(exc: Exception) -> HTTPException:
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    if not isinstance(exc, WikiWriteError):
+        raise exc
+    detail = str(exc)
+    missing = detail in {
+        "corpus not found",
+        "page not found",
+        "record not found",
+        "run not found",
+    }
+    return HTTPException(status_code=404 if missing else 400, detail=detail)
+
+
+@router.post("/corpora/{corpus_key}/maintain/chats")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def open_wiki_maintain_chat(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    body: MaintainChatBody,
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import open_maintain_chat
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return open_maintain_chat(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            belong=body.belong,
+            page_key=body.page_key,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.post("/corpora/{corpus_key}/maintain/sources")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def paste_wiki_source(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    body: PasteSourceBody,
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import paste_source
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return paste_source(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            title=body.title,
+            body=body.body,
+            belong=body.belong,
+            page_key=body.page_key,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.post("/maintain/sediment")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def sediment_wiki_candidate(
+    session: SessionDep, current_user: CurrentUser, body: SedimentBody
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import sediment_record
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return sediment_record(session, current_user, record_id=body.record_id)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/maintain/runs/{run_id}/proposals")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_wiki_proposals(
+    session: SessionDep, current_user: CurrentUser, run_id: str
+) -> list[dict[str, Any]]:
+    from apps.knowledge.wiki.maintain.service import list_run_proposals
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return list_run_proposals(session, run_id=run_id, user_id=int(current_user.id))
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.post("/corpora/{corpus_key}/pages/{belong}/{page_key}/promote")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def promote_wiki_page(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    belong: str,
+    page_key: str,
+) -> dict[str, str]:
+    from apps.knowledge.wiki.maintain.service import publish_page
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return publish_page(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            belong=belong,
+            page_key=page_key,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc

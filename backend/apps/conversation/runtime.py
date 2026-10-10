@@ -437,6 +437,10 @@ def _recovery_state(run: Any, *, checkpoint: Any) -> dict[str, Any] | None:
         from apps.config_assistant.nodes import recover_config_state
 
         return recover_config_state(run)
+    if run.graph_key == "wiki_maintain":
+        from apps.knowledge.wiki.maintain.nodes import recover_wiki_state
+
+        return recover_wiki_state(run)
     from apps.chat.models.chat_model import ChatFinishStep
 
     return {

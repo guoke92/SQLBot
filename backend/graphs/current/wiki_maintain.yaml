@@ -1,0 +1,56 @@
+version: 1
+graph_key: wiki_maintain
+state: apps.knowledge.wiki.maintain.nodes.WikiMaintainState
+description: >
+  Wiki maintenance. prepare → agent ⇄ execute_tools → await_accept → apply → agent → finish.
+  Tools only read or propose. The page changes after the user accepts.
+
+nodes:
+  prepare: apps.knowledge.wiki.maintain.nodes.prepare_node
+  agent: apps.conversation.agent.agent_node
+  execute_tools: apps.conversation.tooling.execute_tools_node
+  await_accept: apps.knowledge.wiki.maintain.nodes.await_accept_node
+  apply: apps.knowledge.wiki.maintain.nodes.apply_patches_node
+  finish: apps.conversation.turn.finish_text_node
+  fail: apps.conversation.turn.fail_node
+
+edges:
+  - from: START
+    to: prepare
+
+  - from: prepare
+    to: agent
+
+  - from: agent
+    router: apps.knowledge.wiki.maintain.nodes.route_after_wiki_agent
+    paths:
+      agent: agent
+      execute_tools: execute_tools
+      await_accept: await_accept
+      finish: finish
+      fail: fail
+
+  - from: execute_tools
+    router: apps.conversation.agent.route_after_tools
+    paths:
+      agent: agent
+      fail: fail
+
+  - from: await_accept
+    router: apps.knowledge.wiki.maintain.nodes.route_after_accept
+    paths:
+      apply: apply
+      agent: agent
+      fail: fail
+
+  - from: apply
+    router: apps.knowledge.wiki.maintain.nodes.route_after_apply
+    paths:
+      agent: agent
+      fail: fail
+
+  - from: finish
+    to: END
+
+  - from: fail
+    to: END

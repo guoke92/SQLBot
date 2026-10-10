@@ -108,6 +108,12 @@ class WikiPageRow(SQLModel, table=True):
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
     )
     body_md: str = Field(sa_column=Column(Text, nullable=False))
+    base_body_md: str | None = Field(
+        default=None,
+        sa_column=Column(
+            Text, nullable=True, comment="最近一次文件导入原文；维护诞生的页为空"
+        ),
+    )
     content_sha: str = Field(max_length=64, nullable=False)
     page_disabled: bool = Field(
         default=False,
@@ -145,6 +151,103 @@ class WikiPageRevision(SQLModel, table=True):
     source: str = Field(
         default="import",
         sa_column=Column(String(32), nullable=False, server_default="import"),
+    )
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+
+
+class WikiPagePatch(SQLModel, table=True):
+    """Append-only claim log. ``body_md`` is never assigned outside materialize."""
+
+    __tablename__ = "wiki_page_patch"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True),
+    )
+    page_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("wiki_page.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+    )
+    corpus_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("wiki_corpus.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    belong: str = Field(
+        default="",
+        sa_column=Column(String(64), nullable=False, server_default=""),
+    )
+    page_key: str = Field(
+        default="",
+        sa_column=Column(String(255), nullable=False, server_default=""),
+    )
+    run_id: str | None = Field(default=None, max_length=64)
+    record_id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    origin: str = Field(max_length=32, nullable=False)
+    source_ref: str = Field(
+        default="",
+        sa_column=Column(Text, nullable=False, server_default=""),
+    )
+    op: str = Field(max_length=32, nullable=False)
+    claim_path: str = Field(
+        default="",
+        sa_column=Column(Text, nullable=False, server_default=""),
+    )
+    payload: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    status: str = Field(
+        default="proposed",
+        sa_column=Column(String(32), nullable=False, server_default="proposed"),
+    )
+    actor: str = Field(
+        default="",
+        sa_column=Column(String(64), nullable=False, server_default=""),
+    )
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+
+
+class WikiSource(SQLModel, table=True):
+    """Immutable raw material. Conversation rows store a record pointer only."""
+
+    __tablename__ = "wiki_source"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True),
+    )
+    corpus_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("wiki_corpus.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    oid: int = Field(sa_column=Column(BigInteger, nullable=False))
+    kind: str = Field(max_length=32, nullable=False)
+    title: str = Field(
+        default="",
+        sa_column=Column(String(255), nullable=False, server_default=""),
+    )
+    body_md: str = Field(
+        default="",
+        sa_column=Column(Text, nullable=False, server_default=""),
+    )
+    pointer: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    create_by: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
     )
     create_time: datetime = Field(
         sa_column=Column(DateTime(timezone=False), nullable=False)

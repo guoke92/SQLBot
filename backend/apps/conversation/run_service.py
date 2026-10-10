@@ -1252,10 +1252,12 @@ def finalize_run(
         published_snapshot["error"] = public_error_message(
             published_snapshot.get("error") or error_summary or "Conversation failed"
         )
-    # The separate config tool graph still renders its plain-text response
-    # through ``sql_answer``. Ordinary chat turns persist only TurnAnswerV1;
-    # writing historical fields here would recreate a second answer truth.
-    if run.graph_key == "config" and published_snapshot.get("sql_answer") is not None:
+    # Config and wiki maintenance render a plain-text reply through sql_answer.
+    # Ordinary chat turns persist only TurnAnswerV1.
+    if (
+        run.graph_key in {"config", "wiki_maintain"}
+        and published_snapshot.get("sql_answer") is not None
+    ):
         record.sql_answer = published_snapshot["sql_answer"]
     record.finish = True
     record.finish_time = datetime.now()
