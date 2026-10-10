@@ -33,6 +33,7 @@ import Datasource from '@/views/ds/Datasource.vue'
 import SetAssistant from '@/views/system/embedded/iframe.vue'
 
 import Knowledge from '@/views/knowledge/index.vue'
+import WikiBrowser from '@/views/knowledge/browser.vue'
 import CatalogIndex from '@/views/schema-vector/index.vue'
 import QaAdmin from '@/views/qa-admin/index.vue'
 import ExtractKey from '@/views/system/extract-key/index.vue'
@@ -200,6 +201,12 @@ export const routes = [
         name: 'knowledge',
         component: Knowledge,
         meta: { title: t('knowledge.title') },
+      },
+      {
+        path: '/set/wiki',
+        name: 'wikiBrowser',
+        component: WikiBrowser,
+        meta: { title: t('knowledge.wiki_browser') },
       },
       {
         path: '/set/catalog-index',

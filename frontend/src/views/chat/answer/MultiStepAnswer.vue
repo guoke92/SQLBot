@@ -36,10 +36,7 @@ import {
   type ProcessItem,
   type TimelineMap,
 } from '@/features/conversation/processTimeline'
-import {
-  CHAT_DATA_SOURCE_KEY,
-  type ChatDataSource,
-} from '@/features/chat/chatDataSource'
+import { CHAT_DATA_SOURCE_KEY, type ChatDataSource } from '@/features/chat/chatDataSource'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -181,6 +178,201 @@ const analysisSectionLabel = computed(() =>
   isAnalysisReport.value ? t('chat.analysis_report') : t('chat.summary')
 )
 
+function chartKind(step: StepState): string {
+  if (!step.chart) return ''
+  try {
+    const parsed = JSON.parse(step.chart) as { type?: string }
+    return String(parsed.type || '')
+  } catch {
+    return ''
+  }
+}
+
+const comparisonSteps = computed(() =>
+  steps.value.filter((step) => ['bar', 'column', 'line', 'pie'].includes(chartKind(step)))
+)
+const appendixSteps = computed(() =>
+  steps.value.filter(
+    (step) =>
+      !comparisonSteps.value.includes(step) &&
+      Boolean(step.sql || step.chart || step.data || step.error || step.loading)
+  )
+)
+
+function stepBadge(step: StepState): number {
+  if (!isAnalysisReport.value) return step.index + 1
+  const ordered = [...comparisonSteps.value, ...appendixSteps.value]
+  const at = ordered.findIndex((item) => item === step)
+  return at >= 0 ? at + 1 : step.index + 1
+}
+
+interface RenderGroup {
+  key: string
+  label: string
+  stepLabel: string
+  markdown: string
+  steps: StepState[]
+  repairCharts: boolean
+  document: boolean
+}
+
+function presentAnalysisMarkdown(markdown: string): string {
+  let text = markdown.trim()
+  const head = /^(?:#{1,3}[ \t]*)?(?:分析报告|核心发现)[ \t]*(?:\n+|$)/u
+  for (let guard = 0; guard < 4 && head.test(text); guard += 1) {
+    text = text.replace(head, '').trimStart()
+  }
+  return text
+}
+
+const renderedGroups = computed((): RenderGroup[] => {
+  if (!isAnalysisReport.value) {
+    return [
+      {
+        key: 'query',
+        label: '',
+        stepLabel: '',
+        markdown: '',
+        steps: steps.value,
+        repairCharts: false,
+        document: false,
+      },
+    ]
+  }
+  const groups: RenderGroup[] = []
+  const report = analysisText.value.trim()
+  if (report) {
+    groups.push({
+      key: 'report',
+      label: '',
+      stepLabel: '',
+      markdown: presentAnalysisMarkdown(report),
+      steps: [],
+      repairCharts: false,
+      document: true,
+    })
+  }
+  if (comparisonSteps.value.length) {
+    groups.push({
+      key: 'charts',
+      label: '',
+      stepLabel: '',
+      markdown: '',
+      steps: comparisonSteps.value,
+      repairCharts: true,
+      document: false,
+    })
+  }
+  if (appendixSteps.value.length) {
+    groups.push({
+      key: 'list',
+      label: '',
+      stepLabel: t('chat.analysis_detail'),
+      markdown: '',
+      steps: appendixSteps.value,
+      repairCharts: false,
+      document: false,
+    })
+  }
+  return groups
+})
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value.replace(/,/g, ''))
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function isDenseKey(values: number[]): boolean {
+  if (values.length < 2) return false
+  const unique = [...new Set(values.map((item) => Math.round(item)))]
+  if (unique.length / values.length < 0.9) return false
+  if (!values.every((item) => Math.abs(item - Math.round(item)) < 1e-9)) return false
+  if (values.some((item) => Math.abs(item) >= 1e12)) return true
+  if (unique.length < 3) return false
+  unique.sort((a, b) => a - b)
+  const span = unique[unique.length - 1] - unique[0] + 1
+  return span <= unique.length * 2
+}
+
+function comparisonMeasureFields(rows: Array<Record<string, unknown>>, fields: string[]): string[] {
+  const measures: Array<{ field: string; max: number }> = []
+  for (const field of fields) {
+    const values = rows
+      .map((row) => asNumber(row[field]))
+      .filter((item): item is number => item != null)
+    if (values.length < 2 || values.length < rows.length * 0.6) continue
+    if (isDenseKey(values)) continue
+    measures.push({ field, max: Math.max(...values.map((item) => Math.abs(item))) })
+  }
+  const peak = Math.max(0, ...measures.map((item) => item.max))
+  const kept = peak >= 10 ? measures.filter((item) => item.max > 1) : measures
+  return kept.slice(0, 3).map((item) => item.field)
+}
+
+function repairComparisonChart(chartText: string, rows: Array<Record<string, unknown>>): string {
+  if (!chartText || rows.length < 2) return chartText
+  let chart: {
+    type?: string
+    columns?: Array<{ name?: string; value?: string }>
+    axis?: {
+      x?: { name?: string; value?: string }
+      y?: { name?: string; value?: string } | Array<{ name?: string; value?: string }>
+      'multi-quota'?: { name?: string; value?: string[] }
+    }
+    yAxis?: string | string[]
+    config?: { xField?: string; yField?: string }
+  }
+  try {
+    chart = JSON.parse(chartText)
+  } catch {
+    return chartText
+  }
+  if (chart.type !== 'bar' && chart.type !== 'column') return chartText
+  const fields = (chart.columns || [])
+    .map((column) => String(column.value || column.name || ''))
+    .filter(Boolean)
+  const measures = comparisonMeasureFields(
+    rows,
+    fields.length ? fields : Object.keys(rows[0] || {})
+  )
+  if (!measures.length) return chartText
+  const columns = chart.columns || []
+  const columnByValue = new Map(
+    columns.map((column) => [String(column.value || column.name), column])
+  )
+  const yCols = measures.map((field) => {
+    const column = columnByValue.get(field)
+    return { name: String(column?.name || field), value: field }
+  })
+  const xValue = String(chart.axis?.x?.value || '')
+  const xCol =
+    (xValue && !measures.includes(xValue) ? columnByValue.get(xValue) : undefined) ||
+    columns.find((column) => !measures.includes(String(column.value || '')))
+  if (!xCol?.value) return chartText
+  const axis = {
+    x: { name: String(xCol.name || xCol.value), value: String(xCol.value) },
+    y: yCols.length === 1 ? yCols[0] : yCols,
+    ...(yCols.length > 1
+      ? { 'multi-quota': { name: '指标', value: yCols.map((column) => column.value) } }
+      : {}),
+  }
+  return JSON.stringify({
+    ...chart,
+    xAxis: axis.x.value,
+    yAxis: yCols.length === 1 ? yCols[0].value : yCols.map((column) => column.value),
+    axis,
+    config: {
+      ...(chart.config || {}),
+      xField: axis.x.value,
+      yField: yCols[0].value,
+    },
+  })
+}
+
 function formatAssumption(item: Record<string, any>): string {
   const question = String(item.question || '').trim()
   const answer = String(item.meaning || item.label || item.value || '').trim()
@@ -232,13 +424,15 @@ function toChartJson(chart: unknown): string {
  * Build a virtual ChatMessage for ChartBlock.
  * ChartBlock mounts charts by DOM id derived from record.id — pass instanceId=step.index.
  */
-function buildStepMessage(step: StepState): ChatMessage {
+function buildStepMessage(step: StepState, repairChart = false): ChatMessage {
   const record = new ChatRecord()
   // Keep a stable numeric-ish id for toolkit actions; DOM uniqueness is instanceId.
   record.id = step.recordId
   record.chat_id = _currentChatId.value
   record.sql = step.sql
-  record.chart = step.chart
+  record.chart = repairChart
+    ? repairComparisonChart(step.chart, (step.data?.data || []) as Array<Record<string, unknown>>)
+    : step.chart
   record.data = step.data
   record.datasource = step.datasource
   record.engine_type = step.engineType
@@ -286,9 +480,7 @@ async function hydrateTimeline(record: ChatRecord, view: 'compact' | 'detail' = 
   if (epoch !== liveAttemptEpoch) return
   if (requestedRunId && record.run_id && requestedRunId !== record.run_id) return
   if (timeline?.items) {
-    timelineMap.value = replaceItems(
-      itemsForRun(timeline.items as ProcessItem[], record.run_id)
-    )
+    timelineMap.value = replaceItems(itemsForRun(timeline.items as ProcessItem[], record.run_id))
   }
 }
 
@@ -452,7 +644,11 @@ function beginLiveAttempt() {
   hydratedTerminalRecordId = undefined
 }
 
-function ingestProcessItem(record: ChatRecord, item: ProcessItem | undefined, mode: 'upsert' | 'delta') {
+function ingestProcessItem(
+  record: ChatRecord,
+  item: ProcessItem | undefined,
+  mode: 'upsert' | 'delta'
+) {
   if (!item || !belongsToRun(item, record.run_id)) return
   timelineMap.value =
     mode === 'delta' ? applyDelta(timelineMap.value, item) : upsertItem(timelineMap.value, item)
@@ -479,16 +675,25 @@ function turnHandlers(currentRecord: ChatRecord) {
           if (!_currentChat.value.datasource) _currentChat.value.datasource = data.id
           break
         case 'process_upsert': {
-          ingestProcessItem(currentRecord, extractProcessItem(data as Record<string, unknown>), 'upsert')
+          ingestProcessItem(
+            currentRecord,
+            extractProcessItem(data as Record<string, unknown>),
+            'upsert'
+          )
           break
         }
         case 'process_delta': {
-          ingestProcessItem(currentRecord, extractProcessItem(data as Record<string, unknown>), 'delta')
+          ingestProcessItem(
+            currentRecord,
+            extractProcessItem(data as Record<string, unknown>),
+            'delta'
+          )
           break
         }
         case 'process_remove': {
           const removeId = (data as Record<string, unknown>).id
-          if (removeId != null) timelineMap.value = removeItem(timelineMap.value, removeId as number | string)
+          if (removeId != null)
+            timelineMap.value = removeItem(timelineMap.value, removeId as number | string)
           break
         }
         case 'analysis':
@@ -693,101 +898,101 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
         <QualityStamp :quality="overallQuality" />
       </div>
 
-      <div
-        v-if="isAnalysisReport && (analysisText || assumptions.length)"
-        class="multi-step-analysis analysis-report-lead"
-      >
-        <div v-if="analysisText">
-          <div class="analysis-label">{{ analysisSectionLabel }}</div>
-          <MdComponent :message="analysisText" />
+      <template v-for="group in renderedGroups" :key="group.key">
+        <div
+          v-if="group.markdown"
+          class="multi-step-analysis"
+          :class="{ 'analysis-document': group.document }"
+        >
+          <div v-if="group.label" class="analysis-label">{{ group.label }}</div>
+          <MdComponent :message="group.markdown" />
         </div>
-        <div v-if="assumptions.length" :class="{ 'assumption-block': !!analysisText }">
-          <div class="analysis-label">{{ t('chat.timeline.assumptions') }}</div>
-          <ul class="assumption-list">
-            <li v-for="(item, idx) in assumptions" :key="idx">
-              {{ formatAssumption(item) }}
-            </li>
-          </ul>
+        <div v-if="group.stepLabel && group.steps.length" class="analysis-exhibits-label">
+          {{ group.stepLabel }}
         </div>
-      </div>
-
-      <div v-if="isAnalysisReport && steps.length" class="analysis-exhibits-label">
-        {{ t('chat.analysis_exhibits') }}
-      </div>
-
-      <div
-        v-for="step in steps"
-        :key="`step-${step.recordId ?? 'x'}-${step.index}`"
-        :class="isMultiStep ? 'step-card' : 'single-step-block'"
-      >
-        <template v-if="isMultiStep">
-          <div class="step-header">
-            <span class="step-number">{{ step.index + 1 }}</span>
-            <span class="step-title">
-              {{ step.title || t('chat.chart_type.table') + ' ' + (step.index + 1) }}
-            </span>
-            <el-button
-              v-if="step.sql"
-              class="step-sql-toggle"
-              text
-              size="small"
-              @click="step.showSql = !step.showSql"
-            >
-              <el-icon size="14">
-                <icon_sql_outlined />
-              </el-icon>
-              <span class="step-sql-toggle-text">
-                {{ step.showSql ? t('chat.collapse_sql') : t('chat.show_query') }}
+        <div
+          v-for="step in group.steps"
+          :key="`step-${group.key}-${step.recordId ?? 'x'}-${step.index}`"
+          :class="isMultiStep ? 'step-card' : 'single-step-block'"
+        >
+          <template v-if="isMultiStep">
+            <div class="step-header">
+              <span class="step-number">{{ stepBadge(step) }}</span>
+              <span class="step-title">
+                {{ step.title || t('chat.chart_type.table') + ' ' + (step.index + 1) }}
               </span>
-            </el-button>
+              <el-button
+                v-if="step.sql"
+                class="step-sql-toggle"
+                text
+                size="small"
+                @click="step.showSql = !step.showSql"
+              >
+                <el-icon size="14">
+                  <icon_sql_outlined />
+                </el-icon>
+                <span class="step-sql-toggle-text">
+                  {{ step.showSql ? t('chat.collapse_sql') : t('chat.show_query') }}
+                </span>
+              </el-button>
+            </div>
+
+            <div v-if="step.showSql && step.sql" class="step-sql-block">
+              <SQLComponent :sql="step.sql" />
+            </div>
+          </template>
+
+          <template v-else>
+            <div v-if="step.sql" class="single-step-toolbar">
+              <el-button
+                v-if="step.sql"
+                class="step-sql-toggle"
+                text
+                size="small"
+                @click="step.showSql = !step.showSql"
+              >
+                <el-icon size="14">
+                  <icon_sql_outlined />
+                </el-icon>
+                <span class="step-sql-toggle-text">
+                  {{ step.showSql ? t('chat.collapse_sql') : t('chat.show_query') }}
+                </span>
+              </el-button>
+            </div>
+            <div v-if="step.showSql && step.sql" class="step-sql-block">
+              <SQLComponent :sql="step.sql" />
+            </div>
+          </template>
+
+          <div v-if="step.error" class="step-error">
+            <el-alert :title="step.error" type="error" show-icon :closable="false" />
           </div>
 
-          <div v-if="step.showSql && step.sql" class="step-sql-block">
-            <SQLComponent :sql="step.sql" />
+          <div v-if="step.chart || step.loading || step.data" class="step-chart-wrapper">
+            <ChartBlock
+              v-if="step.chart && step.data !== undefined"
+              :key="`chart-${step.recordId}-${step.index}-${(step.data?.fields || []).join(',')}`"
+              v-model:show-label="showLabel"
+              v-model:thousands-separator-list="enableThousandsSeparatorList"
+              :message="buildStepMessage(step, group.repairCharts)"
+              :record-id="step.recordId"
+              :instance-id="step.index"
+              :loading-data="step.loading"
+            />
+            <div v-else-if="step.loading" class="step-chart-loading">
+              <span>{{ t('chat.loading_data') }}</span>
+            </div>
           </div>
-        </template>
-
-        <template v-else>
-          <div v-if="step.sql" class="single-step-toolbar">
-            <el-button
-              v-if="step.sql"
-              class="step-sql-toggle"
-              text
-              size="small"
-              @click="step.showSql = !step.showSql"
-            >
-              <el-icon size="14">
-                <icon_sql_outlined />
-              </el-icon>
-              <span class="step-sql-toggle-text">
-                {{ step.showSql ? t('chat.collapse_sql') : t('chat.show_query') }}
-              </span>
-            </el-button>
-          </div>
-          <div v-if="step.showSql && step.sql" class="step-sql-block">
-            <SQLComponent :sql="step.sql" />
-          </div>
-        </template>
-
-        <div v-if="step.error" class="step-error">
-          <el-alert :title="step.error" type="error" show-icon :closable="false" />
         </div>
+      </template>
 
-        <div v-if="step.chart || step.loading || step.data" class="step-chart-wrapper">
-          <ChartBlock
-            v-if="step.chart && step.data !== undefined"
-            :key="`chart-${step.recordId}-${step.index}-${(step.data?.fields || []).join(',')}`"
-            v-model:show-label="showLabel"
-            v-model:thousands-separator-list="enableThousandsSeparatorList"
-            :message="buildStepMessage(step)"
-            :record-id="step.recordId"
-            :instance-id="step.index"
-            :loading-data="step.loading"
-          />
-          <div v-else-if="step.loading" class="step-chart-loading">
-            <span>{{ t('chat.loading_data') }}</span>
-          </div>
-        </div>
+      <div v-if="isAnalysisReport && assumptions.length" class="multi-step-analysis">
+        <div class="analysis-label">{{ t('chat.timeline.assumptions') }}</div>
+        <ul class="assumption-list">
+          <li v-for="(item, idx) in assumptions" :key="idx">
+            {{ formatAssumption(item) }}
+          </li>
+        </ul>
       </div>
     </div>
 
@@ -938,8 +1143,79 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
   background: rgba(248, 249, 250, 1);
 }
 
-.analysis-report-lead {
+.analysis-document {
   margin-top: 0;
+  padding: 4px 2px 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+
+  :deep(.markdown-body) {
+    background: transparent;
+    font-size: 14px;
+    line-height: 1.75;
+    color: #1f2329;
+
+    h1,
+    h2,
+    h3 {
+      margin: 22px 0 10px;
+      padding-bottom: 0;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 24px;
+      color: #1f2329;
+    }
+
+    h1:first-child,
+    h2:first-child,
+    h3:first-child {
+      margin-top: 0;
+    }
+
+    p {
+      margin: 8px 0 12px;
+    }
+
+    ul,
+    ol {
+      margin: 8px 0 12px;
+      padding-left: 18px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    table {
+      display: table;
+      width: 100%;
+      max-width: 100%;
+      margin: 8px 0 14px;
+      border-collapse: collapse;
+      font-size: 13px;
+      line-height: 20px;
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      border: 1px solid #e5e6eb;
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    th {
+      background: #f7f8fa;
+      font-weight: 500;
+      color: #4e5969;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafbfc;
+    }
+  }
 }
 
 .assumption-block {

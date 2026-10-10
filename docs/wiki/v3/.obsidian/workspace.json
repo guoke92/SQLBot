@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "tables/wechat_project_approval_apply.md",
+                "file": "dicts/argeement_migratory_record__agreement_type.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "wechat_project_approval_apply"
+              "title": "argeement_migratory_record__agreement_type"
             }
           }
         ]
@@ -55,7 +55,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "IMPLEMENTATION",
+                "query": "",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -79,8 +79,7 @@
               "title": "书签"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -191,8 +190,10 @@
   },
   "active": "99a036deb9dd1bfd",
   "lastOpenFiles": [
-    "dicts/wechat_project_approval_apply__project_phase.md",
+    "dicts/async_io_task__enable.md",
+    "dicts/argeement_migratory_record__agreement_type.md",
     "tables/wechat_project_approval_apply.md",
+    "dicts/wechat_project_approval_apply__project_phase.md",
     "tables/cust_person_info.md",
     "dicts/argeement_migratory_record__enable.md",
     "_index.md",
@@ -223,9 +224,7 @@
     "_raw/full_sweep/hold_promote_result.yaml",
     "_raw/full_sweep/hold_promote_llm.yaml",
     "_raw/full_sweep/audit_final_review.md",
-    "_raw/full_sweep/remaining_relations.md",
     "_raw/full_sweep/dict_llm_residual.yaml",
-    "_raw/full_sweep/join_validate_after.md",
     "_raw/full_sweep/join_validate_after.yaml",
     "_raw/full_sweep/dict_llm_large.yaml"
   ]

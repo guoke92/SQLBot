@@ -38,6 +38,7 @@ from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
     attach_process_span,
     attach_running_tool_span,
+    complete_page_rows,
     open_process_span,
     preview_rows,
 )
@@ -77,12 +78,6 @@ def _invoke_one(
         return skipped_outcome(
             "knowledge budget exhausted",
             reason="knowledge_budget",
-            name=name,
-        )
-    if skip_probe and name in ANALYZE_SQL_TOOLS:
-        return skipped_outcome(
-            "probe budget exhausted; write the report from evidence already gathered",
-            reason="probe_budget",
             name=name,
         )
     if skip_probe and name == "execute_sql_sandbox":
@@ -175,6 +170,17 @@ def _dispatch_results(
     )
 
 
+def _artifact_preview_rows(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Show every row of a small complete page; keep the 3-row card sample otherwise."""
+    full = complete_page_rows(data)
+    if full is not None and not data.get("truncated"):
+        return full
+    return preview_rows(
+        data.get("preview_rows") or data.get("sample_rows") or [],
+        limit=PREVIEW_ROW_LIMIT,
+    )
+
+
 def _record_artifact(
     *,
     outcome: ToolOutcome,
@@ -204,10 +210,7 @@ def _record_artifact(
                 "row_count": data.get("row_count") or data.get("total_rows"),
                 "truncated": bool(data.get("truncated")),
                 "limit": data.get("limit"),
-                "preview_rows": preview_rows(
-                    data.get("preview_rows") or data.get("sample_rows") or [],
-                    limit=PREVIEW_ROW_LIMIT,
-                ),
+                "preview_rows": _artifact_preview_rows(data),
                 "rev": outcome.signals.sql_rev,
             },
             local_operation=True,
@@ -349,7 +352,11 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             batch = batch.model_copy(update={"interrupt": True})
         if outcome.signals.terminal:
             batch = batch.model_copy(update={"terminal": True})
-        if outcome.signals.purpose == "probe" and not outcome.signals.skipped:
+        if (
+            outcome.signals.purpose == "probe"
+            and not outcome.signals.skipped
+            and name not in ANALYZE_SQL_TOOLS
+        ):
             budget.probe_calls.used += 1
         budget.tool_calls.used += 1
 

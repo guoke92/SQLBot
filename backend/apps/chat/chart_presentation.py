@@ -89,19 +89,26 @@ def _numeric_samples(values: Sequence[Any]) -> list[float]:
 
 
 def looks_like_identifier(values: Sequence[Any]) -> bool:
-    """True for PK/snowflake/credit-code style numbers — not chart measures."""
+    """True for PK/snowflake/credit-code style numbers — not chart measures.
+
+    A short GROUP BY of counts is also all-unique integers (2024, 1901, 33).
+    Those stay measures. Only dense small keys (1..n) and huge ids are keys.
+    """
     nums = _numeric_samples(values)
     if len(nums) < 2:
         return False
-    unique_ratio = len({round(item, 12) for item in nums}) / len(nums)
-    if unique_ratio < 0.9:
+    unique = {round(item, 12) for item in nums}
+    if len(unique) / len(nums) < 0.9:
         return False
-    all_integral = all(abs(item - round(item)) < 1e-9 for item in nums)
-    if not all_integral:
+    if not all(abs(item - round(item)) < 1e-9 for item in nums):
         return False
     if any(abs(item) >= 1e12 for item in nums):
         return True
-    return len(nums) >= 3
+    ordered = sorted(int(round(item)) for item in unique)
+    if len(ordered) < 3:
+        return False
+    span = ordered[-1] - ordered[0] + 1
+    return span <= len(ordered) * 2
 
 
 def column_kinds(
@@ -134,6 +141,45 @@ def column_kinds(
         else:
             categorical.append(field)
     return temporal, measures, categorical
+
+
+def _column_magnitude(field: str, rows: Sequence[Mapping[str, Any]]) -> float:
+    values = _numeric_samples(
+        [row.get(field) for row in rows if isinstance(row, Mapping)]
+    )
+    if not values:
+        return 0.0
+    return max(abs(item) for item in values)
+
+
+def plot_measures(
+    measures: Sequence[str], rows: Sequence[Mapping[str, Any]]
+) -> list[str]:
+    """Measures a comparison chart should encode.
+
+    A 0/1 diagnostic column (test-row count) is dropped when another column
+    is a real magnitude, so the bar length is the count the sentence cites.
+    """
+    ranked = [(field, _column_magnitude(field, rows)) for field in measures]
+    if not ranked:
+        return []
+    peak = max(mag for _field, mag in ranked)
+    if peak >= 10:
+        ranked = [(field, mag) for field, mag in ranked if mag > 1]
+    return [field for field, _mag in ranked[:3]]
+
+
+def _grouped_axis(
+    x_col: Mapping[str, Any], y_cols: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
+    return {
+        "x": {"name": x_col["name"], "value": x_col["value"]},
+        "y": [{"name": col["name"], "value": col["value"]} for col in y_cols],
+        "multi-quota": {
+            "name": "指标",
+            "value": [str(col["value"]) for col in y_cols],
+        },
+    }
 
 
 def _chart_axis(x_col: Mapping[str, Any], y_col: Mapping[str, Any]) -> dict[str, Any]:
@@ -247,8 +293,12 @@ def build_chart_for_type(
     cols = chart_columns(presentation)
     col_by_field = {str(col.get("value") or col.get("name")): col for col in cols}
     temporal, measures, categorical = column_kinds(fields, rows)
-    y_field = measures[0]
+    picked = plot_measures(measures, rows) or list(measures)
+    y_field = picked[0] if picked else ""
     y_col = col_by_field.get(y_field) or cols[-1]
+    y_cols = [
+        col_by_field.get(field) or {"name": field, "value": field} for field in picked
+    ]
 
     if ct == "line":
         x_field = temporal[0]
@@ -285,13 +335,18 @@ def build_chart_for_type(
     # bar / column
     x_field = (categorical or temporal)[0]
     x_col = col_by_field.get(x_field) or cols[0]
+    grouped = len(y_cols) > 1
+    axis = _grouped_axis(x_col, y_cols) if grouped else _chart_axis(x_col, y_col)
+    y_axis: str | list[str] = (
+        [str(col["value"]) for col in y_cols] if grouped else str(y_col["value"])
+    )
     return {
         "type": ct,
         "title": presentation["title"],
         "columns": cols,
         "xAxis": x_col["value"],
-        "yAxis": y_col["value"],
-        "axis": _chart_axis(x_col, y_col),
+        "yAxis": y_axis,
+        "axis": axis,
         "config": {
             "xField": x_col["value"],
             "yField": y_col["value"],

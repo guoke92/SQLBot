@@ -10,12 +10,14 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+from langchain_core.messages import AIMessage  # noqa: E402
+
 from apps.chat.agent.workspace import SqlWorkspace  # noqa: E402
 from apps.chat.agent_copy import (  # noqa: E402
     compact_agent_final_text,
+    recover_analysis_report,
     truncated_display_note,
 )
-
 
 _CHAT_217_TEXT = """查询已完成，企业清单已生成。以下是本次查询的说明与结果概要：
 
@@ -70,13 +72,46 @@ def test_compact_keeps_analyze_evidence_tables() -> None:
 | B | 9% |
 """
     kept = compact_agent_final_text(report, keep_tables=True)
-    assert "### 核心发现" in kept
+    assert "核心发现" not in kept
+    assert "开通率 12.4%。" in kept
     assert "| 渠道 | 开通率 |" in kept
     assert "12.4%" in kept
     stripped = compact_agent_final_text(report, keep_tables=False)
     assert "|" not in stripped
     assert "12.4%" in stripped
-    assert "### 核心发现" in stripped
+    assert "核心发现" in stripped
+
+
+def test_recover_analysis_report_after_empty_stop() -> None:
+    report = "## 核心发现\n1956 家企业存在空缺。\n\n## 证据\n\n| 角色 | 企业 |\n| --- | --- |\n| 核心企业 | 1292 |\n"
+    kept = recover_analysis_report(
+        [AIMessage(content=report), AIMessage(content="")],
+        "",
+    )
+    assert kept == report.strip()
+    compacted = compact_agent_final_text(
+        kept, truncated=True, limit=1000, keep_tables=True
+    )
+    assert "1956 家企业存在空缺。" in compacted
+    assert "核心发现" not in compacted
+    assert "| 核心企业 | 1292 |" in compacted
+    assert "仅展示前 1000 条。" not in compacted
+    assert compact_agent_final_text(kept, keep_tables=True) == compacted
+
+
+def test_analyze_report_skips_query_footnote_even_without_a_window_mention() -> None:
+    report = """### 核心发现
+4115 家企业完全没有运营人。清单为 4,232 家中的前 1,000 行。
+"""
+    compacted = compact_agent_final_text(
+        report, truncated=True, limit=1000, keep_tables=True
+    )
+    assert "前 1,000 行" in compacted
+    assert "仅展示前 1000 条。" not in compacted
+    query = compact_agent_final_text(
+        "已按确认口径筛选。", truncated=True, limit=1000, keep_tables=False
+    )
+    assert query.endswith("仅展示前 1000 条。")
 
 
 def test_truncated_display_note_fallback() -> None:

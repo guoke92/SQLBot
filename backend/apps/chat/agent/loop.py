@@ -17,6 +17,8 @@ from apps.chat.agent.tokens import count_message_tokens
 from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.agent_copy import (
     compact_agent_final_text,
+    looks_like_analysis_report,
+    recover_analysis_report,
     truncated_display_note,
 )
 from apps.chat.steps.stream import consume_llm
@@ -294,7 +296,10 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     ):
         return _incomplete_turn_state(state, updated_messages)
 
-    if not finalizing:
+    if mode.id == "analyze":
+        text = recover_analysis_report(updated_messages, text)
+
+    if not finalizing and not looks_like_analysis_report(text):
         nudge = mode.evidence_nudge(state)
         if nudge:
             return {

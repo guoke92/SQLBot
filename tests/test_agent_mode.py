@@ -55,11 +55,22 @@ def test_analyze_compose_is_peer_not_overlay() -> None:
     text = AnalyzeMode().compose_rules()
     assert "默认 `purpose=probe`" in text
     assert "完整分析报告" in text
-    assert "### 核心发现" in text
-    assert "### 分析路径" in text
+    assert "### 核心发现" not in text
+    assert "开头不要标题" in text
+    assert "一、按客户状态" in text
+    assert "### 口径与局限" not in text
+    assert "判定方式" in text
+    assert "整列为空的名单不要交" in text
+    assert "至少一张 Markdown 小表" in text
+    assert "### 分析路径" not in text
+    assert "### 证据" not in text
     assert "profile_sql_result" in text
     assert "能探明的不要问人" in text
-    assert "报告是产品" in text
+    assert "千行明细卡只是附录" in text
+    assert "展示窗" in text
+    assert "完整页" in text
+    assert "先取总体与分组" in text
+    assert "表后面把这个切面说完" in text
     assert "取证计划" in text
     assert "一两句结论" not in text
     assert "禁止**用旁白代替取数" not in text
@@ -105,17 +116,18 @@ def test_independent_analysis_route_is_valid() -> None:
         confidence=1.0,
     )
     assert route.task_kind == "analysis"
-    built = ensure_agent_turn_route(
-        {"route_hint": "analysis"}, reference_record_ids=[]
-    )
+    built = ensure_agent_turn_route({"route_hint": "analysis"}, reference_record_ids=[])
     assert built["task_kind"] == "analysis"
     assert built["relation"] == "independent"
 
 
 def test_close_kind_empty_is_mode_agnostic() -> None:
-    assert close_kind({"turn_route": {"task_kind": "query"}}, has_cards=False) == "empty"
     assert (
-        close_kind({"turn_route": {"task_kind": "analysis"}}, has_cards=False) == "empty"
+        close_kind({"turn_route": {"task_kind": "query"}}, has_cards=False) == "empty"
+    )
+    assert (
+        close_kind({"turn_route": {"task_kind": "analysis"}}, has_cards=False)
+        == "empty"
     )
     assert (
         close_kind(
@@ -178,7 +190,9 @@ def test_analyze_evidence_nudge_once() -> None:
     state = _executed_analyze_state()
     first = AnalyzeMode().evidence_nudge(state)
     assert "profile_sql_result" in first
-    assert AnalyzeMode().evidence_nudge({**state, "analyze_evidence_nudged": True}) == ""
+    assert (
+        AnalyzeMode().evidence_nudge({**state, "analyze_evidence_nudged": True}) == ""
+    )
     assert QueryMode().evidence_nudge(state) == ""
 
 

@@ -6,11 +6,7 @@ from apps.chat.agent.tools.render import render_tool_message
 
 
 def test_schema_uses_real_newlines() -> None:
-    schema = (
-        "## 租户产品配置 (tenant_product)\n"
-        "id:number, 表主键\n"
-        "code:string, 编码"
-    )
+    schema = "## 租户产品配置 (tenant_product)\nid:number, 表主键\ncode:string, 编码"
     text = render_tool_message(
         "get_table_schema",
         {
@@ -40,9 +36,7 @@ def test_schema_uses_real_newlines() -> None:
 
 def test_knowledge_keeps_summary_only() -> None:
     summary = (
-        "已命中 1 条业务知识。\n"
-        "concept: 产品类型\n"
-        "  page_key: concepts/product-cate"
+        "已命中 1 条业务知识。\nconcept: 产品类型\n  page_key: concepts/product-cate"
     )
     text = render_tool_message(
         "search_knowledge",
@@ -77,7 +71,16 @@ def test_sql_observation_drops_orchestration_fields() -> None:
                 "truncated": False,
                 "sample_rows": [{"a": 1}],
                 "preview_rows": [{"a": 1}],
-                "column_stats": {"a": {"sum": 1}},
+                "context_preview": [{"position": 1, "row": {"a": 1}}],
+                "column_stats": {
+                    "a": {
+                        "null_count": 0,
+                        "non_null_count": 1,
+                        "min": 1,
+                        "max": 1,
+                        "sum": 99,
+                    }
+                },
                 "dataset_id": "ds-1",
                 "plan_id": "p-1",
             },
@@ -87,7 +90,12 @@ def test_sql_observation_drops_orchestration_fields() -> None:
         },
     )
     assert "SELECT 1 AS a" in text
-    assert "a=1" in text
+    assert "complete page (1 row):" in text
+    assert "#1 a=1" in text
+    assert "page_stats" in text
+    assert "null=0" in text
+    assert "non_null=1" in text
+    assert "sum=" not in text
     assert "column_stats" not in text
     assert "dataset_id" not in text
     assert '"ok"' not in text
@@ -149,3 +157,54 @@ def test_compare_observation_uses_rev_counts_not_sql() -> None:
     assert "r2: 100 rows" in text
     assert "SELECT" not in text
     assert "sql" not in text.lower()
+
+
+def test_small_group_page_is_complete_and_spread_stays_a_sample() -> None:
+    statuses = ("EFFECT", "ADD", "CHANGE", "WRITEOFF", "FREEZE")
+    text = render_tool_message(
+        "execute_sql_sandbox",
+        {
+            "ok": True,
+            "summary": "Query executed successfully, returned 5 rows.",
+            "payload": {
+                "sql": "SELECT status, n FROM t",
+                "fields": ["status", "n"],
+                "row_count": 5,
+                "truncated": False,
+                "preview_rows": [{"status": "EFFECT", "n": 1}],
+                "context_preview": [
+                    {"position": index, "row": {"status": name, "n": index}}
+                    for index, name in enumerate(statuses, start=1)
+                ],
+            },
+            "signals": {"purpose": "probe"},
+            "error": None,
+            "failure": None,
+        },
+    )
+    assert "complete page (5 rows):" in text
+    assert "first / middle / last" not in text
+    for name in statuses:
+        assert name in text
+    sampled = render_tool_message(
+        "execute_sql_sandbox",
+        {
+            "ok": True,
+            "summary": "Query executed successfully, returned 1000 rows.",
+            "payload": {
+                "row_count": 1000,
+                "truncated": True,
+                "context_preview": [
+                    {"position": 1, "row": {"status": "EFFECT"}},
+                    {"position": 500, "row": {"status": "ADD"}},
+                    {"position": 1000, "row": {"status": "FREEZE"}},
+                ],
+            },
+            "signals": {"purpose": "delivery"},
+            "error": None,
+            "failure": None,
+        },
+    )
+    assert "preview (first / middle / last of this page):" in sampled
+    assert "complete page" not in sampled
+    assert "#500" in sampled

@@ -34,6 +34,9 @@ ProcessStatus = Literal["running", "completed", "failed", "interrupted"]
 ProcessView = Literal["compact", "detail"]
 
 PREVIEW_ROW_LIMIT = 3
+# Small probe / aggregate pages are shown in full. Larger pages stay a
+# first/middle/last sample so a 1000-row delivery is not copied into context.
+MODEL_FULL_PAGE = 20
 # Durable chat_log keeps full LLM prompts up to this serialized-char ceiling.
 # Compact SSE upserts omit heavy input/output; Execution Details uses view=detail.
 # Thought body is never display-capped: compact/SSE and detail all keep the full text.
@@ -828,6 +831,83 @@ def preview_rows(
         for row in list(rows or [])[: max(0, limit)]
         if isinstance(row, Mapping)
     ]
+
+
+def model_context_preview(
+    rows: Sequence[Mapping[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Rows the model should treat as this page.
+
+    Up to ``MODEL_FULL_PAGE`` rows are returned with positions ``1..n``.
+    Larger pages keep :func:`spread_preview` so a sorted head of nulls cannot
+    hide the tail, and so a delivery window is not copied into context.
+    """
+    items = [dict(row) for row in list(rows or []) if isinstance(row, Mapping)]
+    if len(items) <= MODEL_FULL_PAGE:
+        return [{"position": index + 1, "row": row} for index, row in enumerate(items)]
+    return spread_preview(items)
+
+
+def complete_page_rows(data: Mapping[str, Any] | None) -> list[dict[str, Any]] | None:
+    """Full page when context positions are ``1..row_count`` and the page is small.
+
+    Card preview stays at :data:`PREVIEW_ROW_LIMIT`. Callers that brief the
+    model (aggregate groups, small probe artifacts) must read this instead.
+    """
+    if not isinstance(data, Mapping):
+        return None
+    ctx = data.get("context_preview")
+    if not isinstance(ctx, Sequence) or isinstance(ctx, str | bytes):
+        return None
+    rows: list[dict[str, Any]] = []
+    positions: list[int] = []
+    for item in ctx:
+        if not isinstance(item, Mapping):
+            return None
+        row = item.get("row")
+        pos = item.get("position")
+        if not isinstance(row, Mapping) or not isinstance(pos, int):
+            return None
+        rows.append(dict(row))
+        positions.append(pos)
+    if not rows or len(rows) > MODEL_FULL_PAGE:
+        return None
+    if positions != list(range(1, len(rows) + 1)):
+        return None
+    raw_count = data.get("row_count")
+    if raw_count is not None:
+        try:
+            count = int(raw_count)
+        except (TypeError, ValueError):
+            return None
+        if count != len(rows):
+            return None
+    return rows
+
+
+def spread_preview(
+    rows: Sequence[Mapping[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """First, midpoint, and last row of a returned page.
+
+    Positions are 1-based indexes into that page. The ordered head stays on
+    ``preview_rows`` for the result card; this sample is for the model, so a
+    sort that puts nulls first cannot hide the rest of the page.
+    """
+    items = [dict(row) for row in list(rows or []) if isinstance(row, Mapping)]
+    count = len(items)
+    if count == 0:
+        return []
+    indexes = [0]
+    if count > 2:
+        indexes.append(count // 2)
+    if count > 1:
+        indexes.append(count - 1)
+    unique: list[int] = []
+    for index in indexes:
+        if index not in unique:
+            unique.append(index)
+    return [{"position": index + 1, "row": items[index]} for index in unique]
 
 
 def new_dataset_id() -> str:

@@ -37,6 +37,49 @@ export interface WikiImportResult {
   replaced: boolean
 }
 
+export interface WikiPageSummary {
+  belong: string
+  page_key: string
+  title: string
+  page_type: string
+  status: string
+  aliases: string[]
+  links?: string[]
+}
+
+export interface WikiPageCatalog {
+  corpus_key: string
+  counts: { belong: string; count: number }[]
+  pages: WikiPageSummary[]
+}
+
+export interface WikiPageDetail {
+  belong: string
+  page_key: string
+  title: string
+  page_type: string
+  status: string
+  domain: string
+  aliases: string[]
+  anchors: string[]
+  maps_to: string
+  field_targets: string[]
+  related: string[]
+  also_confused_with: string[]
+  adjudication: string
+  databases: string[]
+  recall: boolean
+  inactive: boolean
+  body: string
+  ground: { kind: string; label: string }[]
+  reviews: { type: string; title: string; body: string }[]
+  links: { target: string; alias: string }[]
+  findings: { code: string; message: string }[]
+  parse_error: string | null
+  page_disabled: boolean
+  update_time: string | null
+}
+
 export const knowledgeApi = {
   listCorpora: () => request.get('/wiki/corpora') as Promise<WikiCorpusRow[]>,
   importCorpus: (data: {
@@ -77,8 +120,15 @@ export const knowledgeApi = {
     remap_databases?: Record<string, string>
     remaps_by_datasource?: Record<string, Record<string, string>>
   }) => request.put('/wiki/bindings', data),
-  unbindDatasource: (datasourceId: number) =>
-    request.delete(`/wiki/bindings/${datasourceId}`),
+  unbindDatasource: (datasourceId: number) => request.delete(`/wiki/bindings/${datasourceId}`),
   retryEmbed: (corpusKey: string) =>
     request.post(`/wiki/corpora/${encodeURIComponent(corpusKey)}/retry-embed`),
+  listPages: (corpusKey: string, params?: { q?: string; belong?: string; status?: string }) =>
+    request.get(`/wiki/corpora/${encodeURIComponent(corpusKey)}/pages`, {
+      params,
+    }) as Promise<WikiPageCatalog>,
+  readPage: (corpusKey: string, belong: string, pageKey: string) =>
+    request.get(
+      `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}`
+    ) as Promise<WikiPageDetail>,
 }

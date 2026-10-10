@@ -58,12 +58,79 @@ def _render_sql_sandbox(summary: str, data: Mapping[str, Any]) -> str:
             lines.append("fields: " + ", ".join(names))
     if data.get("truncated"):
         lines.append("truncated: true")
-    rows = data.get("preview_rows") or data.get("sample_rows") or []
-    preview = _format_preview_rows(rows) if isinstance(rows, Sequence) else ""
-    if preview:
-        lines.append("preview:")
-        lines.append(preview)
+    lines.extend(_render_page_stats(data.get("column_stats")))
+    context = data.get("context_preview")
+    if (
+        isinstance(context, Sequence)
+        and not isinstance(context, str | bytes)
+        and context
+    ):
+        page = list(context)
+        complete = _is_complete_page(page)
+        if complete:
+            noun = "row" if len(page) == 1 else "rows"
+            lines.append(f"complete page ({len(page)} {noun}):")
+        else:
+            lines.append("preview (first / middle / last of this page):")
+        rendered = _render_context_preview(page, limit=20 if complete else 5)
+        if rendered:
+            lines.append(rendered)
+    else:
+        rows = data.get("preview_rows") or data.get("sample_rows") or []
+        preview = _format_preview_rows(rows) if isinstance(rows, Sequence) else ""
+        if preview:
+            lines.append("preview:")
+            lines.append(preview)
     return "\n".join(lines).strip()
+
+
+def _render_page_stats(stats: Any) -> list[str]:
+    """Null and range counts for the returned page. Sums stay off this text."""
+    if not isinstance(stats, Mapping) or not stats:
+        return []
+    lines = ["page_stats (returned page only):"]
+    for name, raw in list(stats.items())[:16]:
+        if not isinstance(raw, Mapping):
+            continue
+        bits = [str(name)]
+        for key, label in (
+            ("null_count", "null"),
+            ("blank_count", "blank"),
+            ("non_null_count", "non_null"),
+            ("min", "min"),
+            ("max", "max"),
+        ):
+            if key not in raw or raw[key] is None:
+                continue
+            if key == "blank_count" and not raw[key]:
+                continue
+            bits.append(f"{label}={raw[key]}")
+        if len(bits) > 1:
+            lines.append("  " + " ".join(bits))
+    return lines if len(lines) > 1 else []
+
+
+def _is_complete_page(rows: Sequence[Any]) -> bool:
+    positions: list[int] = []
+    for item in rows:
+        if not isinstance(item, Mapping) or not isinstance(item.get("position"), int):
+            return False
+        positions.append(int(item["position"]))
+    return bool(positions) and positions == list(range(1, len(positions) + 1))
+
+
+def _render_context_preview(rows: Sequence[Any], *, limit: int = 5) -> str:
+    lines: list[str] = []
+    for item in list(rows)[:limit]:
+        if not isinstance(item, Mapping):
+            continue
+        position = item.get("position")
+        row = item.get("row")
+        if position is None or not isinstance(row, Mapping):
+            continue
+        body = _format_preview_rows([row], limit=1)
+        lines.append(f"  #{position} {body}")
+    return "\n".join(lines)
 
 
 def _render_compare_results(summary: str, data: Mapping[str, Any]) -> str:
@@ -87,9 +154,7 @@ def _render_compare_results(summary: str, data: Mapping[str, Any]) -> str:
     return "\n".join(lines).strip()
 
 
-def _render_analyze_result(
-    name: str, summary: str, data: Mapping[str, Any]
-) -> str:
+def _render_analyze_result(name: str, summary: str, data: Mapping[str, Any]) -> str:
     lines = [summary] if summary else [name]
     ref = str(data.get("sql_ref") or "").strip()
     if ref:

@@ -157,8 +157,9 @@ class AnalyzeMode:
     def finalizing_instruction(self, reason: str) -> str:
         return (
             f"工具调用已关闭（{reason}）。不要再请求任何工具。"
-            "按 §6 写完整分析报告。数字只能来自已执行 SQL、剖析/聚合结果或 "
-            "<evidence>，禁止用 preview 行充当全量，禁止编造。"
+            "按 §6 写完：开头直接回答，切面用业务标题、小表和表后解读；不要写「分析报告」「核心发现」。若上文已经有正文，保留结论并补上仍缺的全量数字。"
+            "禁止交空白，禁止只写「仅展示前 N 条」。"
+            "总体数字只能来自不带 LIMIT 的聚合或 <evidence>，禁止用 preview 充当全量。"
         )
 
     def evidence_nudge(self, state: Mapping[str, Any]) -> str:
@@ -167,9 +168,10 @@ class AnalyzeMode:
         if not _needs_warehouse_stats(state):
             return ""
         return (
-            "已有结果 rev，但本轮还没有 profile_sql_result / aggregate_sql_result "
-            "/ compare_results。上下文 preview 不是全量数据。"
-            "先对当前 sql_ref 做至少一次剖析或聚合，再写 §6 五段报告。"
+            "已有结果 rev，但本轮还没有不带 LIMIT 的总体聚合，也没有 "
+            "profile_sql_result / aggregate_sql_result / compare_results。"
+            "先做一条返回很少行的全量聚合，再按 §6 写报告。"
+            "报告一旦写完就停，不要为凑剖析把已写好的报告丢掉。"
             "能用数据探明的不要 request_clarification。"
         )
 

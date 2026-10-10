@@ -10,6 +10,7 @@ from apps.chat.tools.analyze_result import (
     build_breakdown_sql,
     build_profile_sql,
     pick_profile_columns,
+    probe_rows,
     profile_sql_result,
     resolve_field,
     wrap_source_sql,
@@ -53,6 +54,15 @@ def test_resolve_field_rejects_injection() -> None:
     assert resolve_field("amount; DROP TABLE x", fields) is None
     assert resolve_field("missing", fields) is None
     assert pick_profile_columns(["dept", "nope"], fields) == ["dept"]
+    assert resolve_field("企业角色", ["企业角色", "关联记录数"]) == "企业角色"
+    assert resolve_field("`企业角色`", ["企业角色"]) == "企业角色"
+    sql = build_aggregate_sql(
+        "SELECT 1 AS 企业角色",
+        ["企业角色"],
+        [{"fn": "count", "alias": "n"}],
+        dialect="mysql",
+    )
+    assert "`企业角色`" in sql
 
 
 def test_query_mode_excludes_analyze_tools() -> None:
@@ -77,6 +87,44 @@ def test_profile_requires_executed_revision() -> None:
     ws = SqlWorkspace()
     out = profile_sql_result(type("S", (), {"ds": None})(), ws)
     assert out["ok"] is False
+
+
+def test_probe_rows_keeps_every_group_on_a_complete_page() -> None:
+    page = [
+        {"position": index, "row": {"客户状态": name, "企业数": count}}
+        for index, (name, count) in enumerate(
+            (
+                ("EFFECT", 2024),
+                ("ADD", 1901),
+                ("CHANGE", 154),
+                ("WRITEOFF", 33),
+                ("FREEZE", 3),
+            ),
+            start=1,
+        )
+    ]
+    rows = probe_rows(
+        {
+            "row_count": 5,
+            "preview_rows": [item["row"] for item in page[:3]],
+            "context_preview": page,
+        }
+    )
+    assert [row["客户状态"] for row in rows] == [
+        "EFFECT",
+        "ADD",
+        "CHANGE",
+        "WRITEOFF",
+        "FREEZE",
+    ]
+    spread = probe_rows(
+        {
+            "row_count": 5,
+            "preview_rows": [item["row"] for item in page[:3]],
+            "context_preview": [page[0], page[2], page[4]],
+        }
+    )
+    assert len(spread) == 3
 
 
 def test_aggregate_rejects_unknown_dimension() -> None:

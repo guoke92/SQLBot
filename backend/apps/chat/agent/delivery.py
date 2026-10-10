@@ -14,6 +14,7 @@ from apps.chat.agent.close import (
 from apps.chat.agent.mode import resolve_agent_mode
 from apps.chat.agent_copy import (
     compact_agent_final_text,
+    recover_analysis_report,
     truncated_display_note,
 )
 from apps.chat.agent_knowledge import AgentKnowledgePlane
@@ -210,6 +211,13 @@ def close_turn(state: Mapping[str, Any]) -> dict[str, Any]:
 
     truncated, trunc_limit = workspace.truncation()
     trans = getattr(llm_service, "trans", None) if llm_service is not None else None
+    if resolve_agent_mode(state).id == "analyze":
+        from apps.conversation.messages import deserialize_messages
+
+        final_text = recover_analysis_report(
+            deserialize_messages(list(state.get("messages") or [])),
+            final_text,
+        )
     final_text = compact_agent_final_text(
         final_text,
         truncated=truncated,

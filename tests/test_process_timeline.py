@@ -12,19 +12,22 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+from apps.chat.agent.delivery import infer_chart_for_presentation  # noqa: E402
+from apps.chat.tools.execute_sql import execute_sql_sandbox  # noqa: E402
 from apps.conversation.process_timeline import (  # noqa: E402
     _compact_item,
     _emit_process_event,
     _item_from_log,
     _process_payload,
+    complete_page_rows,
     localize_process_event,
     localize_process_item,
+    model_context_preview,
     preview_rows,
     project_thought_for_view,
+    spread_preview,
     tool_title_key,
 )
-from apps.chat.agent.delivery import infer_chart_for_presentation  # noqa: E402
-from apps.chat.tools.execute_sql import execute_sql_sandbox  # noqa: E402
 
 
 def test_markdown_sink_does_not_emit_events() -> None:
@@ -169,6 +172,31 @@ def test_tool_title_key_and_preview_rows() -> None:
     rows = preview_rows([{"a": 1}, {"a": 2}, {"a": 3}, {"a": 4}], limit=3)
     assert len(rows) == 3
     assert rows[0]["a"] == 1
+    spread = spread_preview([{"a": index} for index in range(1, 1001)])
+    assert [item["position"] for item in spread] == [1, 501, 1000]
+    assert [item["row"]["a"] for item in spread] == [1, 501, 1000]
+    assert spread_preview([{"a": 1}, {"a": 2}]) == [
+        {"position": 1, "row": {"a": 1}},
+        {"position": 2, "row": {"a": 2}},
+    ]
+    full = model_context_preview(
+        [{"status": name} for name in ("A", "B", "C", "D", "E")]
+    )
+    assert [item["position"] for item in full] == [1, 2, 3, 4, 5]
+    assert complete_page_rows(
+        {"row_count": 5, "preview_rows": full[:3], "context_preview": full}
+    ) == [item["row"] for item in full]
+    assert (
+        complete_page_rows(
+            {
+                "row_count": 1000,
+                "context_preview": spread_preview(
+                    [{"a": index} for index in range(1000)]
+                ),
+            }
+        )
+        is None
+    )
 
 
 def test_chart_inference_uses_value_kinds_not_column_names() -> None:

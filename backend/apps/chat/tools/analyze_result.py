@@ -13,6 +13,7 @@ from typing import Any, Literal
 from apps.chat.agent.workspace import SqlWorkspace
 from apps.chat.tools.contract import failure_outcome, signals_for_tool, success_outcome
 from apps.chat.tools.execute_sql import execute_sql_sandbox
+from apps.conversation.process_timeline import complete_page_rows
 from apps.db.constant import DB
 
 PROFILE_TOOL = "profile_sql_result"
@@ -41,12 +42,14 @@ def wrap_source_sql(sql: str, alias: str = _SOURCE_ALIAS) -> str:
 
 
 def resolve_field(name: str, fields: Sequence[str]) -> str | None:
-    raw = str(name or "").strip()
-    if not raw or not _IDENT_RE.match(raw):
+    raw = str(name or "").strip().strip("`").strip('"')
+    if not raw or any(ch in raw for ch in "`;'\\"):
         return None
     for field in fields:
         if str(field).strip() == raw:
             return str(field).strip()
+    if not _IDENT_RE.match(raw):
+        return None
     lowered = raw.lower()
     for field in fields:
         if str(field).strip().lower() == lowered:
@@ -68,7 +71,9 @@ def pick_profile_columns(
             if len(picked) >= _MAX_PROFILE_COLUMNS:
                 break
         return picked
-    return [str(item).strip() for item in fields[:_MAX_PROFILE_COLUMNS] if str(item).strip()]
+    return [
+        str(item).strip() for item in fields[:_MAX_PROFILE_COLUMNS] if str(item).strip()
+    ]
 
 
 def build_profile_sql(
@@ -179,6 +184,17 @@ def _payload(result: Mapping[str, Any]) -> Mapping[str, Any]:
     return data if isinstance(data, Mapping) else {}
 
 
+def probe_rows(data: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """Groups the warehouse actually returned, not the 3-row card preview."""
+    full = complete_page_rows(data)
+    if full is not None:
+        return full
+    preview = data.get("preview_rows") or data.get("sample_rows") or []
+    if isinstance(preview, Sequence) and not isinstance(preview, str | bytes):
+        return [row for row in preview if isinstance(row, Mapping)]
+    return []
+
+
 def _row_get(row: Mapping[str, Any], key: str) -> Any:
     if key in row:
         return row[key]
@@ -217,7 +233,7 @@ def profile_sql_result(
     )
     if not raw.get("ok"):
         return raw
-    row = (_payload(raw).get("preview_rows") or _payload(raw).get("sample_rows") or [{}])
+    row = probe_rows(_payload(raw)) or [{}]
     first = row[0] if row and isinstance(row[0], Mapping) else {}
     stats: list[dict[str, Any]] = []
     for index, column in enumerate(picked):
@@ -245,11 +261,7 @@ def profile_sql_result(
             name=PROFILE_TOOL,
         )
         if br_raw.get("ok"):
-            br_rows = list(
-                _payload(br_raw).get("preview_rows")
-                or _payload(br_raw).get("sample_rows")
-                or []
-            )
+            br_rows = probe_rows(_payload(br_raw))
             payload["breakdown"] = {
                 "column": focus,
                 "top": [
@@ -348,9 +360,7 @@ def aggregate_sql_result(
             signals=signals_for_tool(AGGREGATE_TOOL, purpose="probe"),
         )
     dialect = _dialect(llm_service)
-    sql = build_aggregate_sql(
-        item.sql, dims, compiled, dialect=dialect, limit=limit
-    )
+    sql = build_aggregate_sql(item.sql, dims, compiled, dialect=dialect, limit=limit)
     raw = _run_probe(
         llm_service,
         sql,
@@ -361,7 +371,7 @@ def aggregate_sql_result(
     if not raw.get("ok"):
         return raw
     data = _payload(raw)
-    rows = list(data.get("preview_rows") or data.get("sample_rows") or [])
+    rows = probe_rows(data)
     return success_outcome(
         f"Aggregated {item.rev}: {len(rows)} groups",
         payload={

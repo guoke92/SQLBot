@@ -15,6 +15,7 @@ from apps.chat.steps.enum_display import (
 from apps.chat.tools.contract import failure_outcome, signals_for_tool, success_outcome
 from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
+    model_context_preview,
     new_dataset_id,
     preview_rows,
     upsert_result_dataset,
@@ -110,9 +111,7 @@ def execute_sql_sandbox(
     """
     clean_sql = (sql or "").strip().rstrip(";")
     if not clean_sql:
-        return failure_outcome(
-            "SQL query cannot be empty", name=EXECUTE_SQL_TOOL_NAME
-        )
+        return failure_outcome("SQL query cannot be empty", name=EXECUTE_SQL_TOOL_NAME)
 
     delivery = purpose != "probe"
     resolved_chart = ""
@@ -201,29 +200,40 @@ def execute_sql_sandbox(
 
         row_count = len(raw_rows)
         samples = preview_rows(raw_rows, limit=min(sample_limit, PREVIEW_ROW_LIMIT))
+        context_preview = model_context_preview(raw_rows)
 
         col_stats: dict[str, Any] = {}
-        for field_name in fields[:10]:
-            vals = [
-                row.get(field_name)
-                for row in raw_rows
-                if isinstance(row, dict) and row.get(field_name) is not None
-            ]
+        for field_name in fields[:16]:
+            present: list[Any] = []
+            null_count = 0
+            blank_count = 0
+            for row in raw_rows:
+                if not isinstance(row, dict):
+                    continue
+                value = row.get(field_name)
+                if value is None:
+                    null_count += 1
+                elif isinstance(value, str) and not value.strip():
+                    blank_count += 1
+                else:
+                    present.append(value)
             stats: dict[str, Any] = {
-                "non_null_count": len(vals),
-                "null_count": row_count - len(vals),
+                "non_null_count": len(present),
+                "null_count": null_count,
             }
+            if blank_count:
+                stats["blank_count"] = blank_count
             wide_ids = any(
-                isinstance(v, int)
-                and not isinstance(v, bool)
-                and v.bit_length() > 53
-                for v in vals
+                isinstance(value, int)
+                and not isinstance(value, bool)
+                and value.bit_length() > 53
+                for value in present
             )
             if not wide_ids:
                 num_vals = [
-                    float(v)
-                    for v in vals
-                    if isinstance(v, int | float) and not isinstance(v, bool)
+                    float(value)
+                    for value in present
+                    if isinstance(value, int | float) and not isinstance(value, bool)
                 ]
                 if num_vals:
                     stats["min"] = min(num_vals)
@@ -262,6 +272,7 @@ def execute_sql_sandbox(
                 "truncated": truncated,
                 "sample_rows": samples,
                 "preview_rows": samples,
+                "context_preview": context_preview,
                 "column_stats": col_stats,
                 "dataset_id": resolved_dataset_id,
                 "plan_id": resolved_plan_id,
@@ -287,4 +298,3 @@ def execute_sql_sandbox(
             retryable=True,
             name=EXECUTE_SQL_TOOL_NAME,
         )
-

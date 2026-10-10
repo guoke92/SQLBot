@@ -77,6 +77,60 @@ def test_resolve_wrong_line_falls_back_to_table_without_llm() -> None:
     assert chart["type"] == "table"
 
 
+def test_bar_plots_counts_not_a_zero_one_flag() -> None:
+    fields = [
+        "客户状态",
+        "全部联系人均无运营人_企业数",
+        "部分联系人无运营人_企业数",
+        "其中测试数据企业数",
+    ]
+    rows = [
+        {
+            "客户状态": "生效",
+            "全部联系人均无运营人_企业数": 2024,
+            "部分联系人无运营人_企业数": 1078,
+            "其中测试数据企业数": 1,
+        },
+        {
+            "客户状态": "新增",
+            "全部联系人均无运营人_企业数": 1901,
+            "部分联系人无运营人_企业数": 35,
+            "其中测试数据企业数": 0,
+        },
+        {
+            "客户状态": "变更",
+            "全部联系人均无运营人_企业数": 154,
+            "部分联系人无运营人_企业数": 102,
+            "其中测试数据企业数": 0,
+        },
+        {
+            "客户状态": "注销",
+            "全部联系人均无运营人_企业数": 33,
+            "部分联系人无运营人_企业数": 2,
+            "其中测试数据企业数": 0,
+        },
+        {
+            "客户状态": "冻结",
+            "全部联系人均无运营人_企业数": 3,
+            "部分联系人无运营人_企业数": 1,
+            "其中测试数据企业数": 0,
+        },
+    ]
+    chart = resolve_delivery_chart(
+        presentation=_pres(fields, "客户状态分布"),
+        fields=fields,
+        rows=rows,
+        suggested_type="bar",
+    )
+    assert chart["type"] == "bar"
+    bound = [item["value"] for item in chart["axis"]["y"]]
+    assert bound == [
+        "全部联系人均无运营人_企业数",
+        "部分联系人无运营人_企业数",
+    ]
+    assert "其中测试数据企业数" not in bound
+
+
 def test_resolve_adopts_valid_bar() -> None:
     fields = ["dept", "cnt"]
     rows = [{"dept": "A", "cnt": 3}, {"dept": "B", "cnt": 5}]
@@ -160,8 +214,6 @@ def test_execute_sql_defaults_delivery_chart_type_table(monkeypatch) -> None:  #
     assert res["payload"]["chart_type"] == "table"
     assert captured.get("chart_type") == "table"
 
-    res2 = mod.execute_sql_sandbox(
-        llm, "SELECT 1", purpose="probe", chart_type="line"
-    )
+    res2 = mod.execute_sql_sandbox(llm, "SELECT 1", purpose="probe", chart_type="line")
     assert res2.get("ok") is True
     assert "chart_type" not in (res2.get("payload") or {})

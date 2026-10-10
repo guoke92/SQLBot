@@ -16,6 +16,11 @@ from apps.knowledge.wiki.binding_service import (
     sync_corpus_bindings,
     unbind_datasource,
 )
+from apps.knowledge.wiki.browse import (
+    CatalogNotFound,
+    get_page_detail,
+    list_page_catalog,
+)
 from apps.knowledge.wiki.corpus_store import (
     CorpusImportError,
     delete_corpus,
@@ -47,6 +52,12 @@ class BindCorpusBody(BaseModel):
 
 def _oid(user: UserInfoDTO) -> int:
     return int(getattr(user, "oid", 1) or 1)
+
+
+def catalog_http_error(exc: CatalogNotFound) -> HTTPException:
+    if exc.kind == "page":
+        return HTTPException(status_code=404, detail="page not found")
+    return HTTPException(status_code=404, detail="corpus not found")
 
 
 @router.get("/corpora")
@@ -176,6 +187,46 @@ async def retry_wiki_embed(
         "embedded_chunks": corpus.embedded_chunks,
         "failed_chunks": corpus.failed_chunks,
     }
+
+
+@router.get("/corpora/{corpus_key}/pages")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_wiki_pages(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    q: str = "",
+    belong: str = "",
+    status: str = "",
+) -> dict[str, Any]:
+    try:
+        return list_page_catalog(
+            session,
+            _oid(current_user),
+            corpus_key,
+            q=q,
+            belong=belong,
+            status=status,
+        )
+    except CatalogNotFound as exc:
+        raise catalog_http_error(exc) from exc
+
+
+@router.get("/corpora/{corpus_key}/pages/{belong}/{page_key:path}")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def read_wiki_page(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    belong: str,
+    page_key: str,
+) -> dict[str, Any]:
+    try:
+        return get_page_detail(
+            session, _oid(current_user), corpus_key, belong, page_key
+        )
+    except CatalogNotFound as exc:
+        raise catalog_http_error(exc) from exc
 
 
 @router.get("/bindings")
