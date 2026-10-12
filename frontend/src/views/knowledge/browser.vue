@@ -164,7 +164,7 @@ async function refreshOutline() {
     outline.value = []
     return
   }
-  outline.value = [...root.querySelectorAll('h1, h2, h3')].map((el, index) => {
+  outline.value = Array.from(root.querySelectorAll('h1, h2, h3')).map((el, index) => {
     const id = `wiki-h-${index}`
     el.id = id
     return {
@@ -217,7 +217,7 @@ function closeTab(page: WikiPageSummary) {
   const next = tabs.value.filter((item) => pageIdentity(item) !== id)
   tabs.value = next
   if (selected.value && pageIdentity(selected.value) === id) {
-    selected.value = next.at(-1) || null
+    selected.value = next[next.length - 1] || null
   }
 }
 

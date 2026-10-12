@@ -934,8 +934,7 @@ async function persistFeedback(
 async function sedimentToWiki(message: ChatMessage) {
   if (!message.record?.id || isTyping.value) return
   try {
-    const result = await knowledgeApi.sediment(message.record.id)
-    const opened = result?.data ?? result
+    const opened = await knowledgeApi.sediment(message.record.id)
     const question = t('knowledge.wiki_sediment_question', {
       source: opened.source_id,
       feedback: opened.feedback || '-',

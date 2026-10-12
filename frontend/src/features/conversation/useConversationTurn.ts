@@ -233,7 +233,7 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
         question: record.question || '',
         chat_id: chatId,
         regenerate_record_id: options.regenerate ? record.id : undefined,
-        route_hint: record.turn_kind,
+        route_hint: record.turn_kind === 'prediction' ? 'query' : record.turn_kind,
         reference_record_ids: record.reference_record_ids,
         reasoning_effort: useReasoningEffortStore().requestEffort,
       })
