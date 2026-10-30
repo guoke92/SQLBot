@@ -422,10 +422,9 @@ def append_agent_transcript(
     )
     existing = list(raw.get("messages") or [])
     existing.extend(serialize_messages(chunk))
-    payload = {
-        "messages": existing,
-        "folds": list(raw.get("folds") or []),
-    }
+    payload = dict(raw)
+    payload["messages"] = existing
+    payload["folds"] = list(raw.get("folds") or [])
     chat.agent_transcript = payload
     session.add(chat)
     return payload

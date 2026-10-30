@@ -5,28 +5,28 @@ page_key: ca_fee_order
 belong: tables
 status: draft
 anchors:
-- ca_fee_order
+  - ca_fee_order
 sources:
-- database_schema:lowcode_pplatform.ca_fee_order
-- code_path:CaFeeOrderBizMapper.java:13
-created: '2026-09-21'
-updated: '2026-09-23'
-contract_version: '0.1'
+  - database_schema:lowcode_pplatform.ca_fee_order
+  - code_path:CaFeeOrderBizMapper.java:13
+created: 2026-09-21
+updated: 2026-09-23
+contract_version: "0.1"
 databases:
-- lowcode_pplatform
+  - lowcode_pplatform
 related:
-- ca_fee_company
-- ca_fee_special_config
-- cust_company_info
-- tenant_project
-- tenant_setting_config
-- ca_fee_order__company_type
-- ca_fee_order__order_type
-- ca_fee_order__order_status
-- ca_fee_order__agreement_signed
-- ca_fee_order__invoice_status
-- ca_fee_order__enable
-- ca_fee_order__pay_method
+  - ca_fee_company
+  - ca_fee_special_config
+  - cust_company_info
+  - tenant_project
+  - tenant_setting_config
+  - ca_fee_order__company_type
+  - ca_fee_order__order_type
+  - ca_fee_order__order_status
+  - ca_fee_order__agreement_signed
+  - ca_fee_order__invoice_status
+  - ca_fee_order__enable
+  - ca_fee_order__pay_method
 ---
 # CA服务费订单
 

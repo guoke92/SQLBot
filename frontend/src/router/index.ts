@@ -34,6 +34,7 @@ import SetAssistant from '@/views/system/embedded/iframe.vue'
 
 import Knowledge from '@/views/knowledge/index.vue'
 import WikiBrowser from '@/views/knowledge/browser.vue'
+import WikiDialogue from '@/views/knowledge/dialogue.vue'
 import CatalogIndex from '@/views/schema-vector/index.vue'
 import QaAdmin from '@/views/qa-admin/index.vue'
 import ExtractKey from '@/views/system/extract-key/index.vue'
@@ -207,6 +208,12 @@ export const routes = [
         name: 'wikiBrowser',
         component: WikiBrowser,
         meta: { title: t('knowledge.wiki_browser') },
+      },
+      {
+        path: '/set/wiki/dialogue',
+        name: 'wikiDialogue',
+        component: WikiDialogue,
+        meta: { title: t('knowledge.wiki_dialogue_menu') },
       },
       {
         path: '/set/catalog-index',

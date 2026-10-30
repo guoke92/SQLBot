@@ -27,10 +27,8 @@ _RETRYABLE_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504, 529})
 _RETRYABLE_NAME_TOKENS = (
     "ratelimit",
     "timeout",
-    "connection",
     "unavailable",
     "internalserver",
-    "apiconnection",
     "apistatus",
 )
 _RETRYABLE_TEXT_TOKENS = (
@@ -281,6 +279,10 @@ def llm_error_is_retryable(exc: BaseException) -> bool:
     text = str(exc).lower()
     if any(token in text for token in _NON_RETRYABLE_TEXT_TOKENS):
         return False
+    from apps.conversation.outcome import model_unreachable_detail
+
+    if model_unreachable_detail(exc):
+        return False
     name = type(exc).__name__.lower()
     if any(token in name for token in _RETRYABLE_NAME_TOKENS):
         return True
@@ -298,8 +300,9 @@ def consume_llm(
     Providers without ``stream`` (and tests that only stub ``invoke``) fall
     back to a single blocking response. Storage is always the assembled
     assistant message plus reasoning text — never the raw chunk list.
-    Transient provider errors (429 / timeout / connection) are retried a
-    bounded number of times using ``LLM_MAX_RETRIES``.
+    Transient provider errors (429 / timeout / connection reset) are retried a
+    bounded number of times using ``LLM_MAX_RETRIES``. A refused model
+    endpoint is not retried.
     """
     retries = _llm_retry_limit()
     attempt = 0

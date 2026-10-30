@@ -209,6 +209,31 @@ class WikiPagePatch(SQLModel, table=True):
         default="proposed",
         sa_column=Column(String(32), nullable=False, server_default="proposed"),
     )
+    source_id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    toolset: str = Field(
+        default="",
+        sa_column=Column(String(32), nullable=False, server_default=""),
+    )
+    tool_name: str = Field(
+        default="",
+        sa_column=Column(String(64), nullable=False, server_default=""),
+    )
+    aspect: str = Field(
+        default="",
+        sa_column=Column(String(32), nullable=False, server_default=""),
+    )
+    trust: str = Field(
+        default="",
+        sa_column=Column(String(32), nullable=False, server_default=""),
+    )
+    observation: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    revision_no: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    interrupt_id: str | None = Field(default=None, max_length=64)
     actor: str = Field(
         default="",
         sa_column=Column(String(64), nullable=False, server_default=""),
@@ -245,6 +270,18 @@ class WikiSource(SQLModel, table=True):
     pointer: dict[str, Any] = Field(
         default_factory=dict,
         sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    locator: str = Field(
+        default="",
+        sa_column=Column(String(512), nullable=False, server_default=""),
+    )
+    toolset: str = Field(
+        default="",
+        sa_column=Column(String(32), nullable=False, server_default=""),
+    )
+    content_sha: str = Field(
+        default="",
+        sa_column=Column(String(64), nullable=False, server_default=""),
     )
     create_by: int | None = Field(
         default=None, sa_column=Column(BigInteger, nullable=True)

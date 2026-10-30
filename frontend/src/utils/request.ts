@@ -230,7 +230,16 @@ class HttpService {
           errorMessage = `Server responded with error: ${error.response.status}`
       }
       if (error?.response?.data) {
-        errorMessage = error.response.data.toString()
+        const data = error.response.data as unknown
+        if (typeof data === 'string') errorMessage = data
+        else if (
+          data &&
+          typeof data === 'object' &&
+          'msg' in data &&
+          typeof data.msg === 'string'
+        ) {
+          errorMessage = data.msg
+        } else errorMessage = JSON.stringify(data)
       }
     } else if (error.request) {
       errorMessage = 'No response from server'

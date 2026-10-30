@@ -212,6 +212,140 @@ async def list_wiki_pages(
         raise catalog_http_error(exc) from exc
 
 
+class RevertBody(BaseModel):
+    revision_no: int
+    confirm: bool = False
+
+
+@router.get("/corpora/{corpus_key}/pages/{belong}/{page_key}/history")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def wiki_page_history(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    belong: str,
+    page_key: str,
+) -> list[dict[str, Any]]:
+    from apps.knowledge.wiki.maintain.service import page_history
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return page_history(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            belong=belong,
+            page_key=page_key,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/corpora/{corpus_key}/pages/{belong}/{page_key}/revisions/{revision_no}")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def wiki_page_revision(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    belong: str,
+    page_key: str,
+    revision_no: int,
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import page_revision_body
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return page_revision_body(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            belong=belong,
+            page_key=page_key,
+            revision_no=revision_no,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/corpora/{corpus_key}/pages/{belong}/{page_key}/diff")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def wiki_page_diff(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    belong: str,
+    page_key: str,
+    left: int,
+    right: int,
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import page_revision_diff
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return page_revision_diff(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            belong=belong,
+            page_key=page_key,
+            left=left,
+            right=right,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.post("/corpora/{corpus_key}/pages/{belong}/{page_key}/revert")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def wiki_page_revert(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    belong: str,
+    page_key: str,
+    body: RevertBody,
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import rollback_page
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return rollback_page(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            belong=belong,
+            page_key=page_key,
+            revision_no=body.revision_no,
+            confirm=body.confirm,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.post("/corpora/{corpus_key}/pages/{belong}/{page_key}/promote")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def promote_wiki_page(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    belong: str,
+    page_key: str,
+) -> dict[str, str]:
+    from apps.knowledge.wiki.maintain.service import publish_page
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return publish_page(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            belong=belong,
+            page_key=page_key,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
 @router.get("/corpora/{corpus_key}/pages/{belong}/{page_key:path}")
 @require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
 async def read_wiki_page(
@@ -338,10 +472,19 @@ async def delete_wiki_binding(
     return {"deleted": True}
 
 
-class MaintainChatBody(BaseModel):
-    corpus_key: str = Field(min_length=1, max_length=64)
+class PageRef(BaseModel):
     belong: str = ""
     page_key: str = ""
+
+
+class MaintainChatBody(BaseModel):
+    """Corpus comes from the path."""
+
+    belong: str = ""
+    page_key: str = ""
+    pages: list[PageRef] = Field(default_factory=list)
+    source_ids: list[int] = Field(default_factory=list)
+    brief: str = ""
 
 
 class PasteSourceBody(BaseModel):
@@ -388,6 +531,80 @@ async def open_wiki_maintain_chat(
             corpus_key=corpus_key,
             belong=body.belong,
             page_key=body.page_key,
+            pages=[item.model_dump() for item in body.pages],
+            source_ids=body.source_ids,
+            brief=body.brief,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+class FocusBody(BaseModel):
+    pages: list[PageRef] = Field(default_factory=list)
+    source_ids: list[int] = Field(default_factory=list)
+    replace: bool = False
+
+
+@router.get("/corpora/{corpus_key}/maintain/preview")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def preview_wiki_material(
+    session: SessionDep,
+    current_user: CurrentUser,
+    corpus_key: str,
+    kind: str,
+    belong: str = "",
+    page_key: str = "",
+    record_id: int = 0,
+    source_id: int = 0,
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import preview_material
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return preview_material(
+            session,
+            current_user,
+            corpus_key=corpus_key,
+            kind=kind,
+            belong=belong,
+            page_key=page_key,
+            record_id=record_id,
+            source_id=source_id,
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/maintain/chats/{chat_id}/focus")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def read_wiki_focus(
+    session: SessionDep, current_user: CurrentUser, chat_id: int
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import read_chat_focus
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return read_chat_focus(session, current_user, chat_id=chat_id)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.post("/maintain/chats/{chat_id}/focus")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def update_wiki_focus(
+    session: SessionDep, current_user: CurrentUser, chat_id: int, body: FocusBody
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import update_chat_focus
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return update_chat_focus(
+            session,
+            current_user,
+            chat_id=chat_id,
+            pages=[item.model_dump() for item in body.pages],
+            source_ids=body.source_ids,
+            replace=body.replace,
         )
     except WikiWriteError as exc:
         raise _write_http_error(exc) from exc
@@ -432,6 +649,117 @@ async def sediment_wiki_candidate(
         raise _write_http_error(exc) from exc
 
 
+@router.get("/corpora/{corpus_key}/maintain/records")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_wiki_maintain_records(
+    session: SessionDep, current_user: CurrentUser, corpus_key: str
+) -> list[dict[str, Any]]:
+    from apps.knowledge.wiki.maintain.service import list_maintain_records
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return list_maintain_records(session, current_user, corpus_key=corpus_key)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/dialogues")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_wiki_dialogue_groups(
+    session: SessionDep, current_user: CurrentUser
+) -> list[dict[str, Any]]:
+    from apps.knowledge.wiki.maintain.service import list_dialogue_groups
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return list_dialogue_groups(session, current_user)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/corpora/{corpus_key}/dialogues")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_wiki_dialogues(
+    session: SessionDep, current_user: CurrentUser, corpus_key: str
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import list_dialogues
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return list_dialogues(session, current_user, corpus_key=corpus_key)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/corpora/{corpus_key}/maintain/conversations")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_wiki_conversations(
+    session: SessionDep, current_user: CurrentUser, corpus_key: str
+) -> list[dict[str, Any]]:
+    from apps.knowledge.wiki.maintain.service import list_bound_conversations
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return list_bound_conversations(session, current_user, corpus_key=corpus_key)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+class CaptureRecordsBody(BaseModel):
+    record_ids: list[int] = Field(default_factory=list)
+
+
+@router.post("/maintain/materials")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def capture_wiki_materials(
+    session: SessionDep, current_user: CurrentUser, body: CaptureRecordsBody
+) -> list[dict[str, Any]]:
+    from apps.knowledge.wiki.maintain.service import capture_records
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return capture_records(session, current_user, record_ids=body.record_ids)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+@router.get("/maintain/chats/{chat_id}/proposals")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_chat_wiki_proposals(
+    session: SessionDep, current_user: CurrentUser, chat_id: int
+) -> list[dict[str, Any]]:
+    from apps.knowledge.wiki.maintain.service import list_chat_proposals
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return list_chat_proposals(session, current_user, chat_id=chat_id)
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
+class ProposalDecision(BaseModel):
+    decision: str
+
+
+@router.post("/maintain/patches/{patch_id}/decision")
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def decide_wiki_proposal(
+    session: SessionDep,
+    current_user: CurrentUser,
+    patch_id: int,
+    body: ProposalDecision,
+) -> dict[str, Any]:
+    from apps.knowledge.wiki.maintain.service import decide_proposal
+    from apps.knowledge.wiki.writer import WikiWriteError
+
+    try:
+        return decide_proposal(
+            session, current_user, patch_id=patch_id, decision=body.decision.strip()
+        )
+    except WikiWriteError as exc:
+        raise _write_http_error(exc) from exc
+
+
 @router.get("/maintain/runs/{run_id}/proposals")
 @require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
 async def list_wiki_proposals(
@@ -442,29 +770,5 @@ async def list_wiki_proposals(
 
     try:
         return list_run_proposals(session, run_id=run_id, user_id=int(current_user.id))
-    except WikiWriteError as exc:
-        raise _write_http_error(exc) from exc
-
-
-@router.post("/corpora/{corpus_key}/pages/{belong}/{page_key}/promote")
-@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
-async def promote_wiki_page(
-    session: SessionDep,
-    current_user: CurrentUser,
-    corpus_key: str,
-    belong: str,
-    page_key: str,
-) -> dict[str, str]:
-    from apps.knowledge.wiki.maintain.service import publish_page
-    from apps.knowledge.wiki.writer import WikiWriteError
-
-    try:
-        return publish_page(
-            session,
-            current_user,
-            corpus_key=corpus_key,
-            belong=belong,
-            page_key=page_key,
-        )
     except WikiWriteError as exc:
         raise _write_http_error(exc) from exc

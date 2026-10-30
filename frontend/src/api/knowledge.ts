@@ -131,35 +131,117 @@ export const knowledgeApi = {
     request.get(
       `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}`
     ) as Promise<WikiPageDetail>,
-  openMaintainChat: (corpusKey: string, data: { belong?: string; page_key?: string }) =>
+  openMaintainChat: (
+    corpusKey: string,
+    data: {
+      belong?: string
+      page_key?: string
+      pages?: { belong: string; page_key: string }[]
+      source_ids?: number[]
+      brief?: string
+    }
+  ) =>
     request.post(`/wiki/corpora/${encodeURIComponent(corpusKey)}/maintain/chats`, data) as Promise<{
       chat_id: number
       corpus_key: string
+      pages?: { belong: string; page_key: string }[]
+      source_ids?: number[]
     }>,
-  pasteSource: (
+  updateMaintainFocus: (
+    chatId: number,
+    data: {
+      pages?: { belong: string; page_key: string }[]
+      source_ids?: number[]
+      replace?: boolean
+    }
+  ) => request.post(`/wiki/maintain/chats/${chatId}/focus`, data),
+  previewMaterial: (
     corpusKey: string,
-    data: { title?: string; body: string; belong?: string; page_key?: string }
+    params: {
+      kind: 'page' | 'record' | 'source'
+      belong?: string
+      page_key?: string
+      record_id?: number
+      source_id?: number
+    }
   ) =>
+    request.get(`/wiki/corpora/${encodeURIComponent(corpusKey)}/maintain/preview`, {
+      params,
+    }) as Promise<WikiMaterialPreview>,
+  maintainFocus: (chatId: number) =>
+    request.get(`/wiki/maintain/chats/${chatId}/focus`) as Promise<{
+      corpus_key: string
+      pages: { belong: string; page_key: string; title: string }[]
+      sources: { source_id: number; title: string; locator: string }[]
+    }>,
+  pasteSource: (corpusKey: string, data: { title?: string; body: string }) =>
     request.post(
       `/wiki/corpora/${encodeURIComponent(corpusKey)}/maintain/sources`,
       data
     ) as Promise<{
-      chat_id: number
       corpus_key: string
       source_id: number
+      locator: string
     }>,
+  maintainRecords: (corpusKey: string) =>
+    request.get(`/wiki/corpora/${encodeURIComponent(corpusKey)}/maintain/records`) as Promise<
+      WikiMaintainRecord[]
+    >,
+  dialogues: (corpusKey: string) =>
+    request.get(`/wiki/corpora/${encodeURIComponent(corpusKey)}/dialogues`) as Promise<{
+      processing: number
+      pending: number
+      items: WikiDialogueItem[]
+    }>,
+  dialogueGroups: () => request.get('/wiki/dialogues') as Promise<WikiDialogueGroup[]>,
+  conversations: (corpusKey: string) =>
+    request.get(`/wiki/corpora/${encodeURIComponent(corpusKey)}/maintain/conversations`) as Promise<
+      WikiConversationGroup[]
+    >,
+  captureMaterials: (recordIds: number[]) =>
+    request.post('/wiki/maintain/materials', { record_ids: recordIds }) as Promise<
+      { source_id: number; locator: string; corpus_key: string }[]
+    >,
   sediment: (recordId: number) =>
     request.post('/wiki/maintain/sediment', { record_id: recordId }) as Promise<{
-      chat_id: number
       corpus_key: string
       source_id: number
+      locator: string
       feedback?: string | null
       comment?: string | null
     }>,
+  pageHistory: (corpusKey: string, belong: string, pageKey: string) =>
+    request.get(
+      `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}/history`
+    ) as Promise<WikiRevision[]>,
+  pageRevision: (corpusKey: string, belong: string, pageKey: string, revisionNo: number) =>
+    request.get(
+      `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}/revisions/${revisionNo}`
+    ) as Promise<{ revision_no: number; body_md: string; content_sha: string }>,
+  pageDiff: (corpusKey: string, belong: string, pageKey: string, left: number, right: number) =>
+    request.get(
+      `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}/diff`,
+      { params: { left, right } }
+    ) as Promise<{ diff: string; patches: WikiProposal[] }>,
+  revertPage: (
+    corpusKey: string,
+    belong: string,
+    pageKey: string,
+    revisionNo: number,
+    confirm: boolean
+  ) =>
+    request.post(
+      `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}/revert`,
+      { revision_no: revisionNo, confirm }
+    ) as Promise<Record<string, unknown>>,
   proposals: (runId: string) =>
     request.get(`/wiki/maintain/runs/${encodeURIComponent(runId)}/proposals`) as Promise<
       WikiProposal[]
     >,
+  chatProposals: (chatId: number) =>
+    request.get(`/wiki/maintain/chats/${chatId}/proposals`) as Promise<WikiProposal[]>,
+  decideProposal: (patchId: number, decision: 'accept' | 'reject') =>
+    request.post(`/wiki/maintain/patches/${patchId}/decision`, { decision }),
   promotePage: (corpusKey: string, belong: string, pageKey: string) =>
     request.post(
       `/wiki/corpora/${encodeURIComponent(corpusKey)}/pages/${encodeURIComponent(belong)}/${encodeURIComponent(pageKey)}/promote`
@@ -175,5 +257,71 @@ export interface WikiProposal {
   status: string
   belong: string
   page_key: string
+  scope?: string
+  tool_name?: string
+  trust?: string
+  aspect?: string
+  source_ref?: string
+  detail?: string
+  reason?: string
+  basis?: string
   diff?: string
+}
+
+export interface WikiMaterialPreview {
+  kind: string
+  chat_id?: number
+  record_id?: number
+  title: string
+  subtitle: string
+  question: string
+  body: string
+  feedback: string
+  comment: string
+}
+
+export interface WikiDialogueGroup {
+  corpus_key: string
+  name: string
+  processing: number
+  pending: number
+  items: WikiDialogueItem[]
+}
+
+export interface WikiDialogueItem {
+  kind: 'chat' | 'source'
+  chat_id?: number
+  source_id?: number
+  title: string
+  status: 'processing' | 'pending' | 'done'
+  run_status?: string
+  run_id?: string
+  locator?: string
+  update_time: string
+}
+
+export interface WikiConversationGroup {
+  chat_id: number
+  title: string
+  records: WikiMaintainRecord[]
+}
+
+export interface WikiMaintainRecord {
+  record_id: number
+  chat_id: number
+  question: string
+  feedback?: string | null
+  comment?: string | null
+  source_id?: number | null
+  locator: string
+}
+
+export interface WikiRevision {
+  revision_no: number
+  create_time: string
+  actor: string
+  tool_name: string
+  source_ref: string
+  content_sha: string
+  status: string
 }

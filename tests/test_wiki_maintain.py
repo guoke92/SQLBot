@@ -199,10 +199,10 @@ def test_notes_survive_a_new_baseline() -> None:
     body, _status = compose_import_body(
         _DICT_REIMPORT, [note], existing_status="published"
     )
-    assert "## 维护说明" in body
     assert "客服把未缴费叫待支付" in body
     assert "新基线说明。" in body
-    assert body.count("## 维护说明") == 1
+    assert "## 维护说明" not in body
+    assert body.count("客服把未缴费叫待支付") == 1
 
 
 def test_missing_field_conflicts_and_existing_note_is_appended() -> None:
@@ -271,7 +271,8 @@ def test_stage_transition_appends_once() -> None:
     transitions = block.data["stages"][0]["transitions"]
     failed = [item for item in transitions if item["to"] == "FAILED"]
     assert len(failed) == 1
-    assert failed[0]["evidence"] == "user_statement:run-3"
+    assert not str(failed[0].get("evidence") or "").startswith("user_statement:")
+    assert "user_statement:run-3" in page.sources
 
 
 def test_create_page_refuses_physical_pages_and_drafts_a_concept() -> None:
@@ -541,3 +542,463 @@ def test_chat_graph_does_not_write_wiki() -> None:
     )
     assert "await_accept" in maintain
     assert "apply_patches_node" in maintain
+    assert "recall_pages" in (
+        _ROOT / "backend/apps/knowledge/wiki/maintain/tools.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_vote_starts_one_dialogue_without_leaving_chat() -> None:
+    service = (
+        _ROOT / "backend/apps/knowledge/wiki/maintain/service.py"
+    ).read_text(encoding="utf-8")
+    capture = service.split("def capture_voted_record", 1)[1].split("\ndef ", 1)[0]
+    sediment = service.split("def sediment_record", 1)[1].split("\ndef ", 1)[0]
+    start = service.split("async def start_voted_dialogue", 1)[1].split("\ndef ", 1)[0]
+    assert "open_maintain_chat" not in capture
+    assert "open_maintain_chat" not in sediment
+    assert "find_active_dialogue" in start
+    assert "open_maintain_chat" in start
+    assert 'submit_graph("wiki_maintain"' in start
+    chat_api = (_ROOT / "backend/apps/chat/api/chat.py").read_text(encoding="utf-8")
+    feedback = chat_api.split("async def chat_record_feedback", 1)[1].split(
+        "\n@router", 1
+    )[0]
+    assert "start_voted_dialogue" in feedback
+    listing = (_ROOT / "backend/apps/chat/curd/chat.py").read_text(encoding="utf-8")
+    assert 'Chat.chat_type != "wiki"' in listing
+    chat_page = (_ROOT / "frontend/src/views/chat/index.vue").read_text(encoding="utf-8")
+    assert "sedimentToWiki" not in chat_page
+    submit = chat_page.split("async function submitFeedback", 1)[1].split(
+        "async function", 1
+    )[0]
+    assert "router.push" not in submit
+    from apps.knowledge.wiki.maintain.service import _lane
+
+    assert _lane("queued") == "processing"
+    assert _lane("running") == "processing"
+    assert _lane("awaiting_input") == "pending"
+    assert _lane("succeeded") == "done"
+
+
+def test_a_selected_record_is_not_a_pending_dialogue() -> None:
+    service = (
+        _ROOT / "backend/apps/knowledge/wiki/maintain/service.py"
+    ).read_text(encoding="utf-8")
+    listing = service.split("def list_dialogues", 1)[1].split("\ndef ", 1)[0]
+    start = service.split("async def start_voted_dialogue", 1)[1].split("\ndef ", 1)[0]
+    assert '"kind": "source"' not in listing
+    assert "i18n_wiki_vote_up" in start
+    assert "i18n_wiki_vote_down" in start
+    vote = (_ROOT / "backend/locales/zh-CN.json").read_text(encoding="utf-8")
+    assert "用户认同此对话的输出结果" in vote
+    assert "不要提案" in vote
+    assert "用户不认同这次对话的输出" in vote
+    page = (_ROOT / "frontend/src/views/knowledge/dialogue.vue").read_text(encoding="utf-8")
+    picker = page.split("function addRecords", 1)[1].split("function pasteDocument", 1)[0]
+    assert "captureMaterials" not in picker
+    assert "kind: 'record'" in picker
+
+
+def test_a_filed_proposal_finishes_instead_of_interrupting() -> None:
+    from apps.knowledge.wiki.maintain.nodes import _route_when_idle
+
+    assert (
+        _route_when_idle(has_proposals=True, note_only=False, nudges=0, tools_open=True)
+        == "finish"
+    )
+    assert (
+        _route_when_idle(has_proposals=False, note_only=True, nudges=0, tools_open=True)
+        == "finish"
+    )
+    assert (
+        _route_when_idle(has_proposals=False, note_only=False, nudges=0, tools_open=True)
+        == "nudge_propose"
+    )
+    assert (
+        _route_when_idle(has_proposals=False, note_only=False, nudges=0, tools_open=False)
+        == "finish"
+    )
+    page = (_ROOT / "frontend/src/views/knowledge/dialogue.vue").read_text(encoding="utf-8")
+    assert "change-list" in page
+    assert "chatProposals" in page
+    assert "review-dock" not in page
+
+
+def test_prose_answer_is_sent_back_to_propose() -> None:
+    from langchain_core.messages import AIMessage
+
+    from apps.knowledge.wiki.maintain.nodes import (
+        _closes_without_patches,
+        nudge_propose_node,
+    )
+    from apps.conversation.messages import deserialize_messages
+
+    assert _closes_without_patches([AIMessage(content="WIKI_NOTE: 不用改")])
+    assert _closes_without_patches(
+        [AIMessage(content=[{"type": "text", "text": "WIKI_NOTE: 不用改"}])]
+    )
+    assert not _closes_without_patches([AIMessage(content="建议改 aliases")])
+    nudged = nudge_propose_node({"messages": [], "wiki_propose_nudges": 0})
+    assert nudged["wiki_propose_nudges"] == 1
+    text = deserialize_messages(nudged["messages"])[-1].content
+    assert "propose_patch" in str(text)
+
+
+def test_reverted_alias_stays_gone_on_replay() -> None:
+    alias = {
+        "op": "add_alias",
+        "origin": "conversation",
+        "status": "applied",
+        "claim_path": "aliases",
+        "source_ref": "conversation:1/2",
+        "payload": {"alias": "缴费状态"},
+    }
+    kept = materialize_markdown(_DICT, [alias, {"op": "revert_marker", "status": "applied"}])
+    assert "缴费状态" in kept.body
+    undone = materialize_markdown(_DICT, [{**alias, "status": "reverted"}])
+    assert "缴费状态" not in undone.body
+
+
+def test_conversation_cannot_confirm_structure_or_labels() -> None:
+    from apps.knowledge.wiki.maintain.materials import cap_claim
+
+    assert cap_claim("conversation", "structure", "confirmed") == "refuse"
+    assert cap_claim("conversation", "enum_label", "confirmed") == "proposed"
+    assert cap_claim("conversation", "relation", "confirmed") == "proposed"
+    assert cap_claim("conversation", "pattern", "confirmed") == "proposed"
+    assert cap_claim("document", "structure", "confirmed") == "refuse"
+    assert cap_claim("import", "structure", "confirmed") == "confirmed"
+
+
+def test_supplement_keeps_the_decision_as_revise() -> None:
+    from apps.knowledge.wiki.maintain.nodes import _decision
+
+    assert _decision([{"text": "再补一条枚举说明"}]) == ("revise", "再补一条枚举说明")
+    assert _decision([{"option_id": "reject"}])[0] == "reject"
+    assert _decision([{"option_id": "accept"}]) == ("accept", "")
+
+
+def test_related_page_is_not_outside_the_target() -> None:
+    from apps.knowledge.wiki.maintain.service import classify_scope
+
+    class _Empty:
+        def exec(self, *_args: object, **_kwargs: object) -> object:
+            return self
+
+        def first(self) -> None:
+            return None
+
+    focus = {
+        "corpus_key": "",
+        "pages": [{"belong": "dicts", "page_key": "ca_fee_company__pay_status"}],
+        "related": [{"belong": "tables", "page_key": "ca_fee_company"}],
+    }
+    assert (
+        classify_scope(_Empty(), "dicts", "ca_fee_company__pay_status", focus) == "target"
+    )
+    assert classify_scope(_Empty(), "tables", "ca_fee_company", focus) == "related"
+    assert classify_scope(_Empty(), "concepts", "other", focus) == "outside"
+
+
+def test_proposal_reason_is_the_observation_only() -> None:
+    from apps.knowledge.wiki.maintain.service import (
+        proposal_basis,
+        proposal_detail,
+        proposal_reason,
+    )
+
+    class _Row:
+        op = "add_alias"
+        claim_path = "concepts/oper_staff_field#aliases.企业运营人员"
+        page_key = "oper_staff_field"
+        observation = {"excerpt": "哪些企业运营人员为空", "locator": "conversation:410/954"}
+        payload = {"note": "这是主张正文，不是改动理由", "alias": "企业运营人员"}
+        source_ref = "conversation:410/954"
+
+    assert proposal_reason(_Row()) == ""
+    assert proposal_detail(_Row()) == "企业运营人员"
+    assert proposal_basis(_Row()) == "conversation:410/954 · 哪些企业运营人员为空"
+
+    class _Stored:
+        op = "upsert_claim"
+        claim_path = "concepts/oper_staff_field#notes"
+        page_key = "oper_staff_field"
+        observation = {"reason": "问数把企业运营人员当成了建档经办人"}
+        payload = {"note": "不要用这段"}
+        source_ref = ""
+
+    assert proposal_reason(_Stored()) == "问数把企业运营人员当成了建档经办人"
+    assert proposal_detail(_Stored()) == "concepts/oper_staff_field#notes"
+
+
+def test_alias_patch_keeps_unrelated_lists_on_one_line() -> None:
+    page = """---
+type: concept
+title: 联系人运营人员
+aliases: [运营人员]
+field_targets: [cust_person_info.operator_id, cust_person_info.operator_realname]
+related: [cust_person_info]
+---
+
+# 联系人运营人员
+"""
+    result = materialize_markdown(
+        page,
+        [
+            {
+                "op": "add_alias",
+                "origin": "conversation",
+                "status": "applied",
+                "claim_path": "aliases",
+                "source_ref": "conversation:410/954",
+                "payload": {"alias": "企业运营人员"},
+            }
+        ],
+    )
+    assert "aliases: [运营人员, 企业运营人员]" in result.body
+    assert (
+        "field_targets: [cust_person_info.operator_id, cust_person_info.operator_realname]"
+        in result.body
+    )
+    assert "related: [cust_person_info]" in result.body
+    assert "conversation:410/954" in result.body
+
+
+def test_page_body_rejects_snapshot_counts_and_non_filter_fields() -> None:
+    from apps.knowledge.wiki.maintain.tools import create_page_payload, page_body_issues
+
+    counted, counted_error = create_page_payload(
+        {
+            "title": "运营人员为空企业",
+            "predicate": "全部联系人 operator_realname 为空",
+            "boundary": "全库 94,994 家中 45,821 家为空，占 48.2%。",
+        },
+        "calibers",
+        "oper_staff_empty",
+    )
+    assert counted is None
+    assert "计数或占比" in counted_error
+    excluded, excluded_error = create_page_payload(
+        {
+            "title": "运营人员为空企业",
+            "predicate": "全部联系人 operator_realname 为空",
+            "boundary": "未按 cust_build_status 过滤。",
+            "field_targets": [
+                "cust_person_info.operator_realname",
+                "cust_company_info.cust_build_status",
+            ],
+        },
+        "calibers",
+        "oper_staff_empty",
+    )
+    assert excluded is None
+    assert "cust_build_status" in excluded_error
+    assert page_body_issues({"text": "记录口径 10395 条。"})
+    assert "页面原文" in page_body_issues(
+        {"text": "document_claim:企业信息维护-运营人员字段.md 判空看姓名。"}
+    )
+    assert "查询语句" in page_body_issues(
+        {"predicate": "NOT EXISTS (SELECT 1 FROM cust_person_info p)"}
+    )
+    assert "operator_id" in page_body_issues(
+        {
+            "predicate": "联系人 operator_realname 为空",
+            "field_targets": [
+                "cust_person_info.operator_id",
+                "cust_person_info.operator_realname",
+            ],
+        }
+    )
+
+
+def test_create_page_writes_the_caliber_instead_of_an_empty_title() -> None:
+    from apps.knowledge.wiki.maintain.tools import create_page_payload
+
+    empty, missing = create_page_payload(
+        {"title": "运营人员为空企业"}, "calibers", "company_no_operator"
+    )
+    assert empty is None
+    assert "predicate" in missing
+    payload, error = create_page_payload(
+        {
+            "title": "运营人员为空企业",
+            "predicate": "COALESCE(oper_cnt, 0) = 0",
+            "boundary": "无联系人档案与有联系人未分配要分开。",
+            "field_targets": ["cust_person_info.operator_realname"],
+            "text": "判空看 operator_realname，不看 operator_id。",
+            "trust": "confirmed",
+        },
+        "calibers",
+        "company_no_operator",
+    )
+    assert error == ""
+    assert payload is not None
+    assert "trust" not in payload
+    result = materialize_markdown(
+        "",
+        [
+            {
+                "op": "create_page",
+                "origin": "conversation",
+                "status": "applied",
+                "source_ref": "conversation:408/950",
+                "payload": payload,
+            }
+        ],
+    )
+    assert result.outcomes[0].status == "applied"
+    block = next(item for item in parse_page(result.body).ground_blocks if item.kind == "caliber")
+    assert block.data["predicate"] == "COALESCE(oper_cnt, 0) = 0"
+    assert "无联系人档案" in block.data["boundary"]
+    assert "operator_realname" in result.body
+    assert "94,994" not in result.body
+    assert "## 维护说明" not in result.body
+    typed = materialize_markdown(
+        "",
+        [
+            {
+                "op": "create_page",
+                "origin": "conversation",
+                "status": "applied",
+                "source_ref": "conversation:408/950",
+                "payload": {
+                    "type": "caliber",
+                    "title": "企业运营人员为空",
+                    "trust": "proposed",
+                    "belong": "calibers",
+                    "page_key": "company_oper_staff_empty",
+                    "aliases": ["运营人员为空"],
+                    "predicate": "企业主档下不存在 operator_realname 非空的联系人",
+                    "boundary": "分母是企业主档全部企业，包含没有任何联系人档案的企业",
+                    "field_targets": [
+                        "cust_person_info.operator_id",
+                        "cust_person_info.operator_realname",
+                    ],
+                },
+            }
+        ],
+    )
+    assert typed.outcomes[0].status == "applied"
+    assert "主张路径无法落地" not in typed.body
+    assert typed.body.index("没有任何联系人档案") < typed.body.index("```ground:caliber")
+    typed_page = parse_page(typed.body)
+    assert "运营人员为空" in typed_page.aliases
+    typed_block = next(item for item in typed_page.ground_blocks if item.kind == "caliber")
+    assert typed_block.data["predicate"] == "企业主档下不存在 operator_realname 非空的联系人"
+    assert "没有任何联系人档案" in typed_block.data["boundary"]
+    assert typed_block.data["field_targets"] == ["cust_person_info.operator_realname"]
+    queried = materialize_markdown(
+        "",
+        [
+            {
+                "op": "create_page",
+                "origin": "conversation",
+                "status": "applied",
+                "source_ref": "conversation:408/950",
+                "payload": {
+                    "belong": "calibers",
+                    "page_key": "company_oper_staff_empty",
+                    "title": "企业运营人员为空",
+                    "boundary": "任一联系人 operator_realname 非空即视为已分配。",
+                    "predicate": "NOT EXISTS (SELECT 1 FROM cust_person_info p WHERE p.operator_realname <> '')",
+                    "field_targets": [
+                        "cust_person_info.operator_id",
+                        "cust_person_info.operator_realname",
+                    ],
+                },
+            }
+        ],
+    )
+    assert "NOT EXISTS" not in queried.body
+    assert "已视为已分配" not in queried.body
+    assert "视为已分配" in queried.body
+    assert "operator_id" not in queried.body
+
+
+def test_notes_claim_reads_text_or_notes() -> None:
+    page = """---
+type: concept
+title: 联系人运营人员
+page_key: oper_staff_field
+belong: concepts
+status: draft
+sources: ['code_path:CustPersonApplication.java:900']
+contract_version: '0.1'
+---
+
+# 联系人运营人员
+"""
+    result = materialize_markdown(
+        page,
+        [
+            {
+                "op": "upsert_claim",
+                "origin": "conversation",
+                "status": "applied",
+                "claim_path": "notes",
+                "source_ref": "conversation:410/954",
+                "payload": {"notes": "判空看 operator_realname，不看 operator_id。"},
+            }
+        ],
+    )
+    assert result.outcomes[0].status == "applied"
+    assert "判空看 operator_realname" in result.body
+    assert "说明为空" not in result.body
+    assert "## 维护说明" not in result.body
+    assert "来源：" not in result.body
+
+
+def test_wiki_analysis_loop_is_not_on_the_query_round_budget() -> None:
+    from apps.knowledge.wiki.maintain.nodes import _MAX_TOOL_ROUNDS
+    from apps.knowledge.wiki.maintain.prompt import render_system
+
+    assert _MAX_TOOL_ROUNDS >= 24
+    prompt = render_system({"corpus_key": "demo"})
+    assert "返回的 answer" in prompt
+    assert "不要用表名或单个宽词做全库搜索" in prompt
+    assert "口径给 predicate" in prompt
+    assert "不要写进 payload" in prompt
+    assert "不要把一次问数拆成" in prompt
+    assert "下一次问到同一件事" in prompt
+    assert "页面推不出" in prompt
+    tool_src = (
+        _ROOT / "backend/apps/knowledge/wiki/maintain/tools.py"
+    ).read_text(encoding="utf-8")
+    reader = tool_src.split("def read_source", 1)[1].split("\n    def ", 1)[0]
+    assert "_record_preview" in reader
+    assert "sql_answer" not in reader
+
+
+def test_record_preview_reads_the_turn_answer() -> None:
+    from apps.knowledge.wiki.maintain.service import _record_preview
+
+    class _Record:
+        id = 950
+        chat_id = 408
+        question = "平台合作了多少家金融机构"
+        sql_answer = ""
+        analysis = ""
+        sql = ""
+        feedback = "up"
+        feedback_comment = ""
+        answer = {
+            "content": "共接入 39 家金融机构",
+            "datasets": [{"title": "机构", "sql": "select 1"}],
+        }
+
+    view = _record_preview(_Record())  # type: ignore[arg-type]
+    assert "39 家" in view["body"]
+    assert "```sql" in view["body"]
+    assert view["feedback"] == "up"
+    assert view["chat_id"] == 408
+    assert view["record_id"] == 950
+
+
+def test_maintain_chat_takes_the_corpus_from_the_path() -> None:
+    from apps.knowledge.api.wiki import MaintainChatBody
+
+    body = MaintainChatBody.model_validate(
+        {"pages": [{"belong": "dicts", "page_key": "pay_status"}], "source_ids": [1], "brief": "你好"}
+    )
+    assert "corpus_key" not in MaintainChatBody.model_fields
+    assert body.source_ids == [1]

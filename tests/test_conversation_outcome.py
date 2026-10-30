@@ -91,3 +91,14 @@ def test_public_error_hides_internal_planner_validation() -> None:
         "message": "Query planning could not be completed. Please retry or refine the request.",
         "type": "planning-error",
     }
+
+
+def test_public_error_names_a_refused_model_endpoint() -> None:
+    class APIConnectionError(ConnectionError):
+        pass
+
+    payload = orjson.loads(public_error_message(APIConnectionError("Connection error.")))
+
+    assert payload["type"] == "model-unavailable"
+    assert "APIConnectionError" in payload["message"]
+    assert "Connection error." in payload["message"]

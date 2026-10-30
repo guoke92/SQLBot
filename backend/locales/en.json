@@ -283,5 +283,9 @@
     "err_note_length": "Change note is too long",
     "err_no_draft": "There is no draft to publish",
     "err_version_not_found": "Configuration version not found"
-  }
+  },
+  "i18n_wiki_vote_up": "The user agrees with this answer. The Q&A record is context only. Finish the argument first. Do not propose what the pages already imply; start with WIKI_NOTE: and cite the sentence that covers it. Judgments the pages do not imply, which would send the next question to the wrong field, population, or relation, must be proposed. Do not put counts or the SQL text on a page.",
+  "i18n_wiki_vote_down": "The user disagrees with this answer. The Q&A record is context only. Use the user's reason: {comment}. Do not propose what the pages already imply. A judgment that would make the next question wrong and that the pages do not imply must be proposed. If there is no such judgment, start with WIKI_NOTE: and say why nothing should change.",
+  "i18n_wiki_vote_no_comment": "none",
+  "i18n_wiki_vote_brief": "Q&A feedback"
 }

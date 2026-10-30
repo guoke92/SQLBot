@@ -139,6 +139,39 @@ def _plain_message(error: BaseException | str) -> str:
     return detail or raw
 
 
+def model_unreachable_detail(error: BaseException | str) -> str | None:
+    """Short cause when the model endpoint itself cannot be contacted.
+
+    Rate limits, timeouts, and connection resets stay out of this bucket so a
+    transient provider failure can still be retried. A refused or missing
+    endpoint will not recover inside the same turn.
+    """
+    text = _plain_message(error).strip()
+    normalized = text.lower()
+    if any(marker in normalized for marker in ("connection reset", "econnreset", "timeout")):
+        return None
+    class_name = error.__class__.__name__ if isinstance(error, BaseException) else ""
+    name = class_name.lower()
+    unreachable = "apiconnection" in name or "connecterror" in name or any(
+        marker in normalized
+        for marker in (
+            "connection refused",
+            "connection error",
+            "connecterror",
+            "errno 61",
+            "name or service not known",
+            "nodename nor servname",
+            "failed to establish a new connection",
+        )
+    )
+    if not unreachable:
+        return None
+    cause = text.splitlines()[0][:180] if text else class_name or "connection refused"
+    if class_name and class_name not in cause:
+        return f"{class_name}: {cause}"[:220]
+    return cause[:220]
+
+
 def format_error_message(error: BaseException) -> str:
     """Serialize one user-facing error envelope at graph boundaries."""
     if isinstance(error, SingleMessageError):
@@ -183,6 +216,7 @@ def public_error_message(error: BaseException | str) -> str:
         "planning-error",
         "runtime-error",
         "internal-error",
+        "model-unavailable",
     }:
         if parsed.get("type") == "exec-query-err":
             return orjson.dumps(
@@ -206,6 +240,9 @@ def public_error_message(error: BaseException | str) -> str:
     elif "runtime value" in normalized or "checkpoint" in normalized:
         message = "Conversation state could not be restored. Please retry this request."
         error_type = "runtime-error"
+    elif (detail := model_unreachable_detail(error)):
+        message = detail
+        error_type = "model-unavailable"
     else:
         message = "An internal error occurred. Please try again later."
         error_type = "internal-error"

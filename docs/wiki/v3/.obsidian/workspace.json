@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "tables/argeement_migratory_record.md",
+                "file": "tables/async_io_task.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "argeement_migratory_record"
+              "title": "async_io_task"
             }
           }
         ]
@@ -190,6 +190,10 @@
   },
   "active": "99a036deb9dd1bfd",
   "lastOpenFiles": [
+    "metrics/effective_company_count.md",
+    "tables/ca_fee_order.md",
+    "tables/cust_company_info.md",
+    "tables/argeement_migratory_record.md",
     "tables/ca_certification_info.md",
     "dicts/argeement_migratory_record__agreement_type.md",
     "dicts/async_io_task__enable.md",
@@ -199,10 +203,8 @@
     "dicts/argeement_migratory_record__enable.md",
     "_index.md",
     "processes/tenant_project__project_status.md",
-    "tables/argeement_migratory_record.md",
     "tables/cust_auth_application.md",
     "tables/cust_build_record.md",
-    "tables/cust_company_info.md",
     "tables/ca_fee_project_config.md",
     "_raw/full_sweep/relation_related_consistency.md",
     "concepts/wec_project_ops_peer.md",
@@ -212,14 +214,12 @@
     "tables/cust_setting_config.md",
     "tables/cust_auth_application_config.md",
     "tables/tenant_product.md",
-    "tables/ca_fee_order.md",
     "tables/ca_fee_special_config.md",
     "rules/ca_fee_evaluate_priority.md",
     "_raw/full_sweep/orphan_and_unref.md",
     "_raw/full_sweep/orphan_and_unref.yaml",
     "dicts/cust_oper_change_record__enable.md",
     "tables/cust_access_secret.md",
-    "dicts/funding_rule_detail__check_scene.md",
     "_raw/full_sweep/code_diff_rejected.yaml",
     "_raw/full_sweep/continue_candidate_validate.yaml",
     "_raw/full_sweep/hold_promote_result.yaml",

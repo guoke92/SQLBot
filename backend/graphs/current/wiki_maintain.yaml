@@ -2,14 +2,15 @@ version: 1
 graph_key: wiki_maintain
 state: apps.knowledge.wiki.maintain.nodes.WikiMaintainState
 description: >
-  Wiki maintenance. prepare → agent ⇄ execute_tools → await_accept → apply → agent → finish.
-  Tools only read or propose. The page changes after the user accepts.
+  Wiki maintenance. prepare → agent ⇄ execute_tools → finish.
+  Tools only read or propose. The turn ends with a summary. Each claim is accepted later.
 
 nodes:
   prepare: apps.knowledge.wiki.maintain.nodes.prepare_node
   agent: apps.conversation.agent.agent_node
   execute_tools: apps.conversation.tooling.execute_tools_node
   await_accept: apps.knowledge.wiki.maintain.nodes.await_accept_node
+  nudge_propose: apps.knowledge.wiki.maintain.nodes.nudge_propose_node
   apply: apps.knowledge.wiki.maintain.nodes.apply_patches_node
   finish: apps.conversation.turn.finish_text_node
   fail: apps.conversation.turn.fail_node
@@ -27,8 +28,12 @@ edges:
       agent: agent
       execute_tools: execute_tools
       await_accept: await_accept
+      nudge_propose: nudge_propose
       finish: finish
       fail: fail
+
+  - from: nudge_propose
+    to: agent
 
   - from: execute_tools
     router: apps.conversation.agent.route_after_tools

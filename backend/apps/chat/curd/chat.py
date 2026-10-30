@@ -1792,6 +1792,13 @@ def submit_record_feedback(
     record.feedback_revision = int(record.feedback_revision or 0) + 1
     session.add(record)
     session.commit()
+    if vote:
+        try:
+            from apps.knowledge.wiki.maintain.service import capture_voted_record
+
+            capture_voted_record(session, record)
+        except Exception:
+            session.rollback()  # noqa: BLE001 — a failed capture must not undo the vote
     return {
         "feedback": vote,
         "comment": text,

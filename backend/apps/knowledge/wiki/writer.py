@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 from datetime import datetime
 from typing import Any
 
@@ -96,9 +97,20 @@ def project_page(row: WikiPageRow, body: str, *, status: str | None = None) -> N
     row.update_time = datetime.now()
 
 
+def stamp_revision(patches: list[WikiPagePatch], revision_no: int) -> None:
+    for patch in patches:
+        if patch.revision_no is None and patch.status in {"applied", "conflicted"}:
+            patch.revision_no = revision_no
+
+
 def add_revision(
-    session: Session, row: WikiPageRow, *, source: str, now: datetime
-) -> None:
+    session: Session,
+    row: WikiPageRow,
+    *,
+    source: str,
+    now: datetime,
+    patches: list[WikiPagePatch] | None = None,
+) -> int:
     current = session.exec(
         select(WikiPageRevision.revision_no)
         .where(WikiPageRevision.page_id == row.id)
@@ -120,6 +132,9 @@ def add_revision(
             create_time=now,
         )
     )
+    if patches:
+        stamp_revision(patches, revision_no)
+    return revision_no
 
 
 def _sync_outcomes(patches: list[WikiPagePatch], result: MaterializeResult) -> None:
@@ -173,6 +188,13 @@ def append_patch(
     run_id: str | None = None,
     record_id: int | None = None,
     now: datetime | None = None,
+    source_id: int | None = None,
+    toolset: str = "",
+    tool_name: str = "",
+    aspect: str = "",
+    trust: str = "",
+    observation: dict[str, Any] | None = None,
+    interrupt_id: str | None = None,
 ) -> WikiPagePatch:
     clean = {
         key: value for key, value in payload.items() if key not in _FORBIDDEN_PAYLOAD
@@ -190,6 +212,13 @@ def append_patch(
         claim_path=claim_path,
         payload=clean,
         status=status,
+        source_id=source_id,
+        toolset=toolset[:32],
+        tool_name=tool_name[:64],
+        aspect=aspect[:32],
+        trust=trust[:32],
+        observation=observation or {},
+        interrupt_id=interrupt_id,
         actor=actor[:64],
         create_time=now or datetime.now(),
     )
@@ -254,7 +283,7 @@ def upsert_import_page(
         session.add(row)
         session.flush()
         project_page(row, body, status=status)
-        append_patch(
+        imported = append_patch(
             session,
             corpus_id=corpus_id,
             page_id=int(row.id),
@@ -267,9 +296,11 @@ def upsert_import_page(
             source_ref="import",
             actor="import",
             status="applied",
+            toolset="import",
+            tool_name="import_file",
             now=now,
         )
-        add_revision(session, row, source="import", now=now)
+        add_revision(session, row, source="import", now=now, patches=[imported, *overlays])
         return row
 
     changed = row.content_sha != sha or (row.base_body_md or "") != file_body
@@ -277,7 +308,7 @@ def upsert_import_page(
     project_page(row, body, status=status)
     session.add(row)
     if changed:
-        append_patch(
+        imported = append_patch(
             session,
             corpus_id=corpus_id,
             page_id=int(row.id),
@@ -290,9 +321,13 @@ def upsert_import_page(
             source_ref="import",
             actor="import",
             status="applied",
+            toolset="import",
+            tool_name="import_file",
             now=now,
         )
-        add_revision(session, row, source="import", now=now)
+        add_revision(
+            session, row, source="import", now=now, patches=[imported, *overlays]
+        )
     return row
 
 
@@ -334,20 +369,42 @@ def mark_absent_page(session: Session, row: WikiPageRow, *, now: datetime) -> st
     return "kept"
 
 
+def apply_one(session: Session, row: WikiPagePatch, *, actor: str) -> WikiPagePatch:
+    """Accept one proposed claim and rebuild that page. Other proposals stay open."""
+    if row.status != "proposed":
+        raise WikiWriteError("patch is not proposed")
+    _apply_rows(session, [row], actor=actor, interrupt_id=None)
+    return row
+
+
 def apply_proposed(
     session: Session,
     *,
     run_id: str,
     actor: str,
+    interrupt_id: str | None = None,
 ) -> list[WikiPagePatch]:
     """Accept this run's proposals and rebuild each touched draft."""
     rows = proposed_patches(session, run_id)
     if not rows:
         return []
+    _apply_rows(session, rows, actor=actor, interrupt_id=interrupt_id)
+    return rows
+
+
+def _apply_rows(
+    session: Session,
+    rows: list[WikiPagePatch],
+    *,
+    actor: str,
+    interrupt_id: str | None,
+) -> None:
     now = datetime.now()
     for row in rows:
         if not row.actor:
             row.actor = actor[:64]
+        if interrupt_id:
+            row.interrupt_id = interrupt_id[:64]
     by_page: dict[tuple[str, str], list[WikiPagePatch]] = {}
     for row in rows:
         by_page.setdefault((row.belong, row.page_key), []).append(row)
@@ -375,10 +432,15 @@ def apply_proposed(
                 item.page_id = int(page.id)
             project_page(page, result.body, status=page.status)
             session.add(page)
-            add_revision(session, page, source=_revision_source(batch), now=now)
+            add_revision(
+                session,
+                page,
+                source=_revision_source(batch),
+                now=now,
+                patches=combined,
+            )
         for item in batch:
             session.add(item)
-    return rows
 
 
 def reject_proposed(session: Session, *, run_id: str) -> int:
@@ -427,7 +489,7 @@ def promote_page(
     )
     project_page(row, result.body, status="published")
     session.add(row)
-    add_revision(session, row, source="promote", now=now)
+    add_revision(session, row, source="promote", now=now, patches=[*prior, patch])
     return row
 
 
@@ -441,6 +503,9 @@ def create_source(
     body_md: str,
     pointer: dict[str, Any],
     create_by: int | None,
+    locator: str = "",
+    toolset: str = "",
+    content_sha: str = "",
 ) -> WikiSource:
     row = WikiSource(
         corpus_id=corpus_id,
@@ -449,6 +514,9 @@ def create_source(
         title=title[:255],
         body_md=body_md,
         pointer=pointer,
+        locator=locator[:512],
+        toolset=toolset[:32],
+        content_sha=content_sha[:64],
         create_by=create_by,
         create_time=datetime.now(),
     )
@@ -532,8 +600,184 @@ def _create_from_batch(
     for item in batch:
         item.page_id = int(row.id)
         session.add(item)
-    add_revision(session, row, source=_revision_source(batch), now=now)
+    add_revision(session, row, source=_revision_source(batch), now=now, patches=batch)
     return row
+
+
+def list_revisions(session: Session, page_id: int) -> list[WikiPageRevision]:
+    return list(
+        session.exec(
+            select(WikiPageRevision)
+            .where(WikiPageRevision.page_id == page_id)
+            .order_by(WikiPageRevision.revision_no.desc())
+        ).all()
+    )
+
+
+def patches_between(
+    session: Session, page_id: int, left: int, right: int
+) -> list[WikiPagePatch]:
+    low, high = sorted((left, right))
+    rows = list(
+        session.exec(
+            select(WikiPagePatch)
+            .where(WikiPagePatch.page_id == page_id)
+            .order_by(WikiPagePatch.id)
+        ).all()
+    )
+    return [
+        row
+        for row in rows
+        if row.revision_no is not None and low < int(row.revision_no) <= high
+    ]
+
+
+def body_diff(left: str, right: str) -> str:
+    return "".join(
+        difflib.unified_diff(
+            left.splitlines(keepends=True),
+            right.splitlines(keepends=True),
+            fromfile="left",
+            tofile="right",
+        )
+    )
+
+
+def _later_applied(
+    session: Session, page_id: int, revision_no: int
+) -> list[WikiPagePatch]:
+    latest = session.exec(
+        select(WikiPageRevision.revision_no)
+        .where(WikiPageRevision.page_id == page_id)
+        .order_by(WikiPageRevision.revision_no.desc())
+    ).first()
+    try:
+        newest = int(latest or 0)
+    except (TypeError, ValueError):
+        newest = 0
+    rows = list(
+        session.exec(
+            select(WikiPagePatch)
+            .where(WikiPagePatch.page_id == page_id, WikiPagePatch.status == "applied")
+            .order_by(WikiPagePatch.id)
+        ).all()
+    )
+    later: list[WikiPagePatch] = []
+    for row in rows:
+        if row.origin == "import" or row.op == "replace_base":
+            continue
+        number = row.revision_no
+        if number is None:
+            if revision_no < newest:
+                later.append(row)
+            continue
+        if int(number) > revision_no:
+            later.append(row)
+    return later
+
+
+def revert_to_revision(
+    session: Session,
+    row: WikiPageRow,
+    *,
+    revision_no: int,
+    actor: str,
+    confirm: bool,
+) -> dict[str, Any]:
+    """Mark later applied patches reverted, then materialize a new revision."""
+    target = session.exec(
+        select(WikiPageRevision).where(
+            WikiPageRevision.page_id == row.id,
+            WikiPageRevision.revision_no == revision_no,
+        )
+    ).first()
+    if target is None:
+        raise WikiWriteError("revision not found")
+    later = _later_applied(session, int(row.id), revision_no)
+    conflicted = list(
+        session.exec(
+            select(WikiPagePatch).where(
+                WikiPagePatch.page_id == row.id,
+                WikiPagePatch.status == "conflicted",
+            )
+        ).all()
+    )
+    held = [
+        item
+        for item in conflicted
+        if item.revision_no is not None and int(item.revision_no) > revision_no
+    ]
+    preview = [_patch_brief(item) for item in later]
+    if not confirm:
+        return {
+            "revision_no": revision_no,
+            "confirm": False,
+            "patches": preview,
+            "held": [_patch_brief(item) for item in held],
+        }
+    if not later:
+        return {
+            "revision_no": revision_no,
+            "confirm": True,
+            "already": True,
+            "patches": [],
+            "held": [_patch_brief(item) for item in held],
+        }
+    now = datetime.now()
+    for item in later:
+        item.status = "reverted"
+        session.add(item)
+    append_patch(
+        session,
+        corpus_id=int(row.corpus_id),
+        page_id=int(row.id),
+        belong=row.belong,
+        page_key=row.page_key,
+        origin="maintain",
+        op="revert_marker",
+        claim_path="revision",
+        payload={"revision_no": revision_no},
+        source_ref=f"revision:{revision_no}",
+        actor=actor,
+        status="applied",
+        toolset="wiki",
+        tool_name="revert",
+        observation={"revision_no": revision_no, "reverted": [item.id for item in later]},
+        now=now,
+    )
+    materialize_row(session, row, source="revert", now=now)
+    return {
+        "revision_no": int(row.id and _latest_revision_no(session, int(row.id)) or 0),
+        "confirm": True,
+        "reverted": [item.id for item in later],
+        "held": [item.id for item in held],
+        "content_sha": row.content_sha,
+    }
+
+
+def _latest_revision_no(session: Session, page_id: int) -> int:
+    current = session.exec(
+        select(WikiPageRevision.revision_no)
+        .where(WikiPageRevision.page_id == page_id)
+        .order_by(WikiPageRevision.revision_no.desc())
+    ).first()
+    try:
+        return int(current or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _patch_brief(row: WikiPagePatch) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "op": row.op,
+        "claim_path": row.claim_path,
+        "tool_name": row.tool_name,
+        "source_ref": row.source_ref,
+        "trust": row.trust,
+        "status": row.status,
+        "revision_no": row.revision_no,
+    }
 
 
 def _revision_source(batch: list[WikiPagePatch]) -> str:

@@ -1,7 +1,12 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { knowledgeApi, type WikiPageSummary, type WikiProposal } from '@/api/knowledge'
+import {
+  knowledgeApi,
+  type WikiMaintainRecord,
+  type WikiPageSummary,
+  type WikiProposal,
+} from '@/api/knowledge'
 import { runApi, type ConversationInterrupt } from '@/api/chat'
 
 const props = defineProps<{
@@ -27,6 +32,87 @@ const runId = ref('')
 const started = ref(false)
 const rejectReason = ref('')
 const accepted = ref(false)
+const records = ref<WikiMaintainRecord[]>([])
+const pageHits = ref<WikiPageSummary[]>([])
+const selectedPages = ref<{ belong: string; page_key: string; title: string }[]>([])
+const selectedSources = ref<{ source_id: number; title: string }[]>([])
+
+watch(visible, (open) => {
+  if (!open) return
+  if (props.page) {
+    const current = {
+      belong: props.page.belong,
+      page_key: props.page.page_key,
+      title: props.page.title || props.page.page_key,
+    }
+    if (
+      !selectedPages.value.some(
+        (item) => item.page_key === current.page_key && item.belong === current.belong
+      )
+    ) {
+      selectedPages.value = [current, ...selectedPages.value]
+    }
+  }
+  void loadContext()
+  if (props.starter && activeChatId.value && !started.value) {
+    started.value = true
+    void send(props.starter)
+  }
+})
+
+async function loadContext() {
+  if (!props.corpusKey) return
+  try {
+    records.value = unwrap(await knowledgeApi.maintainRecords(props.corpusKey)) || []
+    const catalog = unwrap(await knowledgeApi.listPages(props.corpusKey, {}))
+    pageHits.value = catalog.pages || []
+  } catch {
+    records.value = []
+  }
+}
+
+function addPage(item: WikiPageSummary) {
+  if (
+    selectedPages.value.some(
+      (page) => page.belong === item.belong && page.page_key === item.page_key
+    )
+  ) {
+    return
+  }
+  selectedPages.value = [
+    ...selectedPages.value,
+    { belong: item.belong, page_key: item.page_key, title: item.title || item.page_key },
+  ]
+}
+
+function removePage(belong: string, pageKey: string) {
+  selectedPages.value = selectedPages.value.filter(
+    (item) => item.belong !== belong || item.page_key !== pageKey
+  )
+}
+
+async function addRecord(item: WikiMaintainRecord) {
+  if (selectedSources.value.some((source) => source.title === item.locator)) return
+  busy.value = true
+  try {
+    const captured = item.source_id
+      ? { source_id: item.source_id }
+      : unwrap(await knowledgeApi.sediment(item.record_id))
+    selectedSources.value = [
+      ...selectedSources.value,
+      { source_id: captured.source_id, title: item.question || item.locator },
+    ]
+    if (activeChatId.value) {
+      await knowledgeApi.updateMaintainFocus(activeChatId.value, {
+        source_ids: [captured.source_id],
+      })
+    }
+  } catch {
+    // request interceptor already toasts HTTP errors
+  } finally {
+    busy.value = false
+  }
+}
 
 watch(
   () => props.chatId,
@@ -37,14 +123,6 @@ watch(
   { immediate: true }
 )
 
-watch(visible, (open) => {
-  if (!open) return
-  if (props.starter && activeChatId.value && !started.value) {
-    started.value = true
-    void send(props.starter)
-  }
-})
-
 function unwrap<T>(value: T | { data?: T }): T {
   if (value && typeof value === 'object' && 'data' in value && value.data) return value.data
   return value as T
@@ -52,10 +130,16 @@ function unwrap<T>(value: T | { data?: T }): T {
 
 async function ensureChat() {
   if (activeChatId.value) return activeChatId.value
+  if (!selectedPages.value.length && !selectedSources.value.length) {
+    throw new Error('context required')
+  }
   const opened = unwrap(
     await knowledgeApi.openMaintainChat(props.corpusKey, {
-      belong: props.page?.belong || '',
-      page_key: props.page?.page_key || '',
+      pages: selectedPages.value.map((item) => ({
+        belong: item.belong,
+        page_key: item.page_key,
+      })),
+      source_ids: selectedSources.value.map((item) => item.source_id),
     })
   )
   activeChatId.value = opened.chat_id
@@ -111,18 +195,34 @@ async function decide(optionId: 'accept' | 'reject') {
   const card = interrupt.value
   if (!card || !runId.value || busy.value) return
   busy.value = true
-  const reason = rejectReason.value.trim()
   try {
     await runApi.resume(runId.value, card.interrupt_id, {
       version: card.version,
       idempotency_key: crypto.randomUUID(),
-      answers: [
-        optionId === 'reject' && reason
-          ? { question_id: 'wiki_patch_accept', mode: 'custom', text: reason }
-          : { question_id: 'wiki_patch_accept', mode: 'option', option_id: optionId },
-      ],
+      answers: [{ question_id: 'wiki_patch_accept', mode: 'option', option_id: optionId }],
     })
     if (optionId === 'accept') accepted.value = true
+    rejectReason.value = ''
+    proposals.value = []
+    interrupt.value = null
+    await watchRun(runId.value)
+  } catch {
+    busy.value = false
+  }
+}
+
+async function supplement() {
+  const card = interrupt.value
+  const text = rejectReason.value.trim()
+  if (!card || !runId.value || busy.value || !text) return
+  busy.value = true
+  messages.value.push({ role: 'user', content: text })
+  try {
+    await runApi.resume(runId.value, card.interrupt_id, {
+      version: card.version,
+      idempotency_key: crypto.randomUUID(),
+      answers: [{ question_id: 'wiki_patch_accept', mode: 'custom', text }],
+    })
     rejectReason.value = ''
     proposals.value = []
     interrupt.value = null
@@ -141,15 +241,20 @@ async function submitPaste() {
       await knowledgeApi.pasteSource(props.corpusKey, {
         title: props.page?.title || '',
         body: text,
-        belong: props.page?.belong || '',
-        page_key: props.page?.page_key || '',
       })
     )
-    activeChatId.value = opened.chat_id
+    selectedSources.value = [
+      ...selectedSources.value,
+      { source_id: opened.source_id, title: text.slice(0, 40) },
+    ]
+    if (activeChatId.value) {
+      await knowledgeApi.updateMaintainFocus(activeChatId.value, {
+        source_ids: [opened.source_id],
+      })
+    }
     paste.value = ''
     showPaste.value = false
     busy.value = false
-    await send(t('knowledge.wiki_paste_question', { source: opened.source_id }))
   } catch {
     busy.value = false
   }
@@ -186,7 +291,46 @@ function recordAnswer(record: Record<string, unknown> | undefined): string {
     class="wiki-maintain-drawer"
   >
     <p class="wiki-maintain-hint">{{ t('knowledge.wiki_maintain_hint') }}</p>
-    <p v-if="page" class="wiki-maintain-page">{{ page.title || page.page_key }}</p>
+    <div class="wiki-maintain-picks">
+      <button
+        v-for="item in selectedPages"
+        :key="`${item.belong}/${item.page_key}`"
+        type="button"
+        class="wiki-maintain-chip"
+        @click="removePage(item.belong, item.page_key)"
+      >
+        {{ item.title }}
+      </button>
+      <span v-for="item in selectedSources" :key="item.source_id" class="wiki-maintain-chip">
+        {{ item.title }}
+      </span>
+    </div>
+    <el-select
+      class="wiki-maintain-select"
+      filterable
+      :placeholder="t('knowledge.wiki_pick_page')"
+      @change="addPage"
+    >
+      <el-option
+        v-for="item in pageHits"
+        :key="`${item.belong}/${item.page_key}`"
+        :label="item.title || item.page_key"
+        :value="item"
+      />
+    </el-select>
+    <el-select
+      class="wiki-maintain-select"
+      filterable
+      :placeholder="t('knowledge.wiki_pick_record')"
+      @change="addRecord"
+    >
+      <el-option
+        v-for="item in records"
+        :key="item.record_id"
+        :label="item.question"
+        :value="item"
+      />
+    </el-select>
     <div class="wiki-maintain-log">
       <p v-if="!messages.length" class="wiki-maintain-empty">
         {{ t('knowledge.wiki_maintain_empty') }}
@@ -204,7 +348,9 @@ function recordAnswer(record: Record<string, unknown> | undefined): string {
     <section v-if="proposals.length" class="wiki-maintain-proposals">
       <h4>{{ t('knowledge.wiki_proposals') }}</h4>
       <article v-for="item in proposals" :key="item.id">
-        <strong>{{ item.op }}</strong>
+        <strong>{{ item.scope || item.op }}</strong>
+        <span>{{ item.belong }}/{{ item.page_key }}</span>
+        <span>{{ item.trust }} {{ item.source_ref }}</span>
         <span>{{ item.claim_path }}</span>
         <code>{{ payloadText(item) }}</code>
         <pre v-if="item.diff" class="wiki-maintain-diff">{{ item.diff }}</pre>
@@ -212,7 +358,7 @@ function recordAnswer(record: Record<string, unknown> | undefined): string {
       <el-input
         v-model="rejectReason"
         class="wiki-maintain-reason"
-        :placeholder="t('knowledge.wiki_reject_reason')"
+        :placeholder="t('knowledge.wiki_supplement')"
       />
       <div class="wiki-maintain-actions">
         <el-button type="primary" :disabled="busy" @click="decide('accept')">
@@ -220,6 +366,9 @@ function recordAnswer(record: Record<string, unknown> | undefined): string {
         </el-button>
         <el-button :disabled="busy" @click="decide('reject')">
           {{ t('knowledge.wiki_reject') }}
+        </el-button>
+        <el-button :disabled="busy || !rejectReason.trim()" @click="supplement">
+          {{ t('knowledge.wiki_supplement_send') }}
         </el-button>
       </div>
     </section>
@@ -264,9 +413,26 @@ function recordAnswer(record: Record<string, unknown> | undefined): string {
   line-height: 18px;
 }
 
-.wiki-maintain-page {
+.wiki-maintain-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.wiki-maintain-chip {
+  border: 1px solid var(--ed-border-color);
+  border-radius: 999px;
+  background: var(--ed-fill-color-light);
   color: var(--ed-text-color-primary);
-  font-weight: 600;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 0 8px;
+}
+
+.wiki-maintain-select {
+  width: 100%;
+  margin-bottom: 8px;
 }
 
 .wiki-maintain-log {

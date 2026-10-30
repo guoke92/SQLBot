@@ -8,15 +8,13 @@ import {
   type WikiCorpusRow,
   type WikiPageDetail,
   type WikiPageSummary,
+  type WikiRevision,
 } from '@/api/knowledge'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
-import MaintainDrawer from '@/views/knowledge/maintain-drawer.vue'
+import WikiDiff from '@/views/knowledge/WikiDiff.vue'
 
 const { t } = useI18n()
 const route = useRoute()
-const maintainOpen = ref(false)
-const maintainChatId = ref<number | null>(null)
-const maintainStarter = ref('')
 
 const loading = ref(false)
 const detailLoading = ref(false)
@@ -64,7 +62,11 @@ const grouped = computed(() =>
   }))
 )
 
-const readingBody = computed(() => linkifyWiki(readableMarkdown(detail.value?.body || '')))
+const revisionBody = ref('')
+const revisionBanner = ref(0)
+const readingBody = computed(() =>
+  linkifyWiki(readableMarkdown(revisionBody.value || detail.value?.body || ''))
+)
 
 const backlinks = computed(() => {
   const current = detail.value
@@ -151,7 +153,13 @@ const loadDetail = async (page: WikiPageSummary | null) => {
     const next = await knowledgeApi.readPage(key, page.belong, page.page_key)
     if (token !== detailLoad) return
     detail.value = next
+    revisionBody.value = ''
+    revisionBanner.value = 0
+    selectedRevisions.value = []
+    historyDiff.value = ''
+    historyPatches.value = []
     await refreshOutline()
+    await loadHistory()
   } finally {
     if (token === detailLoad) detailLoading.value = false
   }
@@ -288,20 +296,16 @@ onMounted(async () => {
   if (corpus && corpora.value.some((item) => item.corpus_key === corpus)) {
     corpusKey.value = corpus
   }
-  const maintain = Number(route.query.maintain || 0)
-  if (maintain) {
-    maintainChatId.value = maintain
-    maintainStarter.value = sessionStorage.getItem('wiki-maintain-starter') || ''
-    sessionStorage.removeItem('wiki-maintain-starter')
-    maintainOpen.value = true
-  }
 })
 
-function openMaintain() {
-  maintainChatId.value = null
-  maintainStarter.value = ''
-  maintainOpen.value = true
-}
+const historyRows = ref<WikiRevision[]>([])
+const historyDiff = ref('')
+const historyPatches = ref<
+  { op?: string; claim_path?: string; source_ref?: string; tool_name?: string }[]
+>([])
+const selectedRevisions = ref<number[]>([])
+const revertTarget = ref(0)
+const revertPreview = ref('')
 
 async function promoteCurrent() {
   if (!detail.value || !corpusKey.value) return
@@ -310,9 +314,116 @@ async function promoteCurrent() {
   await loadPages()
 }
 
-function onMaintainApplied() {
-  void loadDetail(selected.value)
-  void loadPages()
+function unwrapHistory<T>(value: T | { data?: T }): T {
+  if (value && typeof value === 'object' && 'data' in value && value.data) return value.data
+  return value as T
+}
+
+async function loadHistory() {
+  if (!detail.value || !corpusKey.value) {
+    historyRows.value = []
+    return
+  }
+  historyRows.value =
+    unwrapHistory(
+      await knowledgeApi.pageHistory(corpusKey.value, detail.value.belong, detail.value.page_key)
+    ) || []
+}
+
+async function syncRevisionView() {
+  if (!detail.value || !corpusKey.value) return
+  const picked = [...selectedRevisions.value].sort((left, right) => left - right)
+  revertTarget.value = 0
+  revertPreview.value = ''
+  if (!picked.length) {
+    revisionBody.value = ''
+    revisionBanner.value = 0
+    historyDiff.value = ''
+    historyPatches.value = []
+    return
+  }
+  const shown = picked[picked.length - 1]
+  const body = unwrapHistory(
+    await knowledgeApi.pageRevision(
+      corpusKey.value,
+      detail.value.belong,
+      detail.value.page_key,
+      shown
+    )
+  )
+  revisionBody.value = body.body_md || ''
+  revisionBanner.value = shown
+  if (picked.length < 2) {
+    historyDiff.value = ''
+    historyPatches.value = []
+    return
+  }
+  const result = unwrapHistory(
+    await knowledgeApi.pageDiff(
+      corpusKey.value,
+      detail.value.belong,
+      detail.value.page_key,
+      picked[0],
+      picked[1]
+    )
+  )
+  historyDiff.value = result.diff || ''
+  historyPatches.value = result.patches || []
+}
+
+function toggleRevision(revisionNo: number) {
+  const current = selectedRevisions.value
+  if (current.includes(revisionNo)) {
+    selectedRevisions.value = current.filter((item) => item !== revisionNo)
+  } else if (current.length >= 2) {
+    selectedRevisions.value = [current[1], revisionNo]
+  } else {
+    selectedRevisions.value = [...current, revisionNo]
+  }
+  void syncRevisionView()
+}
+
+function showCurrentBody() {
+  selectedRevisions.value = []
+  void syncRevisionView()
+}
+
+async function previewRollback(revisionNo: number) {
+  if (!detail.value || !corpusKey.value) return
+  revertTarget.value = revisionNo
+  const preview = unwrapHistory(
+    await knowledgeApi.revertPage(
+      corpusKey.value,
+      detail.value.belong,
+      detail.value.page_key,
+      revisionNo,
+      false
+    )
+  )
+  const patches = Array.isArray(preview.patches)
+    ? (preview.patches as { op?: string; claim_path?: string; source_ref?: string }[])
+    : []
+  revertPreview.value = patches
+    .map((item) => `${item.op || ''} ${item.claim_path || ''} ${item.source_ref || ''}`)
+    .join('\n')
+}
+
+async function confirmRollback() {
+  if (!detail.value || !corpusKey.value || !revertTarget.value) return
+  await knowledgeApi.revertPage(
+    corpusKey.value,
+    detail.value.belong,
+    detail.value.page_key,
+    revertTarget.value,
+    true
+  )
+  revertTarget.value = 0
+  revertPreview.value = ''
+  selectedRevisions.value = []
+  revisionBody.value = ''
+  revisionBanner.value = 0
+  await loadDetail(selected.value)
+  await loadPages()
 }
 </script>
 
@@ -335,9 +446,6 @@ function onMaintainApplied() {
         <h2 class="wiki-title">{{ t('knowledge.wiki_browser') }}</h2>
         <p class="wiki-subtitle">{{ t('knowledge.wiki_browser_hint') }}</p>
       </div>
-      <el-button class="wiki-maintain-btn" :disabled="!corpusKey" @click="openMaintain">
-        {{ t('knowledge.wiki_maintain') }}
-      </el-button>
     </div>
 
     <div v-if="!corpora.length" class="wiki-empty">{{ t('knowledge.wiki_empty') }}</div>
@@ -476,6 +584,12 @@ function onMaintainApplied() {
 
             <div class="wiki-detail-grid">
               <article ref="bodyEl" class="wiki-body" @click="onBodyClick">
+                <p v-if="revisionBanner" class="wiki-revision-banner">
+                  {{ t('knowledge.wiki_revision_reading', { no: revisionBanner }) }}
+                  <button type="button" @click="showCurrentBody">
+                    {{ t('knowledge.wiki_revision_current') }}
+                  </button>
+                </p>
                 <MdComponent v-if="readingBody" :message="readingBody" />
               </article>
               <aside class="wiki-facts">
@@ -592,19 +706,49 @@ function onMaintainApplied() {
                   </p>
                 </section>
               </aside>
+              <aside class="wiki-revisions">
+                <h4>{{ t('knowledge.wiki_history') }}</h4>
+                <div
+                  v-for="item in historyRows"
+                  :key="item.revision_no"
+                  class="wiki-rev"
+                  :class="{ 'is-selected': selectedRevisions.includes(item.revision_no) }"
+                  role="button"
+                  tabindex="0"
+                  @click="toggleRevision(item.revision_no)"
+                >
+                  <span>
+                    #{{ item.revision_no }} {{ item.create_time }} {{ item.actor }}
+                    {{ item.tool_name }}
+                  </span>
+                  <small>{{ item.source_ref }} {{ (item.content_sha || '').slice(0, 8) }}</small>
+                  <el-button size="small" @click.stop="previewRollback(item.revision_no)">
+                    {{ t('knowledge.wiki_revert') }}
+                  </el-button>
+                </div>
+                <section v-if="historyDiff">
+                  <h4>{{ t('knowledge.wiki_revision_diff') }}</h4>
+                  <WikiDiff
+                    :diff="historyDiff"
+                    :path="detail ? `${detail.belong}/${detail.page_key}` : ''"
+                  />
+                </section>
+                <section v-if="historyPatches.length">
+                  <h4>{{ t('knowledge.wiki_revision_patches') }}</h4>
+                  <p v-for="(item, index) in historyPatches" :key="`${item.claim_path}-${index}`">
+                    {{ item.tool_name }} {{ item.op }} {{ item.claim_path }} {{ item.source_ref }}
+                  </p>
+                </section>
+                <pre v-if="revertPreview" class="wiki-history-diff">{{ revertPreview }}</pre>
+                <el-button v-if="revertTarget" size="small" type="primary" @click="confirmRollback">
+                  {{ t('knowledge.wiki_revert_confirm') }}
+                </el-button>
+              </aside>
             </div>
           </template>
         </div>
       </section>
     </div>
-    <MaintainDrawer
-      v-model:visible="maintainOpen"
-      :corpus-key="corpusKey"
-      :page="selected"
-      :chat-id="maintainChatId"
-      :starter="maintainStarter"
-      @applied="onMaintainApplied"
-    />
   </main>
 </template>
 
@@ -660,10 +804,6 @@ function onMaintainApplied() {
 .wiki-corpus {
   flex: none;
   width: 220px;
-}
-
-.wiki-maintain-btn {
-  margin-left: auto;
 }
 
 .wiki-split {
@@ -1081,10 +1221,53 @@ function onMaintainApplied() {
 .wiki-body :deep(.markdown-body li::before) {
   content: '';
   position: absolute;
-  left: 6px;
-  top: 15px;
-  width: 4px;
-  height: 4px;
+  grid-template-columns: minmax(0, 1fr) 240px 260px;
+  gap: 20px;
+  align-items: start;
+  margin-top: 18px;
+}
+
+.wiki-revision-banner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.wiki-revision-banner button {
+  border: 0;
+  background: transparent;
+  color: var(--ed-color-primary);
+  cursor: pointer;
+}
+
+.wiki-revisions {
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  font-size: 12px;
+}
+
+.wiki-rev {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.wiki-rev.is-selected {
+  background: var(--wiki-tint);
   border-radius: 50%;
   background: var(--ed-text-color-placeholder);
 }

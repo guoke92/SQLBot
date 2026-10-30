@@ -18,7 +18,11 @@ from apps.conversation.llm import (
     get_default_chat_config,
     resolve_chat_llm_config,
 )
-from apps.conversation.messages import deserialize_messages, serialize_messages
+from apps.conversation.messages import (
+    deserialize_messages,
+    message_content_text,
+    serialize_messages,
+)
 from apps.conversation.models import ConversationRun
 from apps.conversation.outcome import running_outcome
 from apps.conversation.run_service import create_interrupt, create_run
@@ -35,7 +39,9 @@ from apps.knowledge.wiki.maintain.tools import build_tools
 from apps.knowledge.wiki.writer import apply_proposed, proposed_patches, reject_proposed
 from common.error import SingleMessageError
 
-_MAX_TOOL_ROUNDS = 8
+# Internal analysis loop: read materials, compare pages, then propose.
+# The ceiling only stops a runaway. It is not the query-loop default of 8.
+_MAX_TOOL_ROUNDS = 24
 _HISTORY_TURNS = 8
 
 
@@ -50,6 +56,7 @@ class WikiMaintainState(RunState, total=False):
     tool_free_completion_marker: str
     final_text: str
     accept_decision: str
+    wiki_propose_nudges: int
     ai_modal_id: int | None
     ai_modal_name: str | None
 
@@ -57,13 +64,20 @@ class WikiMaintainState(RunState, total=False):
 def wiki_focus(chat: Chat) -> dict[str, Any]:
     raw = chat.agent_transcript if isinstance(chat.agent_transcript, dict) else {}
     focus = raw.get("wiki") if isinstance(raw.get("wiki"), dict) else {}
+    pages = focus.get("pages") if isinstance(focus.get("pages"), list) else []
+    sources = focus.get("sources") if isinstance(focus.get("sources"), list) else []
     return {
         "corpus_key": str(focus.get("corpus_key") or ""),
+        "pages": pages,
+        "sources": sources,
         "belong": str(focus.get("belong") or ""),
         "page_key": str(focus.get("page_key") or ""),
         "source_id": focus.get("source_id"),
         "origin": str(focus.get("origin") or "maintain"),
         "source_ref": str(focus.get("source_ref") or ""),
+        "related": focus.get("related")
+        if isinstance(focus.get("related"), list)
+        else [],
     }
 
 
@@ -134,6 +148,7 @@ async def initialize_wiki_state(
         "tool_free_completion_marker": TOOL_FREE_COMPLETION_MARKER,
         "final_text": "",
         "accept_decision": "",
+        "wiki_propose_nudges": 0,
         "ai_modal_id": model_config.model_id,
         "ai_modal_name": model_config.model_name,
         "user_id": getattr(user, "id", None),
@@ -156,28 +171,25 @@ def await_accept_node(state: Mapping[str, Any]) -> dict[str, Any]:
     run_id = str(state.get("run_id") or "")
     with session_scope() as session:
         pending = proposed_patches(session, run_id)
-        summary = (
-            "、".join(f"{item.op} {item.claim_path}" for item in pending[:6])
-            or "没有待确认的补丁"
-        )
+        summary = _impact_summary(session, run_id, pending)
         card = ClarificationCard.model_validate(
             {
                 "questions": [
                     {
                         "question_id": "wiki_patch_accept",
-                        "question": "是否把这些补丁写入 Wiki 草稿？",
+                        "question": "确认这些改动和影响后再写入草稿？",
                         "why": summary,
                         "options": [
                             {
                                 "option_id": "accept",
-                                "label": "接受",
-                                "meaning": "接受补丁",
+                                "label": "确认写入",
+                                "meaning": "确认写入",
                                 "field": "accept",
                             },
                             {
                                 "option_id": "reject",
-                                "label": "拒绝",
-                                "meaning": "拒绝补丁",
+                                "label": "先不改",
+                                "meaning": "先不改",
                                 "field": "reject",
                             },
                         ],
@@ -197,11 +209,27 @@ def await_accept_node(state: Mapping[str, Any]) -> dict[str, Any]:
     answers = interrupt(public)
     decision, reason = _decision(answers)
     if decision == "accept":
-        return {**state, "accept_decision": "accept"}
+        return {
+            **state,
+            "accept_decision": "accept",
+            "wiki_interrupt_id": stored.interrupt_id,
+        }
     messages = deserialize_messages(list(state.get("messages") or []))
+    if decision == "revise":
+        messages.append(
+            HumanMessage(
+                content=f"用户补充了说明，提案仍然保留：{reason}。请据此撤回或追加提案，不要声称已经写入。"
+            )
+        )
+        return {
+            **state,
+            "messages": serialize_messages(messages),
+            "accept_decision": "revise",
+            "tool_stop_reason": "",
+        }
     messages.append(
         HumanMessage(
-            content=f"用户拒绝了这批补丁。理由：{reason}。请修改提案，或说明为什么不能改。"
+            content=f"用户先不改这批补丁。理由：{reason}。请说明为什么停在这里，或按理由重新提案。"
         )
     )
     with session_scope() as session:
@@ -220,7 +248,12 @@ def apply_patches_node(state: Mapping[str, Any]) -> dict[str, Any]:
     actor = str(state.get("user_id") or "")
     try:
         with session_scope() as session:
-            applied = apply_proposed(session, run_id=run_id, actor=actor)
+            applied = apply_proposed(
+                session,
+                run_id=run_id,
+                actor=actor,
+                interrupt_id=str(state.get("wiki_interrupt_id") or "") or None,
+            )
             corpus_ids = {
                 int(item.corpus_id) for item in applied if item.status == "applied"
             }
@@ -238,9 +271,42 @@ def apply_patches_node(state: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def nudge_propose_node(state: Mapping[str, Any]) -> dict[str, Any]:
+    """Ask for the gap judgment when the model stopped without deciding."""
+    messages = deserialize_messages(list(state.get("messages") or []))
+    messages.append(
+        HumanMessage(
+            content=(
+                "论证里页面已经能推出的，不要调用 propose_patch。"
+                "页面推不出、下一次会用错字段、人群或关联的判定，必须调用 propose_patch 写上，不要留在正文里。"
+                "没有这种判定时，整段回答用 WIKI_NOTE: 开头并停止。"
+            )
+        )
+    )
+    return {
+        **state,
+        "messages": serialize_messages(messages),
+        "wiki_propose_nudges": int(state.get("wiki_propose_nudges") or 0) + 1,
+    }
+
+
+def _closes_without_patches(messages: list[BaseMessage]) -> bool:
+    from langchain_core.messages import AIMessage
+
+    if not messages:
+        return False
+    last = messages[-1]
+    if not isinstance(last, AIMessage) or getattr(last, "tool_calls", None):
+        return False
+    text = message_content_text(last.content).lstrip()
+    return text.startswith(TOOL_FREE_COMPLETION_MARKER)
+
+
 def route_after_wiki_agent(
     state: Mapping[str, Any],
-) -> Literal["agent", "execute_tools", "await_accept", "finish", "fail"]:
+) -> Literal[
+    "agent", "execute_tools", "await_accept", "nudge_propose", "finish", "fail"
+]:
     if state.get("error"):
         return "fail"
     if state.get("tool_grounding_retry"):
@@ -254,8 +320,29 @@ def route_after_wiki_agent(
             return "execute_tools"
     run_id = str(state.get("run_id") or "")
     with session_scope() as session:
-        if proposed_patches(session, run_id):
-            return "await_accept"
+        has_proposals = bool(proposed_patches(session, run_id))
+    rounds = int(state.get("tool_rounds") or 0)
+    limit = int(state.get("tool_round_limit") or _MAX_TOOL_ROUNDS)
+    return _route_when_idle(
+        has_proposals=has_proposals,
+        note_only=_closes_without_patches(messages),
+        nudges=int(state.get("wiki_propose_nudges") or 0),
+        tools_open=rounds < limit,
+    )
+
+
+def _route_when_idle(
+    *, has_proposals: bool, note_only: bool, nudges: int, tools_open: bool
+) -> str:
+    """A filed proposal finishes the turn. The user accepts each claim from the list.
+
+    A prose reply with tools still available is sent back to propose. Once the
+    round budget has closed the tools, finish on the summary already written.
+    """
+    if has_proposals or note_only:
+        return "finish"
+    if tools_open and nudges < 2:
+        return "nudge_propose"
     return "finish"
 
 
@@ -321,6 +408,7 @@ def recover_wiki_state(run: ConversationRun) -> WikiMaintainState:
         "tool_free_completion_marker": TOOL_FREE_COMPLETION_MARKER,
         "final_text": "",
         "accept_decision": "",
+        "wiki_propose_nudges": 0,
         "user_id": run.user_id,
         "oid": run.oid,
         "outcome": running_outcome(),
@@ -331,19 +419,43 @@ def _hydrate_hook(run: ConversationRun, _service: Any = None) -> dict[str, Any]:
     return hydrate_wiki_runtime(run)
 
 
+def _impact_summary(session: Any, run_id: str, pending: list[Any]) -> str:
+    from apps.conversation.models import ConversationRun
+    from apps.knowledge.wiki.maintain.service import classify_scope
+
+    run = session.get(ConversationRun, run_id)
+    focus: dict[str, Any] = {}
+    if run is not None:
+        chat = session.get(Chat, int(run.chat_id))
+        raw = chat.agent_transcript if chat is not None else {}
+        wiki = raw.get("wiki") if isinstance(raw, dict) else {}
+        if isinstance(wiki, dict):
+            focus = wiki
+    parts: list[str] = []
+    for item in pending[:8]:
+        scope = classify_scope(session, item.belong, item.page_key, focus)
+        parts.append(
+            f"{scope} {item.belong}/{item.page_key} {item.op} "
+            f"trust={item.trust or '-'} source={item.source_ref or '-'}"
+        )
+    return "；".join(parts) or "没有待确认的补丁"
+
+
 def _decision(answers: Any) -> tuple[str, str]:
-    reason = "用户拒绝了这批补丁"
     if not isinstance(answers, list):
-        return "reject", reason
+        return "reject", "用户先不改这批补丁"
     for item in answers:
         if not isinstance(item, dict):
             continue
-        if str(item.get("option_id") or "") == "accept":
-            return "accept", ""
+        option_id = str(item.get("option_id") or "")
         text = str(item.get("text") or "").strip()
+        if option_id == "accept":
+            return "accept", ""
+        if option_id == "reject":
+            return "reject", text or "用户先不改这批补丁"
         if text:
-            reason = text
-    return "reject", reason
+            return "revise", text
+    return "reject", "用户先不改这批补丁"
 
 
 register_hydrate("wiki_maintain", _hydrate_hook)

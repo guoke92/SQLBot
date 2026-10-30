@@ -643,6 +643,7 @@ async def chat_record_usage(
 async def chat_record_feedback(
     session: SessionDep,
     current_user: CurrentUser,
+    trans: Trans,
     chat_record_id: int,
     body: dict,
 ):
@@ -657,7 +658,15 @@ async def chat_record_feedback(
             comment=body.get("comment") or body.get("feedback_comment"),
         )
 
-    return await asyncio.to_thread(inner)
+    result = await asyncio.to_thread(inner)
+    if result.get("feedback"):
+        try:
+            from apps.knowledge.wiki.maintain.service import start_voted_dialogue
+
+            await start_voted_dialogue(session, current_user, chat_record_id, trans)
+        except Exception:  # noqa: BLE001 — starting the wiki turn must not undo the vote
+            pass
+    return result
 
 
 @router.patch(

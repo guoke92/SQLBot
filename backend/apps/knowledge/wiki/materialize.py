@@ -24,6 +24,11 @@ from apps.knowledge.wiki.contract import (
     lint_page,
     parse_page,
 )
+from apps.knowledge.wiki.maintain.materials import (
+    EVIDENCE_PREFIXES,
+    cap_claim,
+    kind_for_origin,
+)
 
 PATCH_OPS = frozenset(
     {
@@ -34,11 +39,12 @@ PATCH_OPS = frozenset(
         "create_page",
         "replace_base",
         "promote",
+        "revert_marker",
     }
 )
-MAINTAIN_ORIGINS = frozenset({"maintain", "conversation", "document"})
+
+MAINTAIN_ORIGINS = frozenset({"maintain", "conversation", "document", "wiki"})
 OVERLAY_STATUSES = frozenset({"applied", "conflicted"})
-_NOTES_HEADING = "## 维护说明"
 _FENCE_OPEN = re.compile(r"^```ground:(?P<kind>[a-z-]+)\s*$")
 _FENCE_CLOSE = re.compile(r"^```\s*$")
 _BUSINESS_BELONGS = frozenset(
@@ -88,17 +94,23 @@ class MaterializeResult:
     outcomes: list[PatchOutcome] = field(default_factory=list)
 
 
+def claim_evidence(source_ref: str) -> str:
+    ref = source_ref.strip()
+    if any(ref.startswith(prefix) for prefix in EVIDENCE_PREFIXES):
+        return ref
+    return ""
+
+
 def content_sha(body: str) -> str:
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
-def cap_trust(origin: str, requested: str) -> str:
-    """Conversation, documents, and the maintain loop cannot mint confirmed."""
-    if origin in MAINTAIN_ORIGINS or origin == "maintain":
+def cap_trust(origin: str, requested: str, *, aspect: str = "business") -> str:
+    """Cap a requested trust by material kind and claim aspect."""
+    capped = cap_claim(kind_for_origin(origin), aspect, requested)
+    if capped == "refuse":
         return "proposed"
-    if requested in {"confirmed", "proposed", "disputed", "rejected"}:
-        return requested
-    return "proposed"
+    return capped
 
 
 def materialize_markdown(
@@ -106,7 +118,7 @@ def materialize_markdown(
 ) -> MaterializeResult:
     """Replay overlay patches onto ``base_body``. ``replace_base`` is a no-op.
 
-    ``proposed`` and ``rejected`` rows stay in the log and do not change the body.
+    ``proposed``, ``rejected``, and ``reverted`` rows stay in the log.
     """
     body = str(base_body or "")
     outcomes: list[PatchOutcome] = []
@@ -114,10 +126,10 @@ def materialize_markdown(
         op = str(patch.get("op") or "")
         origin = str(patch.get("origin") or "maintain")
         status = str(patch.get("status") or "applied")
-        if status in {"proposed", "rejected"}:
+        if status in {"proposed", "rejected", "reverted"}:
             outcomes.append(PatchOutcome(status=status))
             continue
-        if op == "replace_base" or origin == "import":
+        if op in {"replace_base", "revert_marker"} or origin == "import":
             outcomes.append(PatchOutcome(status="applied"))
             continue
         if status == "conflicted" and op != "open_review":
@@ -266,7 +278,7 @@ def _apply_one(body: str, patch: dict[str, Any]) -> tuple[str, PatchOutcome]:
     if op not in PATCH_OPS:
         return _conflict(body, patch, "未知补丁", f"不认识的操作 {op}")
     if op == "create_page":
-        return _create_page(body, payload, source_ref)
+        return _create_page(body, payload, source_ref, origin)
     if op == "promote":
         return _promote_status(body, payload, patch)
     if not body.strip():
@@ -300,12 +312,13 @@ def _apply_one(body: str, patch: dict[str, Any]) -> tuple[str, PatchOutcome]:
             "主键、粒度、名称锚点和默认过滤只跟随导入",
         )
     if local == "notes" or local.startswith("notes") or local == "body":
-        text = str(payload.get("text") or payload.get("body") or "").strip()
+        text = str(
+            payload.get("text") or payload.get("body") or payload.get("notes") or ""
+        ).strip()
         if not text:
             return _conflict(body, patch, "说明为空", "notes 需要 text")
-        stamped = f"{text}\n\n来源：{source_ref}" if source_ref else text
         _stamp(meta, source_ref)
-        return _append_note(_dump(meta, prose), stamped), PatchOutcome(status="applied")
+        return _append_note(_dump(meta, prose), text), PatchOutcome(status="applied")
     if local.startswith("values."):
         code = local.split(".", 1)[1]
         return _upsert_dict_value(meta, prose, code, payload, origin, source_ref, patch)
@@ -351,8 +364,16 @@ def _promote_status(
     return _dump(meta, prose), PatchOutcome(status="applied")
 
 
+_PAGE_SHELL_KEYS = frozenset(
+    {"belong", "page_key", "title", "trust", "type", "status", "sources", "evidence"}
+)
+
+
 def _create_page(
-    body: str, payload: dict[str, Any], source_ref: str
+    body: str,
+    payload: dict[str, Any],
+    source_ref: str,
+    origin: str = "maintain",
 ) -> tuple[str, PatchOutcome]:
     if body.strip():
         return _conflict(
@@ -373,9 +394,91 @@ def _create_page(
         return _conflict(
             body, {"claim_path": "page"}, "页标识不合法", f"{belong}/{page_key}"
         )
-    return blank_page(
+    drafted = blank_page(
         belong=belong, page_key=page_key, title=title, source_ref=source_ref
-    ), PatchOutcome(status="applied")
+    )
+    content = {
+        key: value
+        for key, value in payload.items()
+        if key not in _PAGE_SHELL_KEYS and value not in ("", None, [], {})
+    }
+    note = str(
+        content.pop("text", None)
+        or content.pop("notes", None)
+        or content.pop("body", None)
+        or ""
+    ).strip()
+    aliases = [
+        str(item).strip()
+        for item in content.pop("aliases", []) or []
+        if str(item).strip()
+    ]
+    allowed = _EXCLUSIVE_FIELDS.get(page_type, frozenset())
+    ground = {key: value for key, value in content.items() if key in allowed}
+    predicate = str(ground.get("predicate") or "")
+    targets = ground.get("field_targets")
+    if predicate and isinstance(targets, list):
+        columns = [str(item).rsplit(".", 1)[-1] for item in targets]
+        if any(column and column in predicate for column in columns):
+            ground["field_targets"] = [
+                item
+                for item, column in zip(targets, columns, strict=True)
+                if column in predicate
+            ]
+    if re.search(r"\b(NOT\s+EXISTS|SELECT|JOIN)\b", predicate, re.IGNORECASE):
+        ground.pop("predicate", None)
+    lead = str(ground.get("boundary") or ground.get("predicate") or "").strip()
+    if lead:
+        drafted = drafted.rstrip() + "\n\n" + lead + "\n"
+    if ground:
+        claim_path = next(
+            (
+                key
+                for key in (
+                    "predicate",
+                    "content",
+                    "question",
+                    "scenario",
+                    "field",
+                    "caliber",
+                )
+                if key in ground
+            ),
+            next(iter(ground)),
+        )
+        drafted, seeded = _apply_one(
+            drafted,
+            {
+                "op": "upsert_claim",
+                "origin": origin,
+                "claim_path": claim_path,
+                "payload": ground,
+                "source_ref": source_ref,
+            },
+        )
+        if seeded.status != "applied":
+            return drafted, seeded
+    if aliases or ground.get("field_targets"):
+        meta, prose = _split_frontmatter(drafted)
+        if aliases:
+            meta["aliases"] = aliases
+        if ground.get("field_targets"):
+            meta["field_targets"] = ground["field_targets"]
+        drafted = _dump(meta, prose)
+    if note:
+        drafted, seeded = _apply_one(
+            drafted,
+            {
+                "op": "upsert_claim",
+                "origin": origin,
+                "claim_path": "notes",
+                "payload": {"text": note},
+                "source_ref": source_ref,
+            },
+        )
+        if seeded.status != "applied":
+            return drafted, seeded
+    return drafted, PatchOutcome(status="applied")
 
 
 def _upsert_dict_value(
@@ -401,7 +504,7 @@ def _upsert_dict_value(
     current = values.get(code) if isinstance(values.get(code), dict) else {}
     label = str(payload.get("label") or "").strip()
     requested = str(payload.get("trust") or "proposed")
-    trust = cap_trust(origin, requested)
+    trust = cap_trust(origin, requested, aspect="enum_label")
     if (
         current
         and str(current.get("trust") or "") == "confirmed"
@@ -434,8 +537,9 @@ def _upsert_dict_value(
             else trust
         )
     )
-    if source_ref and not nxt.get("evidence"):
-        nxt["evidence"] = source_ref
+    evidence = claim_evidence(source_ref)
+    if evidence and not nxt.get("evidence"):
+        nxt["evidence"] = evidence
     values[code] = nxt
     data["values"] = values
     prose = _replace_fence(prose, target, data)
@@ -571,8 +675,9 @@ def _upsert_relation(
         note = str(payload.get("note") or "").strip()
         if note:
             current["authenticity_note"] = note
-        if source_ref and not current.get("evidence"):
-            current["evidence"] = source_ref
+        evidence = claim_evidence(source_ref)
+        if evidence and not current.get("evidence"):
+            current["evidence"] = evidence
         prose = _replace_fence(prose, match, current)
     else:
         block = {
@@ -580,8 +685,10 @@ def _upsert_relation(
             "left": left,
             "right": right,
             "cardinality": cardinality or "one_to_many",
-            "trust": cap_trust(origin, str(payload.get("trust") or "proposed")),
-            "evidence": source_ref,
+            "trust": cap_trust(
+                origin, str(payload.get("trust") or "proposed"), aspect="relation"
+            ),
+            "evidence": claim_evidence(source_ref),
         }
         note = str(payload.get("note") or "").strip()
         if note:
@@ -697,7 +804,9 @@ def _upsert_exclusive(
         return _conflict(_dump(meta, prose), patch, title, review)
     updates = _exclusive_updates(kind, local, payload)
     if kind == "pattern" and payload.get("trust"):
-        updates["trust"] = cap_trust(origin, str(payload.get("trust") or "proposed"))
+        updates["trust"] = cap_trust(
+            origin, str(payload.get("trust") or "proposed"), aspect="pattern"
+        )
     if not updates:
         return _conflict(
             _dump(meta, prose),
@@ -709,8 +818,9 @@ def _upsert_exclusive(
     if not merged:
         merged[kind] = str(meta.get("title") or meta.get("page_key") or kind)
     merged.update(updates)
-    if source_ref and not merged.get("evidence"):
-        merged["evidence"] = source_ref
+    evidence = claim_evidence(source_ref)
+    if evidence and not merged.get("evidence"):
+        merged["evidence"] = evidence
     if target is None:
         prose = _append_fence(prose, kind, merged)
     else:
@@ -753,8 +863,10 @@ def _upsert_stage(
         "from": str(payload.get("from") or ""),
         "event": str(payload.get("event") or ""),
         "to": str(payload.get("to") or ""),
-        "evidence": source_ref,
     }
+    evidence = claim_evidence(source_ref)
+    if evidence:
+        incoming["evidence"] = evidence
     if not any(
         isinstance(item, dict)
         and str(item.get("from") or "") == incoming["from"]
@@ -857,9 +969,32 @@ def _split_frontmatter(content: str) -> tuple[dict[str, Any], str]:
     return meta, content[end + 5 :]
 
 
+class _WikiDumper(yaml.SafeDumper):
+    """One frontmatter writer. Scalar lists stay on one line, matching authored pages."""
+
+
+def _represent_list(
+    dumper: yaml.SafeDumper, data: list[Any]
+) -> yaml.nodes.SequenceNode:
+    flow = all(
+        isinstance(item, str | int | float | bool) or item is None for item in data
+    )
+    return dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=flow)
+
+
+_WikiDumper.yaml_representers = {
+    **yaml.SafeDumper.yaml_representers,
+    list: _represent_list,
+}
+
+
 def _dump(meta: dict[str, Any], prose: str) -> str:
-    dumped = yaml.safe_dump(
-        meta, allow_unicode=True, sort_keys=False, width=1000
+    dumped = yaml.dump(
+        meta,
+        Dumper=_WikiDumper,
+        allow_unicode=True,
+        sort_keys=False,
+        width=1000,
     ).rstrip()
     body = prose.lstrip("\n")
     return f"---\n{dumped}\n---\n\n{body}".rstrip() + "\n"
@@ -923,20 +1058,13 @@ def _append_review(body: str, kind: str, title: str, review: str) -> str:
 
 def _append_note(body: str, text: str) -> str:
     paragraph = text.strip()
-    if not paragraph:
-        return body
-    if _NOTES_HEADING not in body:
-        return body.rstrip() + f"\n\n{_NOTES_HEADING}\n\n{paragraph}\n"
-    if paragraph in body:
+    if not paragraph or paragraph in body:
         return body
     lines = body.splitlines()
-    start = next(
-        index for index, line in enumerate(lines) if line.strip() == _NOTES_HEADING
-    )
-    end = len(lines)
-    for index in range(start + 1, len(lines)):
-        if lines[index].startswith("## "):
-            end = index
+    insert_at = len(lines)
+    for index, line in enumerate(lines):
+        if line.startswith("```") or line.startswith("## "):
+            insert_at = index
             break
-    lines[end:end] = ["", paragraph]
+    lines[insert_at:insert_at] = ["", paragraph, ""]
     return "\n".join(lines).rstrip() + "\n"

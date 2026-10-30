@@ -18,6 +18,8 @@
 
 AI智能问数 is an intelligent data query system based on large language models and RAG, meticulously crafted by the DataEase open-source project team. With AI智能问数, users can perform conversational data analysis (ChatBI), quickly extracting the necessary data information and visualizations, and supporting further intelligent analysis.
 
+This repository continues from upstream SQLBot. The public image `dataease/sqlbot` does not include the Wiki, the unified chat graph, catalog profiling, or this repository's server package. Operations and release steps are in the Chinese handover: [交接文档](交接文档.md).
+
 ## How It Works
 
 <img width="1105" height="577" alt="image" src="https://github.com/user-attachments/assets/58f147ff-412e-4ac9-a450-5d01a0bbe9f6" />
@@ -29,6 +31,8 @@ AI智能问数 is an intelligent data query system based on large language model
 - **Secure and Controllable:** Provides a workspace-level resource isolation mechanism, building clear data boundaries and ensuring data access security. Supports fine-grained data permission configuration, strengthening permission control capabilities and ensuring compliance and controllability during use.
 - **Easy Integration:** Supports multiple integration methods, providing capabilities such as web embedding, pop-up embedding, and MCP invocation. It can be quickly embedded into applications such as n8n, Dify, MaxKB, and DataEase, allowing various applications to quickly acquire intelligent data collection capabilities.
 - **Increasingly Accurate with Use:** Supports customizable prompts and terminology library configurations, maintainable SQL example calibration logic, and accurate matching of business scenarios. Efficient operation, based on continuous iteration and optimization using user interaction data, the data collection effect gradually improves with use, becoming more accurate with each use.
+- **Wiki for questions:** Tables, calibers, enums, and relations are maintained as recallable pages. The Wiki dialogue only proposes changes; a page is written after confirmation.
+- **Inspectable runs:** A question's thinking chain, SQL, and result share one execution record and can be reviewed in Q&A administration.
 
 ## Supported LLM Providers
 
@@ -49,35 +53,38 @@ AI智能问数 is an intelligent data query system based on large language model
 
 ## Quick Start
 
-### Installation and Deployment
+Configuration lives in the repository-root `.env` (not committed). Hand over secrets, the database password, and the initial admin password separately.
 
-Prepare a Linux server, install [Docker](https://docs.docker.com/get-docker/), and execute the following one-click installation script:
+### Local development
+
+Requires Python 3.11, Node, pnpm, and a local PostgreSQL. Run and test with `backend/venv`.
 
 ```bash
-docker run -d \
-  --name sqlbot \
-  --restart unless-stopped \
-  -p 8000:8000 \
-  -p 8001:8001 \
-  -v ./data/sqlbot/excel:/opt/sqlbot/data/excel \
-  -v ./data/sqlbot/file:/opt/sqlbot/data/file \
-  -v ./data/sqlbot/images:/opt/sqlbot/images \
-  -v ./data/sqlbot/logs:/opt/sqlbot/app/logs \
-  -v ./data/postgresql:/var/lib/postgresql/data \
-  --privileged=true \
-  dataease/sqlbot
+./sqlbot-dev.sh start all
+./sqlbot-dev.sh status
 ```
 
-You can also quickly deploy AI智能问数 through the [1Panel app store](https://apps.fit2cloud.com/1panel).
+- UI: http://localhost:5173
+- API: http://localhost:8000 (docs at http://localhost:8000/docs)
+- Logs: `data/logs/backend-dev.log`, `data/logs/frontend-dev.log`
 
-If you are in an intranet environment, you can deploy AI智能问数 via the [offline installation package](https://community.fit2cloud.com/#/products/sqlbot/downloads).
+### Server release
 
+Package on a machine that already has the root `.env`, then install on a Linux server under `/opt/sqlbot`:
 
-### Access methods
+```bash
+./package.sh
+```
 
-- Open in your browser: http://<your server IP>:8000/
-- Username: admin
-- Password: SQLBot@123456
+Copy `sqlbot-server-*.tar.gz` to the server's `/tmp` and run the package's `init.sh` as root. The server needs PostgreSQL, `uv`, `npm`, nginx, and systemd. The public entry is nginx port `3001`. Backend `8000`, MCP `8001`, and the chart service `3000` stay on the host. See [交接文档](交接文档.md) for the full procedure.
+
+`docker run dataease/sqlbot`, the 1Panel app store, and the upstream offline package install the public image. They do not deploy this repository.
+
+### Access
+
+- Local development: http://localhost:5173
+- This server layout: http://&lt;server&gt;:3001/
+- The admin account and initial password come from `DEFAULT_PWD` in that environment's `.env`
 
 
 ## UI Display

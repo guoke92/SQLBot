@@ -20,6 +20,8 @@
 
 AI智能问数是一款基于大语言模型和 RAG 的智能问数系统，由 DataEase 开源项目组匠心出品。借助 AI智能问数，用户可以实现对话式数据分析（ChatBI），快速提炼获取所需的数据信息及可视化图表，并且支持进一步开展智能分析。
 
+本仓库在上游 SQLBot 上继续开发。公开镜像 `dataease/sqlbot` 不包含这里的问数 Wiki、统一对话图、目录画像和当前的服务器打包发布。维护、操作和发布细节见 [交接文档](docs/交接文档.md)。
+
 ## 工作原理
 
 <img width="1153" height="563" alt="image" src="https://github.com/user-attachments/assets/8bc40db1-2602-4b68-9802-b9be36281967" />
@@ -30,6 +32,8 @@ AI智能问数是一款基于大语言模型和 RAG 的智能问数系统，由 
 - **安全可控**：提供工作空间级资源隔离机制，构建清晰数据边界，保障数据访问安全；支持细粒度数据权限配置，强化权限管控能力，确保使用过程合规可控。
 - **易于集成**：支持多种集成方式，提供 Web 嵌入、弹窗嵌入、MCP 调用等能力；能够快速嵌入到 n8n、Dify、MaxKB、DataEase 等应用，让各类应用快速拥有智能问数能力。
 - **越问越准**：支持自定义提示词、术语库配置，可维护 SQL 示例校准逻辑，精准匹配业务场景；高效运营，基于用户交互数据持续迭代优化，问数效果随使用逐步提升，越问越准。
+- **问数 Wiki**：把表、口径、枚举和关系整理成可召回的页面。Wiki 维护对话只提案，确认后才写入页面。
+- **过程可核对**：一次提问的思考链、SQL 和结果写在同一条执行记录里，可在智能问数管理中回看。
 
 ## 支持的大模型服务商
 
@@ -50,34 +54,38 @@ AI智能问数是一款基于大语言模型和 RAG 的智能问数系统，由 
 
 ## 快速开始
 
-### 安装部署
+配置在仓库根目录 `.env`（不入库）。密钥、数据库密码和管理员初始密码以该文件为准，单独交接。
 
-准备一台 Linux 服务器，安装好 [Docker](https://docs.docker.com/get-docker/)，执行以下一键安装脚本：
+### 本地开发
+
+需要 Python 3.11、Node、pnpm，以及本机 PostgreSQL。启动和测试使用 `backend/venv`。
 
 ```bash
-docker run -d \
-  --name sqlbot \
-  --restart unless-stopped \
-  -p 8000:8000 \
-  -p 8001:8001 \
-  -v ./data/sqlbot/excel:/opt/sqlbot/data/excel \
-  -v ./data/sqlbot/file:/opt/sqlbot/data/file \
-  -v ./data/sqlbot/images:/opt/sqlbot/images \
-  -v ./data/sqlbot/logs:/opt/sqlbot/app/logs \
-  -v ./data/postgresql:/var/lib/postgresql/data \
-  --privileged=true \
-  dataease/sqlbot
+./sqlbot-dev.sh start all
+./sqlbot-dev.sh status
 ```
 
-你也可以通过 [1Panel 应用商店](https://apps.fit2cloud.com/1panel) 快速部署 AI智能问数。
+- 页面：http://localhost:5173
+- 接口：http://localhost:8000 （文档 http://localhost:8000/docs ）
+- 日志：`data/logs/backend-dev.log`、`data/logs/frontend-dev.log`
 
-如果是内网环境，你可以通过 [离线安装包方式](https://community.fit2cloud.com/#/products/sqlbot/downloads) 部署 AI智能问数。
+### 服务器发布
+
+在已准备好根目录 `.env` 的机器上打包，再在 Linux 服务器上安装到 `/opt/sqlbot`：
+
+```bash
+./package.sh
+```
+
+把生成的 `sqlbot-server-*.tar.gz` 放到服务器 `/tmp`，用 root 执行包内 `init.sh`。服务器需要 PostgreSQL、`uv`、`npm`、nginx 和 systemd。对外入口是 nginx `3001`；后端 `8000`、MCP `8001`、图表服务 `3000` 仅本机。步骤、健康检查和升级注意见 [交接文档](docs/交接文档.md)。
+
+`docker run dataease/sqlbot`、1Panel 应用商店和上游离线包安装的是公开镜像，不能代替上面的发布。
 
 ### 访问方式
 
-- 在浏览器中打开: http://<你的服务器IP>:8000/
-- 用户名: admin
-- 密码: SQLBot@123456
+- 本地开发：http://localhost:5173
+- 当前服务器部署：http://&lt;服务器&gt;:3001/
+- 管理员账号和初始密码见该环境 `.env` 的 `DEFAULT_PWD`
 
 ### 联系我们
 

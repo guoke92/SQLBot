@@ -32,6 +32,8 @@ def test_llm_error_is_retryable_for_rate_limit_and_timeout() -> None:
     assert llm_error_is_retryable(timeout)
     assert not llm_error_is_retryable(_BadRequest())
     assert not llm_error_is_retryable(ValueError("invalid_request schema"))
+    refused = type("APIConnectionError", (ConnectionError,), {})("Connection error.")
+    assert not llm_error_is_retryable(refused)
 
 
 def test_consume_llm_retries_rate_limit_then_succeeds(monkeypatch) -> None:
@@ -69,5 +71,29 @@ def test_consume_llm_does_not_retry_client_errors(monkeypatch) -> None:
         consume_llm(_Model(), [])
         raise AssertionError("expected client error")
     except _BadRequest:
+        pass
+    assert calls["n"] == 1
+
+
+def test_consume_llm_does_not_retry_a_refused_model(monkeypatch) -> None:
+    monkeypatch.setattr("apps.chat.steps.stream.time.sleep", lambda *_a, **_k: None)
+    monkeypatch.setattr("apps.chat.steps.stream.settings.LLM_MAX_RETRIES", 2)
+    calls = {"n": 0}
+
+    class _Refused(ConnectionError):
+        def __str__(self) -> str:
+            return "Connection error."
+
+    _Refused.__name__ = "APIConnectionError"
+
+    class _Model:
+        def invoke(self, _messages: object) -> SimpleNamespace:
+            calls["n"] += 1
+            raise _Refused()
+
+    try:
+        consume_llm(_Model(), [])
+        raise AssertionError("expected connection error")
+    except _Refused:
         pass
     assert calls["n"] == 1
